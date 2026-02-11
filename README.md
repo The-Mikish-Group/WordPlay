@@ -10,18 +10,11 @@ Word puzzle game — mobile-first PWA built with ASP.NET Core .NET 10.
 
 ## Project Structure
 
-- `wwwroot/js/levels.js` — Level data (60+ hand-curated levels)
-- `wwwroot/js/crossword.js` — Grid generator with strict adjacency rules
-- `wwwroot/js/app.js` — Main game logic, rendering, touch interactions
-- `wwwroot/css/app.css` — All styles and animations
-- `wwwroot/sw.js` — Service worker for offline support
-- `CLAUDE-CODE-HANDOFF.md` — Phase 2 expansion spec
-
-## Phase 2 TODO
-
-See `CLAUDE-CODE-HANDOFF.md` for full spec:
-- [ ] Procedural level generation (expand to 200+ levels)
-- [ ] Full English dictionary for bonus word validation
-- [ ] Generate proper PWA icons (192x192 and 512x512)
-- [ ] Daily puzzle feature
-- [ ] Test on iOS Safari and Android Chrome
+- `WordPlay/wwwroot/js/app.js` — Main game logic, rendering, touch interactions
+- `WordPlay/wwwroot/js/crossword.js` — Grid generator with strict adjacency rules
+- `WordPlay/wwwroot/js/levels.js` — Original hand-curated levels
+- `WordPlay/wwwroot/js/level-loader.js` — Chunked level loader for 46,000+ levels
+- `WordPlay/wwwroot/data/` — Level data split into chunked JSON files
+- `WordPlay/wwwroot/css/app.css` — All styles and animations
+- `WordPlay/wwwroot/sw.js` — Service worker for offline support
+- `scraper/` — Level scraping and icon generation tools
