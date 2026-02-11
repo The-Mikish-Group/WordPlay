@@ -17,4 +17,4 @@ Word puzzle game — mobile-first PWA built with ASP.NET Core .NET 10.
 - `WordPlay/wwwroot/data/` — Level data split into chunked JSON files
 - `WordPlay/wwwroot/css/app.css` — All styles and animations
 - `WordPlay/wwwroot/sw.js` — Service worker for offline support
-- `scraper/` — Level scraping and icon generation tools
+

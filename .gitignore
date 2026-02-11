@@ -14,8 +14,8 @@ launchSettings.json
 node_modules/
 package-lock.json
 
-## Scraper checkpoints
-scraper/checkpoints/
+## Scraper
+scraper/
 
 ## Claude Code
 .claude/
