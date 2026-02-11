@@ -9,6 +9,7 @@ obj/
 *.exe
 *.pdb
 launchSettings.json
+Properties/
 
 ## Node (for build tools)
 node_modules/
