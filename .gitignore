@@ -1,0 +1,22 @@
+## Visual Studio / .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+launchSettings.json
+
+## Node (for build tools)
+node_modules/
+package-lock.json
+
+## Claude Code
+.claude/
+
+## OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,59 @@
+const CACHE_NAME = 'wordplay-v2';
+const ASSETS = [
+    '/',
+    '/index.html',
+    '/css/app.css',
+    '/js/app.js',
+    '/js/levels.js',
+    '/js/level-loader.js',
+    '/js/crossword.js',
+    '/manifest.json',
+];
+
+const DATA_CACHE = 'wordplay-data-v1';
+
+self.addEventListener('install', e => {
+    e.waitUntil(
+        caches.open(CACHE_NAME).then(c => c.addAll(ASSETS))
+    );
+    self.skipWaiting();
+});
+
+self.addEventListener('fetch', e => {
+    const url = new URL(e.request.url);
+    
+    // Data files (level chunks): cache after first fetch, then serve from cache
+    if (url.pathname.startsWith('/data/')) {
+        e.respondWith(
+            caches.open(DATA_CACHE).then(cache =>
+                cache.match(e.request).then(cached => {
+                    if (cached) return cached;
+                    return fetch(e.request).then(response => {
+                        if (response.ok) {
+                            cache.put(e.request, response.clone());
+                        }
+                        return response;
+                    });
+                })
+            )
+        );
+        return;
+    }
+
+    // App shell: cache-first
+    e.respondWith(
+        caches.match(e.request).then(r => r || fetch(e.request))
+    );
+});
+
+self.addEventListener('activate', e => {
+    e.waitUntil(
+        caches.keys().then(keys =>
+            Promise.all(
+                keys.filter(k => k !== CACHE_NAME && k !== DATA_CACHE)
+                    .map(k => caches.delete(k))
+            )
+        )
+    );
+    self.clients.claim();
+});

@@ -1,0 +1,14 @@
+{
+    "name": "WordPlay",
+    "short_name": "Words",
+    "description": "Word puzzle game",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#0f0520",
+    "theme_color": "#0f0520",
+    "icons": [
+        { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    ]
+}
