@@ -105,13 +105,15 @@ async function getLevel(levelNum) {
     const data = await loadChunk(chunk);
     if (!data || !data[levelNum]) return null;
     
-    const [letters, words, group, pack] = data[levelNum];
-    
+    const entry = data[levelNum];
+    const [letters, words, group, pack] = entry;
+    const bonus = entry[4] || [];  // 5th element if present (backwards-compatible)
+
     return {
         levelNumber: levelNum,
         letters: letters.toLowerCase(),
         words: words.map(w => w.toUpperCase()),
-        bonus: [],  // bonus words not scraped (would need separate logic)
+        bonus: bonus.map(w => w.toUpperCase()),
         group: group,
         pack: pack,
         theme: getThemeForGroup(group)

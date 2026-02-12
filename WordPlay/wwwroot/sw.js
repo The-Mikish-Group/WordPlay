@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wordplay-v2';
+const CACHE_NAME = 'wordplay-v32';
 const ASSETS = [
     '/',
     '/index.html',
@@ -10,7 +10,7 @@ const ASSETS = [
     '/manifest.json',
 ];
 
-const DATA_CACHE = 'wordplay-data-v1';
+const DATA_CACHE = 'wordplay-data-v2';
 
 self.addEventListener('install', e => {
     e.waitUntil(
@@ -21,7 +21,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('fetch', e => {
     const url = new URL(e.request.url);
-    
+
     // Data files (level chunks): cache after first fetch, then serve from cache
     if (url.pathname.startsWith('/data/')) {
         e.respondWith(
@@ -40,9 +40,16 @@ self.addEventListener('fetch', e => {
         return;
     }
 
-    // App shell: cache-first
+    // App shell: network-first (always get latest, fall back to cache offline)
     e.respondWith(
-        caches.match(e.request).then(r => r || fetch(e.request))
+        fetch(e.request)
+            .then(response => {
+                // Update cache with fresh response
+                const clone = response.clone();
+                caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+                return response;
+            })
+            .catch(() => caches.match(e.request))
     );
 });
 

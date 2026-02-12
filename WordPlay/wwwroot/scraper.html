@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WordPlay Level Scraper</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background:#1a1a2e; color:#e0e0e0; padding:24px; min-height:100vh; }
+h1 { color:#f4a535; margin-bottom:8px; }
+.subtitle { opacity:0.6; margin-bottom:24px; }
+.controls { display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:20px; }
+.field { display:flex; flex-direction:column; gap:4px; }
+.field label { font-size:12px; opacity:0.6; text-transform:uppercase; letter-spacing:1px; }
+.field input, .field select { background:#2a2a4a; border:1px solid #444; color:#fff; padding:8px 12px; border-radius:8px; font-size:14px; width:120px; }
+button { padding:10px 20px; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-start { background:#4CAF50; color:#fff; }
+.btn-start:disabled { background:#333; color:#666; cursor:default; }
+.btn-stop { background:#f44336; color:#fff; }
+.btn-download { background:#2196F3; color:#fff; }
+.btn-download:disabled { background:#333; color:#666; cursor:default; }
+.stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+.stat { background:#2a2a4a; padding:12px; border-radius:10px; text-align:center; }
+.stat-val { font-size:24px; font-weight:700; color:#f4a535; }
+.stat-label { font-size:11px; opacity:0.5; margin-top:4px; }
+.progress-bar { width:100%; height:6px; background:#2a2a4a; border-radius:3px; margin-bottom:20px; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg,#f4a535,#4CAF50); border-radius:3px; transition:width 0.3s; }
+#log { background:#111; border:1px solid #333; border-radius:10px; padding:12px; height:300px; overflow-y:auto; font-family:'Cascadia Code','Consolas',monospace; font-size:12px; line-height:1.6; }
+.log-ok { color:#4CAF50; }
+.log-warn { color:#ff9800; }
+.log-err { color:#f44336; }
+.log-info { color:#2196F3; }
+.note { margin-top:16px; padding:12px; background:#2a2a4a; border-radius:8px; font-size:13px; opacity:0.7; }
+</style>
+</head>
+<body>
+
+<h1>🔤 WordPlay Level Scraper</h1>
+<p class="subtitle">Scrapes level data from wordscapescheat.com — runs entirely in your browser</p>
+
+<div class="controls">
+    <div class="field">
+        <label>Start Level</label>
+        <input type="number" id="startLevel" value="1" min="1">
+    </div>
+    <div class="field">
+        <label>End Level</label>
+        <input type="number" id="endLevel" value="150000" min="1">
+    </div>
+    <div class="field">
+        <label>Delay (ms)</label>
+        <input type="number" id="delay" value="400" min="100" step="100">
+    </div>
+    <button class="btn-start" id="btnStart" onclick="startScraping()">▶ Start Scraping</button>
+    <button class="btn-stop" id="btnStop" onclick="stopScraping()" style="display:none">⏹ Stop</button>
+    <button class="btn-download" id="btnDownload" onclick="downloadAll()" disabled>⬇ Download JSON</button>
+    <button class="btn-download" id="btnExport" onclick="exportChunks()" disabled>📦 Export Bundle</button>
+    <button class="btn-download" id="btnDeploy" onclick="deployToApp()" disabled style="background:#4CAF50">🚀 Deploy to App</button>
+    <button class="btn-download" id="btnClear" onclick="clearDB()" style="background:#f44336">🗑 Clear DB</button>
+</div>
+
+<div class="stats">
+    <div class="stat"><div class="stat-val" id="sTotal">0</div><div class="stat-label">Levels Scraped</div></div>
+    <div class="stat"><div class="stat-val" id="sErrors">0</div><div class="stat-label">Errors</div></div>
+    <div class="stat"><div class="stat-val" id="sRate">0</div><div class="stat-label">Levels/min</div></div>
+    <div class="stat"><div class="stat-val" id="sCurrent">-</div><div class="stat-label">Current Level</div></div>
+    <div class="stat"><div class="stat-val" id="sETA">-</div><div class="stat-label">Est. Remaining</div></div>
+    <div class="stat"><div class="stat-val" id="sPct">0%</div><div class="stat-label">Progress</div></div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+<div id="log"></div>
+
+<div class="note">
+    <strong>💡 Tips:</strong> Start with a small range to test (e.g., 10100–10200 for ~100 levels near your game position).
+    Progress auto-saves to your browser — if you close and reopen, click Start again to resume.
+    The scraper fetches the site index first, then individual level pages. Download results anytime.
+</div>
+
+<script>
+// ============================================================
+// WordPlay Browser Scraper
+// ============================================================
+const BASE = "https://www.wordscapescheat.com";
+const DB_NAME = "wordplay-scraper";
+const DB_VERSION = 1;
+const STORE_LEVELS = "levels";
+const STORE_META = "meta";
+
+let db = null;
+let running = false;
+let groupIndex = null; // [{group, slug, startLevel, endLevel, packs:[{name,slug}]}]
+let totalScraped = 0;
+let totalErrors = 0;
+let startTime = 0;
+
+// ---- IndexedDB ----
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains(STORE_LEVELS)) {
+                d.createObjectStore(STORE_LEVELS, { keyPath: "level" });
+            }
+            if (!d.objectStoreNames.contains(STORE_META)) {
+                d.createObjectStore(STORE_META, { keyPath: "key" });
+            }
+        };
+        req.onsuccess = () => { db = req.result; resolve(db); };
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function dbPut(store, data) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, "readwrite");
+        tx.objectStore(store).put(data);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+function dbGet(store, key) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, "readonly");
+        const req = tx.objectStore(store).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function dbGetAll(store) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, "readonly");
+        const req = tx.objectStore(store).getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function dbCount(store) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, "readonly");
+        const req = tx.objectStore(store).count();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function dbHas(store, key) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, "readonly");
+        const req = tx.objectStore(store).getKey(key);
+        req.onsuccess = () => resolve(req.result !== undefined);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+// ---- LOGGING ----
+function log(msg, cls = "") {
+    const el = document.getElementById("log");
+    const line = document.createElement("div");
+    line.className = cls;
+    const ts = new Date().toLocaleTimeString();
+    line.textContent = `[${ts}] ${msg}`;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+}
+
+// ---- STATS ----
+function updateStats(current, total) {
+    const elapsed = (Date.now() - startTime) / 60000; // minutes
+    const rate = elapsed > 0 ? (totalScraped / elapsed).toFixed(1) : 0;
+    const remaining = total - totalScraped - totalErrors;
+    const etaMin = rate > 0 ? Math.ceil(remaining / rate) : 0;
+    const etaStr = etaMin > 60 ? `${Math.floor(etaMin/60)}h ${etaMin%60}m` : `${etaMin}m`;
+    const pct = total > 0 ? ((totalScraped + totalErrors) / total * 100).toFixed(1) : 0;
+
+    document.getElementById("sTotal").textContent = totalScraped.toLocaleString();
+    document.getElementById("sErrors").textContent = totalErrors;
+    document.getElementById("sRate").textContent = rate;
+    document.getElementById("sCurrent").textContent = current;
+    document.getElementById("sETA").textContent = remaining > 0 ? etaStr : "Done";
+    document.getElementById("sPct").textContent = pct + "%";
+    document.getElementById("progressFill").style.width = pct + "%";
+    document.getElementById("btnDownload").disabled = totalScraped === 0;
+    document.getElementById("btnExport").disabled = totalScraped === 0;
+    document.getElementById("btnDeploy").disabled = totalScraped === 0;
+}
+
+// ---- FETCH WITH CORS PROXY FALLBACK ----
+async function fetchPage(url) {
+    // Use local ASP.NET proxy (run from Visual Studio at localhost:5001)
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
+    const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(20000) });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.text();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ---- PARSE HOMEPAGE FOR GROUP/PACK INDEX ----
+// HTML structure: <nav class='GroupSelectContainer'>
+//   <h2><a href='/answers/sunrise'>Sunrise</a></h2>
+//   <div class='levelRange'>Levels 1-12</div>
+//   <a href='/answers/sunrise/rise' class='SelectButton ...'>RISE</a>
+// </nav>
+function parseHomepage(html) {
+    const index = [];
+    const groupRe = /<nav class='GroupSelectContainer'><h2><a href='\/answers\/([^']+)'>([^<]+)<\/a><\/h2><div class='levelRange'>Levels (\d+)-(\d+)<\/div>([\s\S]*?)<\/nav>/g;
+    let gm;
+    while ((gm = groupRe.exec(html)) !== null) {
+        const groupSlug = gm[1];
+        const groupName = gm[2];
+        const startLevel = parseInt(gm[3]);
+        const endLevel = parseInt(gm[4]);
+        const packSection = gm[5];
+
+        const packs = [];
+        const packRe = /href='\/answers\/[^']+\/([^']+)'\s+class='SelectButton[^']*'>([^<]+)<\/a>/g;
+        let pm;
+        while ((pm = packRe.exec(packSection)) !== null) {
+            packs.push({ slug: pm[1], name: pm[2] });
+        }
+
+        if (packs.length > 0) {
+            index.push({ group: groupName, slug: groupSlug, startLevel, endLevel, packs });
+        }
+    }
+    return index;
+}
+
+// ---- FETCH GROUP PAGES FOR ACCURATE PACK-LEVEL RANGES ----
+async function buildPackIndex(groups, delayMs) {
+    const allPacks = [];
+    for (const g of groups) {
+        log(`  Fetching group page: ${g.group}...`);
+        try {
+            const html = await fetchPage(`${BASE}/answers/${g.slug}`);
+            // Pack links: <a href='/answers/group/pack' class='SelectButton ...'>Pack<br/><small>Levels X-Y</small></a>
+            const packRe = /href='\/answers\/[^']+\/([^']+)'\s+class='SelectButton[^']*'>([^<]+)<br\/><small>Levels (\d+)-(\d+)<\/small><\/a>/g;
+            let pm, found = 0;
+            while ((pm = packRe.exec(html)) !== null) {
+                allPacks.push({ groupName: g.group, groupSlug: g.slug, packSlug: pm[1], packName: pm[2], startLevel: parseInt(pm[3]), endLevel: parseInt(pm[4]) });
+                found++;
+            }
+            if (found === 0) {
+                // Fallback: divide evenly
+                const total = g.endLevel - g.startLevel + 1;
+                const perPack = Math.ceil(total / g.packs.length);
+                let lvNum = g.startLevel;
+                for (const pack of g.packs) {
+                    const packEnd = Math.min(lvNum + perPack - 1, g.endLevel);
+                    allPacks.push({ groupName: g.group, groupSlug: g.slug, packSlug: pack.slug, packName: pack.name, startLevel: lvNum, endLevel: packEnd });
+                    lvNum = packEnd + 1;
+                }
+            }
+        } catch (e) {
+            log(`    Error: ${e.message}, using even distribution`, "log-warn");
+            const total = g.endLevel - g.startLevel + 1;
+            const perPack = Math.ceil(total / g.packs.length);
+            let lvNum = g.startLevel;
+            for (const pack of g.packs) {
+                const packEnd = Math.min(lvNum + perPack - 1, g.endLevel);
+                allPacks.push({ groupName: g.group, groupSlug: g.slug, packSlug: pack.slug, packName: pack.name, startLevel: lvNum, endLevel: packEnd });
+                lvNum = packEnd + 1;
+            }
+        }
+        await sleep(delayMs);
+    }
+    return allPacks;
+}
+
+// ---- FETCH MASTER PAGE FOR MASTER-LEVEL PACKS ----
+async function buildMasterIndex() {
+    log("  Fetching Master page...");
+    try {
+        const html = await fetchPage(`${BASE}/answers/master`);
+        const masterPacks = [];
+        // <nav class='GroupSelectContainer'><div class='levelRange'>Levels 6001-6080</div>..packs..</nav>
+        const blockRe = /<nav class='GroupSelectContainer'><div class='levelRange'>Levels (\d+)-(\d+)<\/div>([\s\S]*?)<\/nav>/g;
+        let bm;
+        while ((bm = blockRe.exec(html)) !== null) {
+            const blockStart = parseInt(bm[1]);
+            const blockEnd = parseInt(bm[2]);
+            const section = bm[3];
+            const packs = [];
+            const packRe = /href='\/answers\/master\/([^']+)'\s+class='SelectButton[^']*'>([^<]+)<\/a>/g;
+            let pm;
+            while ((pm = packRe.exec(section)) !== null) {
+                packs.push({ slug: pm[1], name: pm[2] });
+            }
+            if (packs.length > 0) {
+                const total = blockEnd - blockStart + 1;
+                const perPack = Math.floor(total / packs.length);
+                let lvNum = blockStart;
+                for (let i = 0; i < packs.length; i++) {
+                    const isLast = i === packs.length - 1;
+                    const packEnd = isLast ? blockEnd : lvNum + perPack - 1;
+                    masterPacks.push({ groupName: "Master", groupSlug: "master", packSlug: packs[i].slug, packName: packs[i].name, startLevel: lvNum, endLevel: packEnd });
+                    lvNum = packEnd + 1;
+                }
+            }
+        }
+        log(`  Found ${masterPacks.length} Master packs`, "log-ok");
+        return masterPacks;
+    } catch (e) {
+        log(`  Master page error: ${e.message}`, "log-warn");
+        return [];
+    }
+}
+
+// ---- BUILD LEVEL-TO-URL MAPPING ----
+function buildLevelMap(packs, startLv, endLv) {
+    const levels = [];
+    for (const pack of packs) {
+        for (let level = pack.startLevel; level <= pack.endLevel; level++) {
+            if (level >= startLv && level <= endLv) {
+                levels.push({
+                    level,
+                    group: pack.groupName,
+                    pack: pack.packName,
+                    url: `${BASE}/answers/${encodeURIComponent(pack.groupSlug)}/${encodeURIComponent(pack.packSlug)}/${level}`
+                });
+            }
+        }
+    }
+    levels.sort((a, b) => a.level - b.level);
+    return levels;
+}
+
+// ---- PARSE INDIVIDUAL LEVEL PAGE ----
+function parseLevelPage(html) {
+    // Extract letters — text pattern with various quote styles
+    const lm = html.match(/letters you can use on this level are\s*[\u2018\u2019''\u201C\u201D""]([A-Za-z]+)[\u2018\u2019''\u201C\u201D""]/i);
+    let letters = lm ? lm[1].toUpperCase() : "";
+
+    // Fallback: extract from LetterTray divs
+    if (!letters) {
+        const trayMatch = html.match(/<div class=['"]LetterTray['"][^>]*>([\s\S]*?)(?:<\/div>\s*){2,}/i);
+        if (trayMatch) {
+            const letterDivRe = /<div>([A-Za-z])<\/div>/g;
+            let tm;
+            const trayLetters = [];
+            while ((tm = letterDivRe.exec(trayMatch[1])) !== null) {
+                trayLetters.push(tm[1].toUpperCase());
+            }
+            letters = trayLetters.join("");
+        }
+    }
+
+    // The page has two list sections with /definition/ links:
+    //   1. Bonus words (before the id="answers" div)
+    //   2. Grid words (inside the id="answers" div, with "N Answers for Level X")
+    const answersIdx = html.search(/id=['"]answers['"]/i);
+    const beforeAnswers = answersIdx >= 0 ? html.substring(0, answersIdx) : "";
+    const afterAnswers = answersIdx >= 0 ? html.substring(answersIdx) : html;
+
+    // Grid words: definition links inside the id="answers" section
+    const words = [];
+    const wordRe = /href=['"]\/definition\/[^'"]+['"][^>]*>([^<]+)<\/a>/gi;
+    let wm;
+    while ((wm = wordRe.exec(afterAnswers)) !== null) {
+        const w = wm[1].trim().toUpperCase();
+        if (w.length >= 2 && /^[A-Z]+$/.test(w) && !words.includes(w)) words.push(w);
+    }
+
+    // Bonus words: definition links before the id="answers" section
+    const bonus = [];
+    if (beforeAnswers) {
+        const bonusRe = /href=['"]\/definition\/[^'"]+['"][^>]*>([^<]+)<\/a>/gi;
+        let bm;
+        while ((bm = bonusRe.exec(beforeAnswers)) !== null) {
+            const w = bm[1].trim().toUpperCase();
+            if (w.length >= 2 && /^[A-Z]+$/.test(w) && !bonus.includes(w)) bonus.push(w);
+        }
+    }
+
+    return { letters, words, bonus };
+}
+
+// ---- MAIN SCRAPE LOOP ----
+async function startScraping() {
+    if (running) return;
+    running = true;
+
+    document.getElementById("btnStart").style.display = "none";
+    document.getElementById("btnStop").style.display = "";
+
+    const startLv = parseInt(document.getElementById("startLevel").value) || 1;
+    const endLv = parseInt(document.getElementById("endLevel").value) || 150000;
+    const delayMs = parseInt(document.getElementById("delay").value) || 400;
+
+    await openDB();
+    totalScraped = await dbCount(STORE_LEVELS);
+    totalErrors = 0;
+    startTime = Date.now();
+
+    log(`Starting scrape: levels ${startLv} to ${endLv} (delay: ${delayMs}ms)`, "log-info");
+
+    // Step 1: Get or load pack index (group pages + master page)
+    let packIndex = null;
+    const cachedIndex = await dbGet(STORE_META, "packIndex");
+    if (cachedIndex && cachedIndex.data) {
+        packIndex = cachedIndex.data;
+        log(`Loaded cached pack index: ${packIndex.length} packs`, "log-info");
+    } else {
+        log("Phase 1: Fetching homepage...", "log-info");
+        try {
+            const homepage = await fetchPage(BASE);
+            groupIndex = parseHomepage(homepage);
+            log(`Found ${groupIndex.length} groups`, "log-ok");
+        } catch (e) {
+            log(`Failed to fetch homepage: ${e.message}`, "log-err");
+            log("Make sure you're running from the ASP.NET app (localhost).", "log-warn");
+            running = false;
+            document.getElementById("btnStart").style.display = "";
+            document.getElementById("btnStop").style.display = "none";
+            return;
+        }
+
+        if (!running) return;
+        log("Phase 2: Fetching group pages for pack-level ranges...", "log-info");
+        const packs = await buildPackIndex(groupIndex, delayMs);
+        log(`  Mapped ${packs.length} non-Master packs`, "log-ok");
+
+        if (!running) return;
+        log("Phase 3: Fetching Master page...", "log-info");
+        const masterPacks = await buildMasterIndex();
+
+        packIndex = [...packs, ...masterPacks];
+        await dbPut(STORE_META, { key: "packIndex", data: packIndex });
+        log(`Total: ${packIndex.length} packs indexed`, "log-ok");
+    }
+
+    // Step 2: Build level URLs for requested range
+    const levelMap = buildLevelMap(packIndex, startLv, endLv);
+    log(`Mapped ${levelMap.length} levels in range ${startLv}-${endLv}`, "log-info");
+
+    if (levelMap.length === 0) {
+        log("No levels found in the requested range.", "log-warn");
+        running = false;
+        return;
+    }
+
+    // Step 3: Scrape each level
+    let scraped = 0;
+    let errors = 0;
+    let skipped = 0;
+
+    for (let i = 0; i < levelMap.length; i++) {
+        if (!running) break;
+
+        const meta = levelMap[i];
+        
+        // Skip already scraped
+        if (await dbHas(STORE_LEVELS, meta.level)) {
+            skipped++;
+            continue;
+        }
+
+        try {
+            const html = await fetchPage(meta.url);
+            const data = parseLevelPage(html);
+
+            if (data.words.length === 0 && data.letters === "") {
+                log(`⚠ Level ${meta.level} (${meta.pack}): no data found`, "log-warn");
+                errors++;
+                totalErrors++;
+            } else {
+                await dbPut(STORE_LEVELS, {
+                    level: meta.level,
+                    group: meta.group,
+                    pack: meta.pack,
+                    letters: data.letters,
+                    words: data.words,
+                    bonus: data.bonus
+                });
+                scraped++;
+                totalScraped++;
+            }
+        } catch (e) {
+            log(`✗ Level ${meta.level}: ${e.message}`, "log-err");
+            errors++;
+            totalErrors++;
+        }
+
+        updateStats(meta.level, levelMap.length - skipped);
+
+        // Log progress periodically
+        if ((scraped + errors) % 50 === 0 && (scraped + errors) > 0) {
+            log(`Progress: ${totalScraped} scraped, ${errors} errors, ${skipped} skipped — Level ${meta.level}`, "log-info");
+        }
+
+        // Auto-save checkpoint every 200 levels
+        if ((scraped + errors) % 200 === 0) {
+            log(`💾 Auto-checkpoint (${totalScraped} levels in database)`, "log-info");
+        }
+
+        await sleep(delayMs);
+    }
+
+    log(`\n=== COMPLETE ===`, "log-ok");
+    log(`Scraped: ${scraped} | Errors: ${errors} | Skipped: ${skipped} | Total in DB: ${totalScraped}`, "log-ok");
+    
+    running = false;
+    document.getElementById("btnStart").style.display = "";
+    document.getElementById("btnStop").style.display = "none";
+    updateStats("-", levelMap.length - skipped);
+}
+
+function stopScraping() {
+    running = false;
+    log("Stopping... (will finish current request)", "log-warn");
+    document.getElementById("btnStart").style.display = "";
+    document.getElementById("btnStop").style.display = "none";
+}
+
+// ---- DOWNLOAD ALL AS SINGLE JSON ----
+async function downloadAll() {
+    await openDB();
+    const all = await dbGetAll(STORE_LEVELS);
+    all.sort((a, b) => a.level - b.level);
+
+    const data = {};
+    for (const lv of all) {
+        data[lv.level] = {
+            letters: lv.letters,
+            words: lv.words,
+            bonus: lv.bonus || [],
+            group: lv.group,
+            pack: lv.pack
+        };
+    }
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `wordplay-levels-all.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    log(`Downloaded ${all.length} levels as JSON`, "log-ok");
+}
+
+// ---- EXPORT AS CHUNK FILES (for the game app) ----
+async function exportChunks() {
+    await openDB();
+    const all = await dbGetAll(STORE_LEVELS);
+    all.sort((a, b) => a.level - b.level);
+
+    const CHUNK = 200;
+    const manifest = [];
+    const chunks = [];
+
+    for (let i = 0; i < all.length; i += CHUNK) {
+        const slice = all.slice(i, i + CHUNK);
+        const startLv = slice[0].level;
+        const endLv = slice[slice.length - 1].level;
+        const fname = `levels-${String(startLv).padStart(6,"0")}-${String(endLv).padStart(6,"0")}.json`;
+
+        const data = {};
+        for (const lv of slice) {
+            data[lv.level] = [lv.letters, lv.words, lv.group, lv.pack, lv.bonus || []];
+        }
+
+        chunks.push({ name: fname, data: JSON.stringify(data) });
+        manifest.push({ file: fname, start: startLv, end: endLv });
+    }
+
+    // Build pack index
+    const packs = [];
+    let curGroup = null, curPack = null;
+    for (const lv of all) {
+        if (lv.group !== curGroup || lv.pack !== curPack) {
+            packs.push({ group: lv.group, pack: lv.pack, start: lv.level, end: lv.level });
+            curGroup = lv.group;
+            curPack = lv.pack;
+        } else {
+            packs[packs.length - 1].end = lv.level;
+        }
+    }
+
+    // Create a zip-like bundle (just download a single combined file for simplicity)
+    const bundle = {
+        manifest: manifest,
+        levelIndex: packs,
+        chunks: {}
+    };
+    for (const c of chunks) {
+        bundle.chunks[c.name] = JSON.parse(c.data);
+    }
+
+    const blob = new Blob([JSON.stringify(bundle)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "wordplay-data-bundle.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    log(`Exported ${all.length} levels in ${chunks.length} chunks + manifest + index`, "log-ok");
+}
+
+// ---- DEPLOY TO APP (write directly to wwwroot/data/) ----
+async function deployToApp() {
+    await openDB();
+    const all = await dbGetAll(STORE_LEVELS);
+    all.sort((a, b) => a.level - b.level);
+
+    if (all.length === 0) { log("No data to deploy", "log-warn"); return; }
+
+    log(`Building deployment bundle for ${all.length} levels...`, "log-info");
+
+    const CHUNK = 200;
+    const manifest = [];
+    const chunks = {};
+
+    for (let i = 0; i < all.length; i += CHUNK) {
+        const slice = all.slice(i, i + CHUNK);
+        const startLv = slice[0].level;
+        const endLv = slice[slice.length - 1].level;
+        const fname = `levels-${String(startLv).padStart(6,"0")}-${String(endLv).padStart(6,"0")}.json`;
+
+        const data = {};
+        for (const lv of slice) {
+            data[lv.level] = [lv.letters, lv.words, lv.group, lv.pack, lv.bonus || []];
+        }
+
+        chunks[fname] = data;
+        manifest.push({ file: fname, start: startLv, end: endLv });
+    }
+
+    // Build pack index
+    const levelIndex = [];
+    let curGroup = null, curPack = null;
+    for (const lv of all) {
+        if (lv.group !== curGroup || lv.pack !== curPack) {
+            levelIndex.push({ group: lv.group, pack: lv.pack, start: lv.level, end: lv.level });
+            curGroup = lv.group;
+            curPack = lv.pack;
+        } else {
+            levelIndex[levelIndex.length - 1].end = lv.level;
+        }
+    }
+
+    const bundle = { manifest, levelIndex, chunks };
+    log(`Deploying ${Object.keys(chunks).length} chunks + manifest + index to server...`, "log-info");
+
+    try {
+        const resp = await fetch("/api/deploy-data", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(bundle)
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const result = await resp.json();
+        log(`✅ ${result.message}`, "log-ok");
+    } catch (e) {
+        log(`Deploy failed: ${e.message}`, "log-err");
+    }
+}
+
+// ---- CLEAR DATABASE ----
+async function clearDB() {
+    if (!confirm("Clear ALL scraped data from browser? You will need to re-scrape.")) return;
+    await openDB();
+    const tx = db.transaction([STORE_LEVELS, STORE_META], "readwrite");
+    tx.objectStore(STORE_LEVELS).clear();
+    tx.objectStore(STORE_META).clear();
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = reject; });
+    totalScraped = 0;
+    document.getElementById("sTotal").textContent = "0";
+    document.getElementById("btnDownload").disabled = true;
+    document.getElementById("btnExport").disabled = true;
+    document.getElementById("btnDeploy").disabled = true;
+    log("Database cleared. Ready for fresh scrape.", "log-warn");
+}
+
+// ---- INIT ----
+(async function() {
+    await openDB();
+    totalScraped = await dbCount(STORE_LEVELS);
+    if (totalScraped > 0) {
+        log(`Found ${totalScraped} previously scraped levels in browser database`, "log-info");
+        log("Click Start to resume — already-scraped levels will be skipped", "log-info");
+        document.getElementById("btnDownload").disabled = false;
+        document.getElementById("btnExport").disabled = false;
+        document.getElementById("btnDeploy").disabled = false;
+    }
+    document.getElementById("sTotal").textContent = totalScraped.toLocaleString();
+})();
+</script>
+
+</body>
+</html>

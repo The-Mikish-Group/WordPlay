@@ -38,14 +38,20 @@ const state = {
     coins: 50,
     highestLevel: 1,
     shuffleKey: 0,
+    bonusCounter: 0,       // bonus words toward 10-word reward (persists)
+    revealedCells: [],     // "row,col" strings for individually hinted letters (resets per level)
+    freeHints: 0,          // accumulated free hints (persists)
+    freeTargets: 0,        // accumulated free targeted hints (persists)
+    levelsCompleted: 0,    // total levels completed (persists, for 10-level target reward)
     // Transient
     showMenu: false,
     showComplete: false,
     loading: false,
+    pickMode: false,       // target-hint: user taps a cell to reveal it
 };
 
 // ---- COMPUTED ----
-let level, theme, crossword, placedWords, unplacedWords, totalRequired, wheelLetters;
+let level, theme, crossword, placedWords, bonusPool, totalRequired, wheelLetters;
 
 function getDisplayLevel() {
     return state.currentLevel;
@@ -72,10 +78,16 @@ async function recompute() {
     }
     level = lvData;
     theme = THEMES[level.theme] || THEMES.sunrise;
-    crossword = generateCrosswordGrid(level.words);
+
+    // Determine grid words vs bonus words
+    const gridWords = level.words;
+
+    crossword = generateCrosswordGrid(gridWords);
     placedWords = crossword.placements.map(p => p.word);
-    unplacedWords = level.words.filter(w => !placedWords.includes(w));
-    totalRequired = level.words.length;
+    // Words that couldn't be placed in the crossword become bonus
+    const overflow = gridWords.filter(w => !placedWords.includes(w));
+    bonusPool = [...(level.bonus || []), ...overflow];
+    totalRequired = placedWords.length;
     rebuildWheelLetters();
     // Preload next chunk
     if (typeof preloadAround === "function") preloadAround(state.currentLevel);
@@ -124,6 +136,11 @@ function loadProgress() {
             state.foundWords = d.fw || [];
             state.bonusFound = d.bf || [];
             state.coins = d.co ?? 50;
+            state.bonusCounter = d.bc || 0;
+            state.revealedCells = d.rc || [];
+            state.freeHints = d.fh || 0;
+            state.freeTargets = d.ft || 0;
+            state.levelsCompleted = d.lc || 0;
         }
     } catch (e) { /* ignore */ }
 }
@@ -137,18 +154,24 @@ function saveProgress() {
             bf: state.bonusFound,
             co: state.coins,
             hl: state.highestLevel,
+            bc: state.bonusCounter,
+            rc: state.revealedCells,
+            fh: state.freeHints,
+            ft: state.freeTargets,
+            lc: state.levelsCompleted,
         }));
     } catch (e) { /* ignore */ }
 }
 
 // ---- TOAST ----
 let toastTimer = null;
-function showToast(msg, color, fast) {
+function showToast(msg, color, fast, bg) {
     if (toastTimer) clearTimeout(toastTimer);
     const el = document.getElementById("toast");
     el.textContent = msg;
     el.style.color = color || theme.accent;
     el.style.borderColor = (color || theme.accent) + "30";
+    el.style.background = bg || "rgba(0,0,0,0.85)";
     el.className = "toast" + (fast ? " fast" : "");
     el.style.display = "block";
     // Force reflow to restart animation
@@ -165,46 +188,151 @@ function handleWord(word) {
         showToast("Already found", "rgba(255,255,255,0.5)", true);
         return;
     }
-    if (level.words.includes(w)) {
+    if (placedWords.includes(w)) {
         state.foundWords.push(w);
+        state.coins += 1;
         saveProgress();
         renderGrid();
-        renderUnplaced();
+        highlightWord(w);
         renderWordCount();
+        renderCoins();
+        renderHintBtn();
+        renderTargetBtn();
         if (state.foundWords.length === totalRequired) {
             setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
         }
         return;
     }
-    if (level.bonus && level.bonus.includes(w)) {
+    if (bonusPool && bonusPool.includes(w)) {
         state.bonusFound.push(w);
-        state.coins++;
-        saveProgress();
-        renderCoins();
-        renderWordCount();
-        showToast("✨ Bonus: " + w + "  +1 🪙");
+        state.coins += 5;
+        state.bonusCounter++;
+        if (state.bonusCounter >= 10) {
+            state.bonusCounter = 0;
+            renderBonusStar();
+            // Auto-reveal a random letter as reward
+            const cell = pickRandomUnrevealedCell();
+            if (cell) {
+                state.revealedCells.push(cell);
+                checkAutoCompleteWords();
+                saveProgress();
+                renderGrid();
+                renderCoins();
+                renderWordCount();
+                renderHintBtn();
+                renderTargetBtn();
+                showToast("⭐ Bonus Reward! Free letter!", theme.accent);
+                // Delayed flash so the grid renders first
+                setTimeout(() => flashHintCell(cell), 100);
+                if (state.foundWords.length === totalRequired) {
+                    setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 1200);
+                }
+            } else {
+                saveProgress();
+                renderCoins();
+                renderWordCount();
+                showToast("⭐ All letters revealed!", theme.accent);
+            }
+        } else {
+            saveProgress();
+            renderCoins();
+            renderWordCount();
+            renderBonusStar();
+            // Pulse animation on the star
+            const starArea = document.getElementById("bonus-star-area");
+            if (starArea) {
+                starArea.style.animation = "none";
+                starArea.offsetHeight;
+                starArea.style.animation = "starPulse 0.5s ease";
+            }
+            showToast("✨ Bonus: " + w + "  +5 🪙");
+        }
         return;
     }
 
-    // Invalid — shake grid
+    // Invalid — shake grid and show hint if no words of that length exist
     const gc = document.getElementById("grid-container");
     if (gc) {
         gc.style.animation = "none";
         gc.offsetHeight;
         gc.style.animation = "shake 0.35s ease";
     }
+    const allWords = [...placedWords, ...(bonusPool || [])];
+    const hasWordsOfLen = allWords.some(x => x.length === w.length);
+    if (!hasWordsOfLen) {
+        showToast("No " + w.length + "-letter words", "#fff", false, "rgba(180,60,60,0.85)");
+    }
+}
+
+function pickRandomUnrevealedCell() {
+    // Build set of all currently visible cells
+    const visible = new Set();
+    for (const p of crossword.placements) {
+        if (state.foundWords.includes(p.word)) {
+            for (const c of p.cells) visible.add(c.row + "," + c.col);
+        }
+    }
+    for (const k of state.revealedCells) visible.add(k);
+
+    // Collect all valid cells that are not visible
+    const candidates = [];
+    for (const p of crossword.placements) {
+        for (const c of p.cells) {
+            const k = c.row + "," + c.col;
+            if (!visible.has(k)) candidates.push(k);
+        }
+    }
+    if (!candidates.length) return null;
+    // Deduplicate (cells shared by multiple words)
+    const unique = [...new Set(candidates)];
+    return unique[Math.floor(Math.random() * unique.length)];
+}
+
+function checkAutoCompleteWords() {
+    // After revealing individual cells, check if any word is now fully revealed
+    const visible = new Set();
+    for (const p of crossword.placements) {
+        if (state.foundWords.includes(p.word)) {
+            for (const c of p.cells) visible.add(c.row + "," + c.col);
+        }
+    }
+    for (const k of state.revealedCells) visible.add(k);
+
+    let changed = false;
+    for (const p of crossword.placements) {
+        if (state.foundWords.includes(p.word)) continue;
+        const allRevealed = p.cells.every(c => visible.has(c.row + "," + c.col));
+        if (allRevealed) {
+            state.foundWords.push(p.word);
+            changed = true;
+        }
+    }
+    return changed;
+}
+
+function renderBonusStar() {
+    const el = document.getElementById("bonus-star-counter");
+    if (el) el.textContent = state.bonusCounter;
+    const fill = document.getElementById("bonus-star-fill");
+    if (fill) fill.setAttribute("stroke", state.bonusCounter > 0 ? "#f4d03f" : "rgba(255,255,255,0.35)");
 }
 
 function handleHint() {
-    if (state.coins < 25) return;
-    const unfound = level.words.filter(w => !state.foundWords.includes(w));
-    if (!unfound.length) return;
-    state.coins -= 25;
-    state.foundWords.push(unfound[0]);
+    const hasFree = state.freeHints > 0;
+    if (!hasFree && state.coins < 25) return;
+    const cell = pickRandomUnrevealedCell();
+    if (!cell) return;
+    if (hasFree) {
+        state.freeHints--;
+    } else {
+        state.coins -= 25;
+    }
+    state.revealedCells.push(cell);
+    checkAutoCompleteWords();
     saveProgress();
-    showToast("💡 " + unfound[0]);
+    showToast(hasFree ? "💡 Free hint used!" : "💡 Letter revealed  −25 🪙");
     renderGrid();
-    renderUnplaced();
+    flashHintCell(cell);
     renderWordCount();
     renderCoins();
     renderHintBtn();
@@ -213,10 +341,114 @@ function handleHint() {
     }
 }
 
+function handleTargetHint() {
+    const hasFree = state.freeTargets > 0;
+    if (!hasFree && state.coins < 100) return;
+    if (!pickRandomUnrevealedCell()) return; // nothing to reveal
+    state.pickMode = true;
+    state._targetFree = hasFree; // remember whether this pick is free
+    showToast("Tap a cell to reveal it", theme.accent, true);
+    renderGrid();
+    renderTargetBtn();
+}
+
+function handlePickCell(key) {
+    if (!state.pickMode) return;
+    const wasFree = state._targetFree;
+    state.pickMode = false;
+    state._targetFree = false;
+    if (wasFree) {
+        state.freeTargets--;
+    } else {
+        state.coins -= 100;
+    }
+    state.revealedCells.push(key);
+    checkAutoCompleteWords();
+    saveProgress();
+    showToast(wasFree ? "🎯 Free target used!" : "🎯 Letter placed!  −100 🪙");
+    renderGrid();
+    flashHintCell(key);
+    renderWordCount();
+    renderCoins();
+    renderHintBtn();
+    renderTargetBtn();
+    if (state.foundWords.length === totalRequired) {
+        setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+    }
+}
+
+function cancelPickMode() {
+    state.pickMode = false;
+    renderGrid();
+    renderTargetBtn();
+}
+
+function renderTargetBtn() {
+    const btn = document.getElementById("target-btn");
+    if (!btn) return;
+    const canUse = state.freeTargets > 0 || state.coins >= 100;
+    btn.style.opacity = canUse ? "1" : "0.3";
+    btn.classList.toggle("active-pick", state.pickMode);
+    const badge = document.getElementById("target-badge");
+    if (badge) badge.textContent = state.freeTargets > 0 ? state.freeTargets : "";
+}
+
 function handleShuffle() {
+    if (state.pickMode) cancelPickMode();
     state.shuffleKey++;
+    const oldLetters = [...wheelLetters];
     rebuildWheelLetters();
-    renderWheel();
+
+    // Try to animate in-place if letter divs exist
+    const lettersDiv = document.getElementById("wheel-letters");
+    if (lettersDiv && lettersDiv.children.length === wheelLetters.length) {
+        const wheelR = Math.min(110, (window.innerWidth - 100) / 2.6);
+        const letterR = Math.min(28, Math.max(20, wheelR * 0.23));
+        const pad = letterR + 16;
+        const cx = wheelR + pad, cy = wheelR + pad;
+        const count = wheelLetters.length;
+
+        wheelPositions = wheelLetters.map((_, i) => {
+            const a = (i / count) * Math.PI * 2 - Math.PI / 2;
+            return { x: cx + Math.cos(a) * wheelR, y: cy + Math.sin(a) * wheelR };
+        });
+
+        // Spin letters to center first, then out to new positions
+        for (let i = 0; i < wheelLetters.length; i++) {
+            const el = document.getElementById("wl-" + i);
+            if (!el) continue;
+            // Phase 1: shrink toward center
+            el.style.transition = "left 0.2s ease-in, top 0.2s ease-in, transform 0.2s ease-in, opacity 0.2s";
+            el.style.transform = "scale(0.5) rotate(180deg)";
+            el.style.opacity = "0.3";
+            el.style.left = (cx - letterR) + "px";
+            el.style.top = (cy - letterR) + "px";
+        }
+
+        // Phase 2: update text and fly out to new positions
+        setTimeout(() => {
+            for (let i = 0; i < wheelLetters.length; i++) {
+                const el = document.getElementById("wl-" + i);
+                if (!el) continue;
+                const p = wheelPositions[i];
+                el.textContent = wheelLetters[i];
+                el.style.transition = "left 0.25s ease-out, top 0.25s ease-out, transform 0.25s ease-out, opacity 0.2s";
+                el.style.left = (p.x - letterR) + "px";
+                el.style.top = (p.y - letterR) + "px";
+                el.style.transform = "scale(1) rotate(0deg)";
+                el.style.opacity = "1";
+            }
+            // Reset transition after animation completes
+            setTimeout(() => {
+                for (let i = 0; i < wheelLetters.length; i++) {
+                    const el = document.getElementById("wl-" + i);
+                    if (el) el.style.transition = "transform 0.12s, background 0.12s, color 0.12s";
+                }
+            }, 300);
+        }, 220);
+    } else {
+        renderWheel();
+    }
 }
 
 async function handleNextLevel() {
@@ -226,8 +458,14 @@ async function handleNextLevel() {
     state.highestLevel = Math.max(state.highestLevel, next);
     state.foundWords = [];
     state.bonusFound = [];
+    state.revealedCells = [];
     state.showComplete = false;
-    state.coins += 10;
+    state.coins += 1;
+    state.freeHints++;
+    state.levelsCompleted++;
+    if (state.levelsCompleted % 10 === 0) {
+        state.freeTargets++;
+    }
     state.shuffleKey = 0;
     saveProgress();
     await recompute();
@@ -239,6 +477,7 @@ async function goToLevel(num) {
     state.currentLevel = num;
     state.foundWords = [];
     state.bonusFound = [];
+    state.revealedCells = [];
     state.showMenu = false;
     state.shuffleKey = 0;
     saveProgress();
@@ -257,7 +496,7 @@ function renderAll() {
 
     renderHeader();
     renderGrid();
-    renderUnplaced();
+
     renderWordCount();
     renderWheel();
     renderCompleteModal();
@@ -309,11 +548,6 @@ function renderGrid() {
         gc.id = "grid-container";
         area.innerHTML = "";
         area.appendChild(gc);
-        // Placeholder for unplaced
-        const up = document.createElement("div");
-        up.id = "unplaced-container";
-        up.className = "unplaced-container";
-        area.appendChild(up);
     }
 
     const { grid, placements, rows, cols } = crossword;
@@ -327,13 +561,15 @@ function renderGrid() {
             for (const c of p.cells) revealed.add(c.row + "," + c.col);
         }
     }
+    // Include individually hinted cells
+    for (const k of state.revealedCells) revealed.add(k);
 
     const vw = window.innerWidth - 28;
     const vh = window.innerHeight * 0.34;
     const cs = Math.min(Math.floor(vw / cols), Math.floor(vh / rows), 44);
     const gap = Math.max(2, Math.min(4, cs > 30 ? 4 : 2));
     const fs = Math.max(cs * 0.48, 12);
-    const br = Math.max(4, cs * 0.14);
+    const br = cs >= 36 ? 6 : cs >= 26 ? 3 : 2;
 
     gc.className = "grid-container";
     gc.style.gridTemplateColumns = `repeat(${cols}, ${cs}px)`;
@@ -341,68 +577,82 @@ function renderGrid() {
     gc.style.gap = gap + "px";
     gc.style.display = "grid";
 
-    gc.innerHTML = "";
+    // Build or update cells in-place (avoids flash from innerHTML rebuild)
+    const totalCells = rows * cols;
+    const needsRebuild = gc.children.length !== totalCells;
+    if (needsRebuild) gc.innerHTML = "";
+
+    let idx = 0;
     for (let ri = 0; ri < rows; ri++) {
         for (let ci = 0; ci < cols; ci++) {
             const cell = grid[ri][ci];
             const k = ri + "," + ci;
-            const div = document.createElement("div");
+            let div;
+            if (needsRebuild) {
+                div = document.createElement("div");
+                gc.appendChild(div);
+            } else {
+                div = gc.children[idx];
+            }
+            idx++;
 
             if (!valid.has(k)) {
-                // Empty space
-                gc.appendChild(div);
+                div.className = "";
+                div.style.cssText = "";
+                div.textContent = "";
+                div.onclick = null;
                 continue;
             }
 
             const isR = revealed.has(k);
             div.className = "grid-cell" + (isR ? " revealed" : "");
+            div.setAttribute("data-key", k);
             div.style.width = cs + "px";
             div.style.height = cs + "px";
             div.style.borderRadius = br + "px";
             div.style.fontSize = fs + "px";
 
             if (isR) {
-                div.style.background = theme.cellFound + "28";
-                div.style.border = "1.5px solid " + theme.cellFound + "60";
-                div.style.color = theme.text;
+                div.style.background = "rgba(255,255,255,0.88)";
+                div.style.border = "none";
+                div.style.color = "#1a1a2e";
                 div.textContent = cell;
             } else {
-                div.style.background = theme.cellBg;
-                div.style.border = "1px solid rgba(255,255,255,0.08)";
+                div.style.background = state.pickMode ? "rgba(255,255,200,0.85)" : "rgba(255,255,255,0.75)";
+                div.style.border = state.pickMode ? "2px solid " + theme.accent : "none";
                 div.style.color = "transparent";
+                div.textContent = "";
+                if (state.pickMode) {
+                    div.style.cursor = "pointer";
+                    div.onclick = () => handlePickCell(k);
+                } else {
+                    div.style.cursor = "";
+                    div.onclick = null;
+                }
             }
-            gc.appendChild(div);
         }
     }
 }
 
-// ---- UNPLACED WORDS ----
-function renderUnplaced() {
-    let container = document.getElementById("unplaced-container");
-    if (!container) return;
-    container.innerHTML = "";
-    if (!unplacedWords.length) return;
-
-    for (const w of unplacedWords) {
-        const found = state.foundWords.includes(w);
-        const wordDiv = document.createElement("div");
-        wordDiv.className = "unplaced-word";
-        for (const ch of w) {
-            const cell = document.createElement("div");
-            cell.className = "unplaced-cell" + (found ? " found" : "");
-            if (found) {
-                cell.style.background = theme.cellFound + "28";
-                cell.style.border = "1px solid " + theme.cellFound + "40";
-                cell.style.color = theme.dim;
-                cell.textContent = ch;
-            } else {
-                cell.style.background = "rgba(255,255,255,0.04)";
-                cell.style.border = "1px solid rgba(255,255,255,0.05)";
-            }
-            wordDiv.appendChild(cell);
+// Highlight cells of a just-found word
+function highlightWord(word) {
+    const placement = crossword.placements.find(p => p.word === word);
+    if (!placement) return;
+    for (const c of placement.cells) {
+        const el = document.querySelector(`.grid-cell[data-key="${c.row},${c.col}"]`);
+        if (el) {
+            el.classList.add("word-flash");
+            setTimeout(() => el.classList.remove("word-flash"), 600);
         }
-        container.appendChild(wordDiv);
     }
+}
+
+// Animate a hint-revealed cell so the player notices it
+function flashHintCell(key) {
+    const el = document.querySelector(`.grid-cell[data-key="${key}"]`);
+    if (!el) return;
+    el.classList.add("hint-flash");
+    setTimeout(() => el.classList.remove("hint-flash"), 1500);
 }
 
 // ---- WORD COUNT ----
@@ -439,10 +689,12 @@ function renderWheel() {
     }
 
     const count = wheelLetters.length;
-    const wheelR = Math.min(115, (window.innerWidth - 110) / 2.5);
-    const letterR = Math.min(26, Math.max(20, wheelR * 0.28));
-    const cx = wheelR + 44, cy = wheelR + 44;
-    const cW = (wheelR + 44) * 2;
+    const wheelR = Math.min(110, (window.innerWidth - 100) / 2.6);
+    const letterR = Math.min(28, Math.max(20, wheelR * 0.23));
+    const pad = letterR + 16;
+    const cx = wheelR + pad, cy = wheelR + pad;
+    const cW = (wheelR + pad) * 2;
+    const discR = wheelR + letterR + 4;
 
     wheelPositions = wheelLetters.map((_, i) => {
         const a = (i / count) * Math.PI * 2 - Math.PI / 2;
@@ -452,22 +704,53 @@ function renderWheel() {
     // Reset wheel state
     wheelState = { sel: [], word: "", dragging: false, ptr: null };
 
+    const hintCanUse = state.freeHints > 0 || state.coins >= 25;
+    const targetCanUse = state.freeTargets > 0 || state.coins >= 100;
     section.innerHTML = `
         <div class="current-word" id="current-word" style="color:${theme.accent};text-shadow:0 0 20px ${theme.accent}40">&nbsp;</div>
+        <button class="circle-btn btn-left" id="shuffle-btn" title="Shuffle">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+                <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+                <line x1="4" y1="4" x2="9" y2="9"/>
+            </svg>
+        </button>
+        <div class="btn-col-right">
+            <button class="circle-btn" id="hint-btn" title="Hint (25 coins)" style="opacity:${hintCanUse ? '1' : '0.3'}">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18h6"/><path d="M10 22h4"/>
+                    <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
+                </svg>
+                <span class="circle-btn-badge" id="hint-badge">${state.freeHints > 0 ? state.freeHints : ''}</span>
+            </button>
+            <button class="circle-btn" id="target-btn" title="Choose letter (100 coins)" style="opacity:${targetCanUse ? '1' : '0.3'}">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+                </svg>
+                <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
+            </button>
+        </div>
         <div class="wheel-area" id="wheel-area" style="width:${cW}px;height:${cW}px">
             <svg id="wheel-svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">
-                <circle cx="${cx}" cy="${cy}" r="${wheelR + 16}" fill="${theme.wheelBg}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                <circle cx="${cx}" cy="${cy}" r="${discR}" fill="rgba(255,255,255,0.92)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
             </svg>
             <div id="wheel-letters"></div>
         </div>
-        <div class="action-bar">
-            <button class="action-btn" id="shuffle-btn" style="color:${theme.text}">🔀 Shuffle</button>
-            <button class="action-btn" id="hint-btn" style="color:${state.coins < 25 ? 'rgba(255,255,255,0.25)' : theme.text}">💡 Hint <span class="cost">(25🪙)</span></button>
+        <div class="bonus-star-area" id="bonus-star-area">
+            <div class="star-btn">
+                <svg width="44" height="44" viewBox="0 0 24 24">
+                    <polygon id="bonus-star-fill" points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+                        fill="none" stroke="${state.bonusCounter > 0 ? '#f4d03f' : 'rgba(255,255,255,0.35)'}" stroke-width="1.5"/>
+                    <text id="bonus-star-counter" x="12" y="14.5" text-anchor="middle" font-size="7" font-weight="700"
+                        font-family="system-ui, sans-serif" fill="rgba(255,255,255,0.6)">${state.bonusCounter}</text>
+                </svg>
+            </div>
         </div>
     `;
 
     // Render letter circles
     const lettersDiv = document.getElementById("wheel-letters");
+    const letterFS = Math.max(36, wheelR * 0.42);
     for (let i = 0; i < wheelLetters.length; i++) {
         const p = wheelPositions[i];
         const div = document.createElement("div");
@@ -477,10 +760,10 @@ function renderWheel() {
         div.style.top = (p.y - letterR) + "px";
         div.style.width = (letterR * 2) + "px";
         div.style.height = (letterR * 2) + "px";
-        div.style.fontSize = Math.max(18, letterR * 0.75) + "px";
-        div.style.color = theme.text;
-        div.style.background = "rgba(255,255,255,0.08)";
-        div.style.border = "2px solid rgba(255,255,255,0.15)";
+        div.style.fontSize = letterFS + "px";
+        div.style.color = "#1a1a2e";
+        div.style.background = "transparent";
+        div.style.border = "3px solid transparent";
         div.textContent = wheelLetters[i];
         lettersDiv.appendChild(div);
     }
@@ -507,18 +790,24 @@ function renderWheel() {
 
     document.getElementById("shuffle-btn").onclick = handleShuffle;
     document.getElementById("hint-btn").onclick = handleHint;
+    document.getElementById("target-btn").onclick = handleTargetHint;
 }
 
 function renderHintBtn() {
     const btn = document.getElementById("hint-btn");
-    if (btn) btn.style.color = state.coins < 25 ? "rgba(255,255,255,0.25)" : theme.text;
+    if (!btn) return;
+    const canUse = state.freeHints > 0 || state.coins >= 25;
+    btn.style.opacity = canUse ? "1" : "0.3";
+    const badge = document.getElementById("hint-badge");
+    if (badge) badge.textContent = state.freeHints > 0 ? state.freeHints : "";
 }
 
 function hitTestWheel(px, py) {
-    const letterR = Math.min(26, Math.max(20, Math.min(115, (window.innerWidth - 110) / 2.5) * 0.28));
+    const wheelR = Math.min(110, (window.innerWidth - 100) / 2.6);
+    const letterR = Math.min(28, Math.max(20, wheelR * 0.23));
     for (let i = 0; i < wheelPositions.length; i++) {
         const dx = px - wheelPositions[i].x, dy = py - wheelPositions[i].y;
-        if (Math.sqrt(dx * dx + dy * dy) < letterR + 10) return i;
+        if (Math.sqrt(dx * dx + dy * dy) < letterR + 12) return i;
     }
     return -1;
 }
@@ -568,6 +857,8 @@ function onWheelEnd(e) {
     e.preventDefault();
     if (wheelState.dragging && wheelState.word.length >= 3) {
         handleWord(wheelState.word);
+    } else if (wheelState.dragging && wheelState.word.length > 0 && wheelState.word.length < 3) {
+        showToast("Too short", "rgba(255,255,255,0.5)", true);
     }
     wheelState.dragging = false;
     wheelState.sel = [];
@@ -586,9 +877,9 @@ function updateWheelVisuals() {
         const el = document.getElementById("wl-" + i);
         if (!el) continue;
         const active = wheelState.sel.includes(i);
-        el.style.color = active ? "#000" : theme.text;
-        el.style.background = active ? theme.accent : "rgba(255,255,255,0.08)";
-        el.style.border = "2px solid " + (active ? theme.accent : "rgba(255,255,255,0.15)");
+        el.style.color = active ? "#fff" : "#1a1a2e";
+        el.style.background = active ? theme.accent : "transparent";
+        el.style.border = "3px solid " + (active ? theme.accent : "transparent");
         el.style.boxShadow = active ? "0 0 16px " + theme.accent + "60" : "none";
         el.className = "wheel-letter" + (active ? " active" : "");
     }
@@ -607,7 +898,7 @@ function updateWheelVisuals() {
         line.setAttribute("x1", a.x); line.setAttribute("y1", a.y);
         line.setAttribute("x2", b.x); line.setAttribute("y2", b.y);
         line.setAttribute("stroke", theme.accent);
-        line.setAttribute("stroke-width", "3.5");
+        line.setAttribute("stroke-width", "8");
         line.setAttribute("stroke-linecap", "round");
         line.setAttribute("opacity", "0.75");
         svg.appendChild(line);
@@ -620,10 +911,10 @@ function updateWheelVisuals() {
         line.setAttribute("x1", last.x); line.setAttribute("y1", last.y);
         line.setAttribute("x2", wheelState.ptr.x); line.setAttribute("y2", wheelState.ptr.y);
         line.setAttribute("stroke", theme.accent);
-        line.setAttribute("stroke-width", "2");
+        line.setAttribute("stroke-width", "5");
         line.setAttribute("stroke-linecap", "round");
         line.setAttribute("opacity", "0.3");
-        line.setAttribute("stroke-dasharray", "5,5");
+        line.setAttribute("stroke-dasharray", "6,6");
         svg.appendChild(line);
     }
 }
@@ -650,7 +941,7 @@ function renderCompleteModal() {
             <div class="modal-emoji">🎉</div>
             <h2 class="modal-title" style="color:${theme.accent}">Level Complete!</h2>
             <p class="modal-subtitle">${level.group} · ${level.pack} · Level ${getDisplayLevel()}</p>
-            <p class="modal-coins" style="color:${theme.text}">+10 🪙${bonusCount > 0 ? " · +" + bonusCount + " bonus" : ""}</p>
+            <p class="modal-coins" style="color:${theme.text}">+1 🪙${bonusCount > 0 ? " · +" + bonusCount + " bonus" : ""}</p>
             <button class="modal-next-btn" id="next-btn"
                 style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});box-shadow:0 4px 16px ${theme.accent}40">
                 ${isLast ? "🏆 All Done!" : "Next Level →"}
@@ -749,11 +1040,12 @@ function renderMenu() {
     document.getElementById("menu-restart").onclick = () => {
         state.foundWords = [];
         state.bonusFound = [];
+        state.revealedCells = [];
         saveProgress();
         state.showMenu = false;
         renderMenu();
         renderGrid();
-        renderUnplaced();
+    
         renderWordCount();
         showToast("Level restarted");
     };
@@ -777,6 +1069,11 @@ function renderMenu() {
             state.highestLevel = 1;
             state.foundWords = [];
             state.bonusFound = [];
+            state.revealedCells = [];
+            state.bonusCounter = 0;
+            state.freeHints = 0;
+            state.freeTargets = 0;
+            state.levelsCompleted = 0;
             state.coins = 50;
             state.showMenu = false;
             saveProgress();
