@@ -54,6 +54,7 @@ const state = {
 
 // ---- MAP STATE ----
 let _mapExpandedPacks = {};       // { "group/pack": true }
+let _mapAutoExpanded = false;     // only auto-expand the active pack once per open
 const PACK_MAX_EXPANDABLE = 100;  // giant packs won't expand to show nodes
 
 // ---- COMPUTED ----
@@ -981,6 +982,7 @@ function renderCompleteModal() {
     document.getElementById("modal-map-btn").onclick = () => {
         state.showComplete = false;
         state.showMap = true;
+        _mapAutoExpanded = false;
         renderCompleteModal();
         renderMap();
     };
@@ -1088,6 +1090,7 @@ function renderMenu() {
     document.getElementById("menu-map-btn").onclick = () => {
         state.showMenu = false;
         state.showMap = true;
+        _mapAutoExpanded = false;
         renderMenu();
         renderMap();
     };
@@ -1234,14 +1237,18 @@ function renderMap() {
         return;
     }
 
-    // Auto-expand the pack containing the current level
-    for (const p of packs) {
-        if (state.currentLevel >= p.start && state.currentLevel <= p.end) {
-            const key = p.group + "/" + p.pack;
-            if ((p.end - p.start + 1) <= PACK_MAX_EXPANDABLE) {
-                _mapExpandedPacks[key] = true;
+    // Auto-expand the active pack only on first open
+    if (!_mapAutoExpanded) {
+        _mapAutoExpanded = true;
+        _mapExpandedPacks = {};
+        for (const p of packs) {
+            if (state.currentLevel >= p.start && state.currentLevel <= p.end) {
+                const key = p.group + "/" + p.pack;
+                if ((p.end - p.start + 1) <= PACK_MAX_EXPANDABLE) {
+                    _mapExpandedPacks[key] = true;
+                }
+                break;
             }
-            break;
         }
     }
 
@@ -1306,11 +1313,13 @@ function renderMap() {
     // Wire close button
     document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); };
 
-    // Wire pack header toggles
+    // Wire pack header toggles (accordion — only one open at a time)
     overlay.querySelectorAll(".map-pack-header.expandable").forEach(hdr => {
         hdr.onclick = () => {
             const packKey = hdr.getAttribute("data-pack-key");
-            _mapExpandedPacks[packKey] = !_mapExpandedPacks[packKey];
+            const wasOpen = _mapExpandedPacks[packKey];
+            _mapExpandedPacks = {};
+            if (!wasOpen) _mapExpandedPacks[packKey] = true;
             renderMap();
         };
     });
