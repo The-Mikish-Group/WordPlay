@@ -21,13 +21,41 @@
     <script src="/js/crossword.js"></script>
     <script src="/js/app.js"></script>
     <script>
+        // Capture install prompt
+        window._installPrompt = null;
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            window._installPrompt = e;
+        });
+
+        // Detect in-app browsers
+        (function() {
+            var ua = navigator.userAgent || '';
+            var tests = [
+                [/FBAN|FBAV/i, 'Facebook'],
+                [/Instagram/i, 'Instagram'],
+                [/musical_ly|BytedanceWebview|TikTok/i, 'TikTok'],
+                [/Snapchat/i, 'Snapchat'],
+                [/LinkedInApp/i, 'LinkedIn'],
+                [/Pinterest/i, 'Pinterest'],
+                [/Twitter/i, 'Twitter'],
+                [/\bLine\//i, 'Line']
+            ];
+            window._inAppBrowser = false;
+            for (var i = 0; i < tests.length; i++) {
+                if (tests[i][0].test(ua)) { window._inAppBrowser = tests[i][1]; break; }
+            }
+        })();
+
+        // Register service worker
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').then(reg => {
+            navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                window._swReg = reg;
                 // Check for updates every 60 seconds
-                setInterval(() => reg.update(), 60000);
+                setInterval(function() { reg.update(); }, 60000);
                 // When a new SW takes over, reload to get fresh assets
-                let refreshing = false;
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                var refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', function() {
                     if (!refreshing) {
                         refreshing = true;
                         window.location.reload();

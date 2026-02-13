@@ -469,22 +469,32 @@ async function handleNextLevel() {
     if (state.foundWords.length === totalRequired) {
         state.levelHistory[state.currentLevel] = [...state.foundWords];
     }
-    const next = Math.min(state.currentLevel + 1, maxLv);
+    const isReplay = state.currentLevel < state.highestLevel;
+    const next = isReplay
+        ? Math.min(state.highestLevel, maxLv)
+        : Math.min(state.currentLevel + 1, maxLv);
     state.currentLevel = next;
     state.highestLevel = Math.max(state.highestLevel, next);
     state.foundWords = [];
     state.bonusFound = [];
     state.revealedCells = [];
     state.showComplete = false;
-    state.coins += 1;
-    state.freeHints++;
-    state.levelsCompleted++;
-    if (state.levelsCompleted % 10 === 0) {
-        state.freeTargets++;
+    if (!isReplay) {
+        state.coins += 1;
+        state.freeHints++;
+        state.levelsCompleted++;
+        if (state.levelsCompleted % 10 === 0) {
+            state.freeTargets++;
+        }
     }
     state.shuffleKey = 0;
     saveProgress();
     await recompute();
+    // Restore answers if returning to a previously completed level
+    const history = state.levelHistory[state.currentLevel];
+    if (history) {
+        state.foundWords = placedWords.filter(w => history.includes(w));
+    }
     renderAll();
 }
 
@@ -1061,6 +1071,31 @@ function renderMenu() {
         </div>
     `;
 
+    // Check for Updates
+    html += `
+        <div class="menu-setting">
+            <label class="menu-setting-label">App</label>
+            <button class="menu-setting-btn" id="check-update-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px">Check for Updates</button>
+        </div>
+    `;
+
+    // Install App
+    html += `<div class="menu-setting">`;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isStandalone) {
+        html += `<div style="text-align:center;opacity:0.4;font-size:14px;padding:4px 0">Installed \u2713</div>`;
+    } else if (window._inAppBrowser) {
+        html += `<div style="text-align:center;opacity:0.5;font-size:13px;padding:4px 0">Open in your browser to install</div>`;
+    } else if (window._installPrompt) {
+        html += `<button class="menu-setting-btn" id="install-app-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px">Install App</button>`;
+    } else if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.navigator.standalone) {
+        html += `<label class="menu-setting-label">Install App</label>`;
+        html += `<div style="font-size:13px;opacity:0.6;line-height:1.5">Tap Share (\u25A1\u2191) then &ldquo;Add to Home Screen&rdquo;</div>`;
+    } else {
+        html += `<div style="text-align:center;opacity:0.4;font-size:13px;padding:4px 0">Install not available in this browser</div>`;
+    }
+    html += `</div>`;
+
     // Set progress (seeding for migrating from another app)
     html += `
         <div class="menu-setting">
@@ -1125,6 +1160,34 @@ function renderMenu() {
             showToast("Level " + val + " not available", "#ff8888");
         }
     };
+
+    document.getElementById("check-update-btn").onclick = () => {
+        showToast("Checking for updates\u2026", theme.accent);
+        if (window._swReg) {
+            window._swReg.update().then(() => {
+                setTimeout(() => window.location.reload(), 2000);
+            }).catch(() => {
+                setTimeout(() => window.location.reload(), 2000);
+            });
+        } else {
+            setTimeout(() => window.location.reload(), 2000);
+        }
+    };
+
+    const installBtn = document.getElementById("install-app-btn");
+    if (installBtn) {
+        installBtn.onclick = () => {
+            if (window._installPrompt) {
+                window._installPrompt.prompt();
+                window._installPrompt.userChoice.then(result => {
+                    if (result.outcome === 'accepted') {
+                        showToast("App installed!", theme.accent);
+                    }
+                    window._installPrompt = null;
+                });
+            }
+        };
+    }
 
     document.getElementById("seed-level-btn").onclick = () => {
         const input = document.getElementById("seed-level-input");
@@ -1368,6 +1431,21 @@ async function init() {
     // Build the UI
     app.innerHTML = "";
     renderAll();
+
+    // In-app browser banner
+    if (window._inAppBrowser && !window.matchMedia('(display-mode: standalone)').matches && !sessionStorage.getItem('inapp-dismissed')) {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const browserName = isIOS ? 'Safari' : 'Chrome';
+        const banner = document.createElement('div');
+        banner.className = 'inapp-banner';
+        banner.id = 'inapp-banner';
+        banner.innerHTML = `<div class="inapp-banner-text">For the best experience, open in <strong>${browserName}</strong>. Tap <strong>\u22EF</strong> \u2192 <strong>Open in Browser</strong></div><button class="inapp-banner-close" id="inapp-close">\u2715</button>`;
+        app.prepend(banner);
+        document.getElementById('inapp-close').onclick = () => {
+            banner.remove();
+            sessionStorage.setItem('inapp-dismissed', '1');
+        };
+    }
 
     // Handle resize
     window.addEventListener("resize", () => {
