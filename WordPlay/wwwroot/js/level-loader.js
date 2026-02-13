@@ -25,6 +25,32 @@ function getThemeForGroup(group) {
     return GROUP_THEMES[group];
 }
 
+// ---- MASTER/UNKNOWN SYNTHETIC NAMING ----
+// Levels 6002–156000 are all "Master/Unknown" in the scraped data.
+// Give them rotating themed names so the header and visuals change.
+const _MASTER_START = 6002;
+const _MASTER_BAND = 500; // levels per synthetic group
+const _SYNTH_GROUPS = [
+    { group: "Horizon",  packs: ["Dawn", "Glow", "Crest", "Vista", "Blaze"] },
+    { group: "Depths",   packs: ["Abyss", "Coral", "Tide", "Drift", "Surge"] },
+    { group: "Summit",   packs: ["Ridge", "Peak", "Ascent", "Spire", "Apex"] },
+    { group: "Twilight", packs: ["Dusk", "Ember", "Shade", "Haze", "Veil"] },
+];
+
+function _synthNameForLevel(levelNum) {
+    const offset = levelNum - _MASTER_START;
+    const bandIdx = Math.floor(offset / _MASTER_BAND);
+    const sg = _SYNTH_GROUPS[bandIdx % _SYNTH_GROUPS.length];
+    const packIdx = Math.floor((offset % _MASTER_BAND) / (_MASTER_BAND / sg.packs.length));
+    return { group: sg.group, pack: sg.packs[Math.min(packIdx, sg.packs.length - 1)] };
+}
+
+function _synthThemeForLevel(levelNum) {
+    const offset = levelNum - _MASTER_START;
+    const bandIdx = Math.floor(offset / _MASTER_BAND);
+    return THEME_LIST[bandIdx % THEME_LIST.length];
+}
+
 // ---- INITIALIZATION ----
 async function initLevelLoader() {
     try {
@@ -109,14 +135,20 @@ async function getLevel(levelNum) {
     const [letters, words, group, pack] = entry;
     const bonus = entry[4] || [];  // 5th element if present (backwards-compatible)
 
+    // Synthetic naming for the giant Master/Unknown range
+    const isMasterUnknown = group === "Master" && (pack === "Unknown" || levelNum >= _MASTER_START);
+    const displayGroup = isMasterUnknown ? _synthNameForLevel(levelNum).group : group;
+    const displayPack = isMasterUnknown ? _synthNameForLevel(levelNum).pack : pack;
+    const levelTheme = isMasterUnknown ? _synthThemeForLevel(levelNum) : getThemeForGroup(group);
+
     return {
         levelNumber: levelNum,
         letters: letters.toLowerCase(),
         words: words.map(w => w.toUpperCase()),
         bonus: bonus.map(w => w.toUpperCase()),
-        group: group,
-        pack: pack,
-        theme: getThemeForGroup(group)
+        group: displayGroup,
+        pack: displayPack,
+        theme: levelTheme
     };
 }
 
@@ -133,24 +165,35 @@ async function preloadAround(levelNum) {
     if (nextChunk) loadChunk(nextChunk); // fire and forget
 }
 
-// ---- PACK LISTING (for menu) ----
+// ---- PACK LISTING (for menu/map) ----
+let _cachedPacks = null;
+
 function getLevelPacks() {
     if (_useBuiltIn && typeof LEVEL_PACKS !== "undefined") {
         return LEVEL_PACKS;
     }
-    
     if (!_levelIndex) return [];
-    
-    // Convert index to pack structure for the menu
-    // Group adjacent packs under the same group
-    const groups = {};
+    if (_cachedPacks) return _cachedPacks;
+
+    // Split the Master/Unknown mega-entry into synthetic packs
+    const result = [];
     for (const entry of _levelIndex) {
-        const key = entry.group;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(entry);
+        if (entry.group === "Master" && entry.pack === "Unknown") {
+            // Split into bands of _MASTER_BAND levels, grouped by synth group
+            let lvStart = entry.start;
+            while (lvStart <= entry.end) {
+                const bandEnd = Math.min(lvStart + _MASTER_BAND - 1, entry.end);
+                const synth = _synthNameForLevel(lvStart);
+                result.push({ group: synth.group, pack: synth.pack, start: lvStart, end: bandEnd });
+                lvStart = bandEnd + 1;
+            }
+        } else {
+            result.push(entry);
+        }
     }
-    
-    return _levelIndex; // The menu will handle this format
+
+    _cachedPacks = result;
+    return result;
 }
 
 function getMaxLevel() {

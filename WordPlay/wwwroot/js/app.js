@@ -43,12 +43,18 @@ const state = {
     freeHints: 0,          // accumulated free hints (persists)
     freeTargets: 0,        // accumulated free targeted hints (persists)
     levelsCompleted: 0,    // total levels completed (persists, for 10-level target reward)
+    levelHistory: {},      // { levelNum: [foundWords] } — answers for completed levels
     // Transient
     showMenu: false,
     showComplete: false,
+    showMap: false,
     loading: false,
     pickMode: false,       // target-hint: user taps a cell to reveal it
 };
+
+// ---- MAP STATE ----
+let _mapExpandedPacks = {};       // { "group/pack": true }
+const PACK_MAX_EXPANDABLE = 100;  // giant packs won't expand to show nodes
 
 // ---- COMPUTED ----
 let level, theme, crossword, placedWords, bonusPool, totalRequired, wheelLetters;
@@ -122,8 +128,7 @@ function loadProgress() {
             const d = JSON.parse(raw);
             // Migration: old saves used 0-based index + startingLevel
             // New saves use actual level number (1-based)
-            if (d.v === 2) {
-                // New format
+            if (d.v >= 2) {
                 state.currentLevel = d.cl || 1;
                 state.highestLevel = d.hl || 1;
             } else {
@@ -141,6 +146,7 @@ function loadProgress() {
             state.freeHints = d.fh || 0;
             state.freeTargets = d.ft || 0;
             state.levelsCompleted = d.lc || 0;
+            state.levelHistory = d.lh || {};
         }
     } catch (e) { /* ignore */ }
 }
@@ -148,7 +154,7 @@ function loadProgress() {
 function saveProgress() {
     try {
         localStorage.setItem("wordplay-save", JSON.stringify({
-            v: 2,  // format version
+            v: 3,  // format version
             cl: state.currentLevel,
             fw: state.foundWords,
             bf: state.bonusFound,
@@ -159,6 +165,7 @@ function saveProgress() {
             fh: state.freeHints,
             ft: state.freeTargets,
             lc: state.levelsCompleted,
+            lh: state.levelHistory,
         }));
     } catch (e) { /* ignore */ }
 }
@@ -199,6 +206,8 @@ function handleWord(word) {
         renderHintBtn();
         renderTargetBtn();
         if (state.foundWords.length === totalRequired) {
+            state.levelHistory[state.currentLevel] = [...state.foundWords];
+            saveProgress();
             setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
         }
         return;
@@ -225,6 +234,8 @@ function handleWord(word) {
                 // Delayed flash so the grid renders first
                 setTimeout(() => flashHintCell(cell), 100);
                 if (state.foundWords.length === totalRequired) {
+                    state.levelHistory[state.currentLevel] = [...state.foundWords];
+                    saveProgress();
                     setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 1200);
                 }
             } else {
@@ -453,6 +464,10 @@ function handleShuffle() {
 
 async function handleNextLevel() {
     const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
+    // Store completed level answers before advancing
+    if (state.foundWords.length === totalRequired) {
+        state.levelHistory[state.currentLevel] = [...state.foundWords];
+    }
     const next = Math.min(state.currentLevel + 1, maxLv);
     state.currentLevel = next;
     state.highestLevel = Math.max(state.highestLevel, next);
@@ -479,9 +494,19 @@ async function goToLevel(num) {
     state.bonusFound = [];
     state.revealedCells = [];
     state.showMenu = false;
+    state.showMap = false;
     state.shuffleKey = 0;
-    saveProgress();
     await recompute();
+    // Restore answers for previously completed levels
+    const history = state.levelHistory[state.currentLevel];
+    if (history) {
+        state.foundWords = placedWords.filter(w => history.includes(w));
+    } else if (num < state.highestLevel) {
+        // Level was completed before history tracking — fill all words
+        state.foundWords = [...placedWords];
+        state.levelHistory[state.currentLevel] = [...placedWords];
+    }
+    saveProgress();
     renderAll();
 }
 
@@ -501,6 +526,7 @@ function renderAll() {
     renderWheel();
     renderCompleteModal();
     renderMenu();
+    renderMap();
 }
 
 // ---- HEADER ----
@@ -946,9 +972,16 @@ function renderCompleteModal() {
                 style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});box-shadow:0 4px 16px ${theme.accent}40">
                 ${isLast ? "🏆 All Done!" : "Next Level →"}
             </button>
+            <button class="modal-map-btn" id="modal-map-btn" style="border-color:${theme.accent}40;color:${theme.text}">View Map</button>
         </div>
     `;
     document.getElementById("next-btn").onclick = handleNextLevel;
+    document.getElementById("modal-map-btn").onclick = () => {
+        state.showComplete = false;
+        state.showMap = true;
+        renderCompleteModal();
+        renderMap();
+    };
 }
 
 // ---- LEVEL MENU ----
@@ -986,6 +1019,13 @@ function renderMenu() {
         </div>
     `;
 
+    // Level Map button
+    html += `
+        <button class="menu-map-btn" id="menu-map-btn" style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});color:#000">
+            🗺️ Level Map
+        </button>
+    `;
+
     // Quick navigation
     html += `
         <div class="menu-nav-row">
@@ -1017,6 +1057,18 @@ function renderMenu() {
         </div>
     `;
 
+    // Set progress (seeding for migrating from another app)
+    html += `
+        <div class="menu-setting">
+            <label class="menu-setting-label">Set Progress</label>
+            <div class="menu-setting-row">
+                <input type="number" id="seed-level-input" value="${state.highestLevel}" min="1" max="${maxLv}" class="menu-setting-input">
+                <button class="menu-setting-btn" id="seed-level-btn" style="background:${theme.accent};color:#000">Set</button>
+            </div>
+            <div class="menu-setting-hint">Mark all levels through this number as completed</div>
+        </div>
+    `;
+
     // Reset option
     html += `
         <div class="menu-setting">
@@ -1030,7 +1082,14 @@ function renderMenu() {
 
     // Wire up event handlers
     document.getElementById("menu-close-btn").onclick = () => { state.showMenu = false; renderMenu(); };
-    
+
+    document.getElementById("menu-map-btn").onclick = () => {
+        state.showMenu = false;
+        state.showMap = true;
+        renderMenu();
+        renderMap();
+    };
+
     document.getElementById("menu-prev").onclick = () => {
         if (state.currentLevel > 1) goToLevel(state.currentLevel - 1);
     };
@@ -1062,6 +1121,27 @@ function renderMenu() {
         }
     };
 
+    document.getElementById("seed-level-btn").onclick = () => {
+        const input = document.getElementById("seed-level-input");
+        const val = parseInt(input.value);
+        if (val >= 1 && val <= maxLv && !isNaN(val)) {
+            state.highestLevel = Math.max(state.highestLevel, val);
+            state.currentLevel = val + 1;
+            state.foundWords = [];
+            state.bonusFound = [];
+            state.revealedCells = [];
+            state.shuffleKey = 0;
+            saveProgress();
+            recompute().then(() => {
+                state.showMenu = false;
+                renderAll();
+                showToast("Progress set through level " + val.toLocaleString());
+            });
+        } else {
+            showToast("Invalid level number", "#ff8888");
+        }
+    };
+
     document.getElementById("reset-progress-btn").onclick = () => {
         if (confirm("Reset all progress? This cannot be undone.")) {
             localStorage.removeItem("wordplay-save");
@@ -1074,12 +1154,187 @@ function renderMenu() {
             state.freeHints = 0;
             state.freeTargets = 0;
             state.levelsCompleted = 0;
+            state.levelHistory = {};
             state.coins = 50;
             state.showMenu = false;
             saveProgress();
             recompute().then(() => renderAll());
         }
     };
+}
+
+// ---- LEVEL MAP ----
+function renderSnakeNodes(pack, accent) {
+    const cols = 5;
+    const total = pack.end - pack.start + 1;
+    const rows = Math.ceil(total / cols);
+    let html = '';
+    for (let r = 0; r < rows; r++) {
+        const reverse = r % 2 === 1;
+        html += `<div class="map-snake-row${reverse ? ' reverse' : ''}">`;
+        const rowCount = Math.min(cols, total - r * cols);
+        for (let c = 0; c < rowCount; c++) {
+            const lvNum = pack.start + r * cols + c;
+            const isCompleted = lvNum < state.highestLevel;
+            const isCurrent = lvNum === state.currentLevel;
+            const isAvailable = lvNum <= state.highestLevel;
+            let cls = 'map-node';
+            if (isCompleted) cls += ' completed';
+            else if (isCurrent) cls += ' current';
+            else if (isAvailable) cls += ' available';
+            else cls += ' locked';
+            const clickable = isAvailable;
+            // Horizontal connector before this node (not on first of row)
+            if (c > 0) html += `<div class="map-hconnector" style="background:${isAvailable ? accent : 'rgba(255,255,255,0.1)'}"></div>`;
+            html += `<div class="${cls}" ${clickable ? `data-lv="${lvNum}"` : ''} style="--accent:${accent}">`;
+            if (isCompleted) html += `<span class="map-node-check">✓</span>`;
+            else html += `<span class="map-node-num">${lvNum}</span>`;
+            html += `</div>`;
+        }
+        html += `</div>`;
+        // Vertical connector between rows
+        if (r < rows - 1) {
+            const nextRowFirst = pack.start + (r + 1) * cols;
+            const connectorDone = nextRowFirst <= state.highestLevel;
+            const side = r % 2 === 0 ? 'right' : 'left';
+            html += `<div class="map-vconnector ${side}" style="background:${connectorDone ? accent : 'rgba(255,255,255,0.1)'}"></div>`;
+        }
+    }
+    return html;
+}
+
+function renderGiantPackView(pack, accent, completed, total, pct) {
+    return `
+        <div class="map-giant-stats">
+            <div class="map-giant-count" style="color:${accent}">${completed.toLocaleString()} <span class="map-giant-of">of</span> ${total.toLocaleString()}</div>
+            <div class="map-giant-pct">${pct}% complete</div>
+        </div>
+    `;
+}
+
+function renderMap() {
+    let overlay = document.getElementById("map-overlay");
+    if (!state.showMap) {
+        if (overlay) overlay.style.display = "none";
+        return;
+    }
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "map-overlay";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "map-overlay";
+    overlay.style.display = "flex";
+
+    const packs = typeof getLevelPacks === "function" ? getLevelPacks() : [];
+    if (!packs.length) {
+        overlay.innerHTML = `<div class="map-header"><h2 class="map-title" style="color:${theme.accent}">Level Map</h2><button class="menu-close" id="map-close-btn">✕</button></div><div class="map-scroll"><p style="opacity:0.5;text-align:center;padding:40px">No level data available</p></div>`;
+        document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); };
+        return;
+    }
+
+    // Auto-expand the pack containing the current level
+    for (const p of packs) {
+        if (state.currentLevel >= p.start && state.currentLevel <= p.end) {
+            const key = p.group + "/" + p.pack;
+            if ((p.end - p.start + 1) <= PACK_MAX_EXPANDABLE) {
+                _mapExpandedPacks[key] = true;
+            }
+            break;
+        }
+    }
+
+    let html = `<div class="map-header"><h2 class="map-title" style="color:${theme.accent}">Level Map</h2><button class="menu-close" id="map-close-btn">✕</button></div><div class="map-scroll" id="map-scroll">`;
+
+    let lastGroup = "";
+    for (const p of packs) {
+        const key = p.group + "/" + p.pack;
+        const total = p.end - p.start + 1;
+        const isGiant = total > PACK_MAX_EXPANDABLE;
+        const packTheme = typeof getThemeForGroup === "function" ? getThemeForGroup(p.group) : "sunrise";
+        const accent = (THEMES[packTheme] || THEMES.sunrise).accent;
+        const completed = Math.max(0, Math.min(total, state.highestLevel - p.start));
+        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const isActive = state.currentLevel >= p.start && state.currentLevel <= p.end;
+        const isLocked = state.highestLevel < p.start;
+        const isDone = state.highestLevel > p.end;
+        const isExpanded = !isGiant && !isLocked && _mapExpandedPacks[key];
+
+        // Group divider
+        if (p.group !== lastGroup) {
+            lastGroup = p.group;
+            html += `<div class="map-group-divider" style="color:${accent}"><span class="map-group-name">${p.group}</span></div>`;
+        }
+
+        // Pack section
+        html += `<div class="map-pack${isActive ? ' active' : ''}${isLocked ? ' locked' : ''}${isDone ? ' done' : ''}">`;
+
+        // Pack header
+        const expandable = !isGiant && !isLocked;
+        html += `<div class="map-pack-header${expandable ? ' expandable' : ''}" data-pack-key="${key}" ${isGiant ? '' : ''}>`;
+        html += `<div class="map-pack-info">`;
+        if (isDone) html += `<span class="map-pack-icon" style="color:${accent}">✓</span>`;
+        else if (isActive) html += `<span class="map-pack-icon active-dot" style="background:${accent}"></span>`;
+        else if (isLocked) html += `<span class="map-pack-icon locked-icon">🔒</span>`;
+        html += `<div><div class="map-pack-name">${p.pack}</div>`;
+        html += `<div class="map-pack-range">Levels ${p.start.toLocaleString()} – ${p.end.toLocaleString()}</div></div></div>`;
+        // Progress bar
+        html += `<div class="map-pack-right">`;
+        html += `<div class="map-progress-bar"><div class="map-progress-fill" style="width:${pct}%;background:${accent}"></div></div>`;
+        if (expandable) html += `<span class="map-chevron${isExpanded ? ' open' : ''}">▸</span>`;
+        html += `</div>`;
+        html += `</div>`; // close pack header
+
+        // Expanded content
+        if (isExpanded) {
+            html += `<div class="map-snake" id="map-snake-${key.replace(/[^a-zA-Z0-9]/g, '-')}">`;
+            html += renderSnakeNodes(p, accent);
+            html += `</div>`;
+        }
+
+        if (isGiant && !isLocked) {
+            html += renderGiantPackView(p, accent, completed, total, pct);
+        }
+
+        html += `</div>`; // close map-pack
+    }
+
+    html += `</div>`; // close map-scroll
+    overlay.innerHTML = html;
+
+    // Wire close button
+    document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); };
+
+    // Wire pack header toggles
+    overlay.querySelectorAll(".map-pack-header.expandable").forEach(hdr => {
+        hdr.onclick = () => {
+            const packKey = hdr.getAttribute("data-pack-key");
+            _mapExpandedPacks[packKey] = !_mapExpandedPacks[packKey];
+            renderMap();
+        };
+    });
+
+    // Wire level node clicks
+    overlay.querySelectorAll(".map-node[data-lv]").forEach(node => {
+        node.onclick = () => {
+            const lv = parseInt(node.getAttribute("data-lv"));
+            if (!isNaN(lv)) {
+                state.showMap = false;
+                goToLevel(lv);
+            }
+        };
+    });
+
+    // Auto-scroll to current level or active pack
+    setTimeout(() => {
+        const currentNode = overlay.querySelector(".map-node.current");
+        if (currentNode) {
+            currentNode.scrollIntoView({ block: "center", behavior: "smooth" });
+        } else {
+            const activePack = overlay.querySelector(".map-pack.active");
+            if (activePack) activePack.scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+    }, 100);
 }
 
 // ============================================================
