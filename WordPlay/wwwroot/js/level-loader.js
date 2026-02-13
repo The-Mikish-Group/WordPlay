@@ -175,14 +175,14 @@ function getLevelPacks() {
     if (!_levelIndex) return [];
     if (_cachedPacks) return _cachedPacks;
 
-    // Split the Master/Unknown mega-entry into synthetic packs
+    // Split the Master/Unknown mega-entry into synthetic packs of 100 levels
+    const packSize = _MASTER_BAND / _SYNTH_GROUPS[0].packs.length; // 100
     const result = [];
     for (const entry of _levelIndex) {
         if (entry.group === "Master" && entry.pack === "Unknown") {
-            // Split into bands of _MASTER_BAND levels, grouped by synth group
             let lvStart = entry.start;
             while (lvStart <= entry.end) {
-                const bandEnd = Math.min(lvStart + _MASTER_BAND - 1, entry.end);
+                const bandEnd = Math.min(lvStart + packSize - 1, entry.end);
                 const synth = _synthNameForLevel(lvStart);
                 result.push({ group: synth.group, pack: synth.pack, start: lvStart, end: bandEnd });
                 lvStart = bandEnd + 1;

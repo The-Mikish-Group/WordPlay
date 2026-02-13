@@ -488,7 +488,9 @@ async function handleNextLevel() {
 }
 
 async function goToLevel(num) {
-    if (num > state.highestLevel && num !== state.currentLevel) return;
+    const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : 999999;
+    if (num < 1 || num > maxLv) return;
+    state.highestLevel = Math.max(state.highestLevel, num);
     state.currentLevel = num;
     state.foundWords = [];
     state.bonusFound = [];
@@ -1183,10 +1185,9 @@ function renderSnakeNodes(pack, accent) {
             else if (isCurrent) cls += ' current';
             else if (isAvailable) cls += ' available';
             else cls += ' locked';
-            const clickable = isAvailable;
             // Horizontal connector before this node (not on first of row)
             if (c > 0) html += `<div class="map-hconnector" style="background:${isAvailable ? accent : 'rgba(255,255,255,0.1)'}"></div>`;
-            html += `<div class="${cls}" ${clickable ? `data-lv="${lvNum}"` : ''} style="--accent:${accent}">`;
+            html += `<div class="${cls}" data-lv="${lvNum}" style="--accent:${accent}">`;
             if (isCompleted) html += `<span class="map-node-check">✓</span>`;
             else html += `<span class="map-node-num">${lvNum}</span>`;
             html += `</div>`;
@@ -1258,7 +1259,7 @@ function renderMap() {
         const isActive = state.currentLevel >= p.start && state.currentLevel <= p.end;
         const isLocked = state.highestLevel < p.start;
         const isDone = state.highestLevel > p.end;
-        const isExpanded = !isGiant && !isLocked && _mapExpandedPacks[key];
+        const isExpanded = !isGiant && _mapExpandedPacks[key];
 
         // Group divider
         if (p.group !== lastGroup) {
@@ -1270,7 +1271,7 @@ function renderMap() {
         html += `<div class="map-pack${isActive ? ' active' : ''}${isLocked ? ' locked' : ''}${isDone ? ' done' : ''}">`;
 
         // Pack header
-        const expandable = !isGiant && !isLocked;
+        const expandable = !isGiant;
         html += `<div class="map-pack-header${expandable ? ' expandable' : ''}" data-pack-key="${key}" ${isGiant ? '' : ''}>`;
         html += `<div class="map-pack-info">`;
         if (isDone) html += `<span class="map-pack-icon" style="color:${accent}">✓</span>`;
