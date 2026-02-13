@@ -681,7 +681,7 @@ function highlightWord(word) {
         const el = document.querySelector(`.grid-cell[data-key="${c.row},${c.col}"]`);
         if (el) {
             el.classList.add("word-flash");
-            setTimeout(() => el.classList.remove("word-flash"), 600);
+            setTimeout(() => el.classList.remove("word-flash"), 1400);
         }
     }
 }
@@ -691,7 +691,7 @@ function flashHintCell(key) {
     const el = document.querySelector(`.grid-cell[data-key="${key}"]`);
     if (!el) return;
     el.classList.add("hint-flash");
-    setTimeout(() => el.classList.remove("hint-flash"), 1500);
+    setTimeout(() => el.classList.remove("hint-flash"), 2500);
 }
 
 // ---- WORD COUNT ----
