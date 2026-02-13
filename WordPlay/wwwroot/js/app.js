@@ -1161,8 +1161,11 @@ function renderMenu() {
         }
     };
 
-    document.getElementById("check-update-btn").onclick = () => {
-        showToast("Checking for updates\u2026", theme.accent);
+    document.getElementById("check-update-btn").onclick = function() {
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="update-spinner"></span> Checking\u2026';
+        btn.style.opacity = '0.7';
         if (window._swReg) {
             window._swReg.update().then(() => {
                 setTimeout(() => window.location.reload(), 2000);

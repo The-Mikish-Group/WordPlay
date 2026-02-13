@@ -64,6 +64,23 @@ html, body {
     color: #fff;
 }
 
+/* ---- UPDATE SPINNER ---- */
+.update-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2.5px solid rgba(0,0,0,0.2);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* ---- HEADER ---- */
 .header {
     display: flex;
