@@ -594,7 +594,7 @@ function renderGrid() {
     const vh = window.innerHeight * 0.34;
     const cs = Math.min(Math.floor(vw / cols), Math.floor(vh / rows), 44);
     const gap = Math.max(2, Math.min(4, cs > 30 ? 4 : 2));
-    const fs = Math.max(cs * 0.48, 12);
+    const fs = Math.max(cs * 0.55, 12);
     const br = cs >= 36 ? 6 : cs >= 26 ? 3 : 2;
 
     gc.className = "grid-container";
