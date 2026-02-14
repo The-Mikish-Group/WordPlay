@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wordplay-v33';
+const CACHE_NAME = 'wordplay-v34';
 const ASSETS = [
     '/',
     '/index.html',
