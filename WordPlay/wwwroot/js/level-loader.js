@@ -14,7 +14,12 @@ let _useBuiltIn = false;
 // ---- THEME ASSIGNMENT ----
 // Maps group names to themes (cycling through available themes)
 const GROUP_THEMES = {};
-const THEME_LIST = ["sunrise", "forest", "canyon", "sky"];
+const THEME_LIST = [
+    "sunrise", "forest", "canyon", "sky",
+    "ocean", "lavender", "autumn", "midnight",
+    "arctic", "volcano", "meadow", "storm",
+    "coral", "aurora", "desert", "twilight",
+];
 let _themeIdx = 0;
 
 function getThemeForGroup(group) {

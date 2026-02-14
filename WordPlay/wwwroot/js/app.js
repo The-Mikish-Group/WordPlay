@@ -28,6 +28,78 @@ const THEMES = {
         wheelBg: "rgba(6,13,42,0.55)", cellBg: "rgba(255,255,255,0.1)",
         cellFound: "#6ec6f5", text: "#d8eeff", dim: "rgba(216,238,255,0.5)",
     },
+    ocean: {
+        bg: "linear-gradient(180deg, #020c1b 0%, #0a2342 25%, #0d4f6e 50%, #1a8a8a 75%, #3ccfcf 100%)",
+        accent: "#3ccfcf", accentDark: "#1a8a8a",
+        wheelBg: "rgba(2,12,27,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        cellFound: "#3ccfcf", text: "#d0f5f5", dim: "rgba(208,245,245,0.5)",
+    },
+    lavender: {
+        bg: "linear-gradient(160deg, #120820 0%, #2a1545 25%, #5c3d8f 50%, #9a6cbf 75%, #d4a5e5 100%)",
+        accent: "#d4a5e5", accentDark: "#9a6cbf",
+        wheelBg: "rgba(18,8,32,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        cellFound: "#d4a5e5", text: "#f0e0ff", dim: "rgba(240,224,255,0.5)",
+    },
+    autumn: {
+        bg: "linear-gradient(170deg, #1a0800 0%, #3d1200 25%, #8b3a0f 50%, #c45e1a 75%, #e89040 100%)",
+        accent: "#e89040", accentDark: "#c45e1a",
+        wheelBg: "rgba(26,8,0,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        cellFound: "#e89040", text: "#fde8cc", dim: "rgba(253,232,204,0.5)",
+    },
+    midnight: {
+        bg: "linear-gradient(175deg, #03000a 0%, #0a0520 25%, #1a1040 50%, #2a1860 75%, #3d2080 100%)",
+        accent: "#8878c8", accentDark: "#5e4e9e",
+        wheelBg: "rgba(3,0,10,0.55)", cellBg: "rgba(255,255,255,0.08)",
+        cellFound: "#8878c8", text: "#d8d0f0", dim: "rgba(216,208,240,0.5)",
+    },
+    arctic: {
+        bg: "linear-gradient(165deg, #0a1520 0%, #152535 25%, #2a4a60 50%, #5a8aa0 75%, #a0d4e8 100%)",
+        accent: "#a0d4e8", accentDark: "#5a8aa0",
+        wheelBg: "rgba(10,21,32,0.55)", cellBg: "rgba(255,255,255,0.1)",
+        cellFound: "#a0d4e8", text: "#e0f4ff", dim: "rgba(224,244,255,0.5)",
+    },
+    volcano: {
+        bg: "linear-gradient(175deg, #0a0000 0%, #2a0505 25%, #6a1010 50%, #a02020 75%, #e04030 100%)",
+        accent: "#f06848", accentDark: "#c03828",
+        wheelBg: "rgba(10,0,0,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        cellFound: "#f06848", text: "#ffe0d8", dim: "rgba(255,224,216,0.5)",
+    },
+    meadow: {
+        bg: "linear-gradient(160deg, #080d02 0%, #1a2a08 25%, #3a5a10 50%, #6a9a20 75%, #a0d040 100%)",
+        accent: "#a0d040", accentDark: "#6a9a20",
+        wheelBg: "rgba(8,13,2,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        cellFound: "#a0d040", text: "#e8f8c8", dim: "rgba(232,248,200,0.5)",
+    },
+    storm: {
+        bg: "linear-gradient(180deg, #08080c 0%, #1a1a2a 25%, #2e3050 50%, #4a5070 75%, #7080a0 100%)",
+        accent: "#90a8d0", accentDark: "#6078a0",
+        wheelBg: "rgba(8,8,12,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        cellFound: "#90a8d0", text: "#d8e0f0", dim: "rgba(216,224,240,0.5)",
+    },
+    coral: {
+        bg: "linear-gradient(165deg, #1a0810 0%, #3d1025 25%, #8a2050 50%, #c84878 75%, #f08ca0 100%)",
+        accent: "#f08ca0", accentDark: "#c84878",
+        wheelBg: "rgba(26,8,16,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        cellFound: "#f08ca0", text: "#ffe0e8", dim: "rgba(255,224,232,0.5)",
+    },
+    aurora: {
+        bg: "linear-gradient(170deg, #020810 0%, #0a2030 25%, #105040 50%, #20a060 75%, #60e0a0 100%)",
+        accent: "#60e0a0", accentDark: "#20a060",
+        wheelBg: "rgba(2,8,16,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        cellFound: "#60e0a0", text: "#d0ffe8", dim: "rgba(208,255,232,0.5)",
+    },
+    desert: {
+        bg: "linear-gradient(160deg, #1a1408 0%, #3a2a10 25%, #6a5020 50%, #a08838 75%, #d0c060 100%)",
+        accent: "#d0c060", accentDark: "#a08838",
+        wheelBg: "rgba(26,20,8,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        cellFound: "#d0c060", text: "#f8f0d0", dim: "rgba(248,240,208,0.5)",
+    },
+    twilight: {
+        bg: "linear-gradient(175deg, #0a0515 0%, #1a1035 25%, #3a2060 50%, #6a3090 75%, #a050c0 100%)",
+        accent: "#c080e0", accentDark: "#8850b0",
+        wheelBg: "rgba(10,5,21,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        cellFound: "#c080e0", text: "#f0e0ff", dim: "rgba(240,224,255,0.5)",
+    },
 };
 
 // ---- STATE ----
