@@ -1036,7 +1036,7 @@ function renderMenu() {
     // Level Map button
     html += `
         <button class="menu-map-btn" id="menu-map-btn" style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});color:#000">
-            🗺️ Level Map
+            <span style="font-size:24px;vertical-align:middle">🗺️</span> Level Map
         </button>
     `;
 
