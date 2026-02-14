@@ -30,7 +30,7 @@ html, body {
 }
 
 @media (min-width: 1024px) {
-    #app { max-width: 480px; }
+    #app, .modal-overlay, .menu-overlay, .map-overlay { max-width: 480px; }
 }
 
 /* ---- IN-APP BROWSER BANNER ---- */
@@ -339,6 +339,8 @@ html, body {
     background: rgba(0,0,0,0.82);
     display: flex;
     align-items: center;
+    max-width: 600px;
+    margin: 0 auto;
     justify-content: center;
     z-index: 200;
     padding: 20px;
@@ -395,6 +397,8 @@ html, body {
     background: rgba(0,0,0,0.92);
     z-index: 300;
     display: flex;
+    max-width: 600px;
+    margin: 0 auto;
     flex-direction: column;
     animation: slideUp 0.3s ease;
 }
@@ -715,6 +719,8 @@ html, body {
     background: rgba(0,0,0,0.94);
     z-index: 300;
     display: flex;
+    max-width: 600px;
+    margin: 0 auto;
     flex-direction: column;
     animation: slideUp 0.3s ease;
 }
