@@ -930,11 +930,6 @@ html, body {
     transform: scale(0.9);
 }
 
-.map-node-check {
-    font-size: 15px;
-    font-weight: 900;
-}
-
 .map-node-num {
     font-size: 10px;
 }

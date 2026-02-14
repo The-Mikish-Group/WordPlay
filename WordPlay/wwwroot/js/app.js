@@ -1356,8 +1356,7 @@ function renderSnakeNodes(pack, accent) {
             // Horizontal connector before this node (not on first of row)
             if (c > 0) html += `<div class="map-hconnector" style="background:${isAvailable ? accent : 'rgba(255,255,255,0.1)'}"></div>`;
             html += `<div class="${cls}" data-lv="${lvNum}" style="--accent:${accent}">`;
-            if (isCompleted) html += `<span class="map-node-check">✓</span>`;
-            else html += `<span class="map-node-num">${lvNum}</span>`;
+            html += `<span class="map-node-num">${lvNum}</span>`;
             html += `</div>`;
         }
         html += `</div>`;
