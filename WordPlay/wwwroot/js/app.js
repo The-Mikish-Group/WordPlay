@@ -1159,7 +1159,7 @@ function renderMenu() {
     } else if (window._inAppBrowser) {
         html += `<div style="text-align:center;opacity:0.5;font-size:13px;padding:4px 0">Open in your browser to install</div>`;
     } else if (window._installPrompt) {
-        html += `<button class="menu-setting-btn" id="install-app-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px">Install App</button>`;
+        html += `<button class="menu-setting-btn" id="install-app-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M12 3v12"/><polyline points="8 11 12 15 16 11"/><path d="M20 21H4"/></svg>Install App</button>`;
     } else if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.navigator.standalone) {
         html += `<label class="menu-setting-label">Install App</label>`;
         html += `<div style="font-size:13px;opacity:0.6;line-height:1.5">Tap Share (\u25A1\u2191) then &ldquo;Add to Home Screen&rdquo;</div>`;
