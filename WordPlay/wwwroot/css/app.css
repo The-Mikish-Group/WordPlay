@@ -16,6 +16,7 @@ html, body {
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+    background: #0a0312;
 }
 
 #app {
@@ -24,6 +25,8 @@ html, body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    max-width: 480px;
+    margin: 0 auto;
 }
 
 /* ---- IN-APP BROWSER BANNER ---- */
