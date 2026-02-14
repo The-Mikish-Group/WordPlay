@@ -1120,7 +1120,7 @@ function renderMenu() {
     overlay.innerHTML = html;
 
     // Wire up event handlers
-    document.getElementById("menu-close-btn").onclick = () => { state.showMenu = false; renderMenu(); };
+    document.getElementById("menu-close-btn").onclick = () => { state.showMenu = false; renderAll(); };
 
     document.getElementById("menu-map-btn").onclick = () => {
         state.showMenu = false;
@@ -1130,32 +1130,59 @@ function renderMenu() {
         renderMap();
     };
 
-    document.getElementById("menu-prev").onclick = () => {
-        if (state.currentLevel > 1) goToLevel(state.currentLevel - 1);
+    document.getElementById("menu-prev").onclick = async () => {
+        if (state.currentLevel <= 1) return;
+        state.currentLevel--;
+        state.highestLevel = Math.max(state.highestLevel, state.currentLevel);
+        state.foundWords = [];
+        state.bonusFound = [];
+        state.revealedCells = [];
+        state.shuffleKey = 0;
+        await recompute();
+        const hist = state.levelHistory[state.currentLevel];
+        if (hist) state.foundWords = placedWords.filter(w => hist.includes(w));
+        saveProgress();
+        renderMenu();
     };
-    document.getElementById("menu-next").onclick = () => {
-        if (state.currentLevel < maxLv) goToLevel(state.currentLevel + 1);
+    document.getElementById("menu-next").onclick = async () => {
+        if (state.currentLevel >= maxLv) return;
+        state.currentLevel++;
+        state.highestLevel = Math.max(state.highestLevel, state.currentLevel);
+        state.foundWords = [];
+        state.bonusFound = [];
+        state.revealedCells = [];
+        state.shuffleKey = 0;
+        await recompute();
+        const hist = state.levelHistory[state.currentLevel];
+        if (hist) state.foundWords = placedWords.filter(w => hist.includes(w));
+        saveProgress();
+        renderMenu();
     };
     document.getElementById("menu-restart").onclick = () => {
         state.foundWords = [];
         state.bonusFound = [];
         state.revealedCells = [];
+        delete state.levelHistory[state.currentLevel];
         saveProgress();
-        state.showMenu = false;
         renderMenu();
-        renderGrid();
-    
-        renderWordCount();
         showToast("Level restarted");
     };
     
-    document.getElementById("goto-level-btn").onclick = () => {
+    document.getElementById("goto-level-btn").onclick = async () => {
         const input = document.getElementById("goto-level-input");
         const val = parseInt(input.value);
         if (val >= 1 && val <= maxLv && !isNaN(val)) {
-            // Allow jumping to any level (not locked to highestLevel)
             state.highestLevel = Math.max(state.highestLevel, val);
-            goToLevel(val);
+            state.currentLevel = val;
+            state.foundWords = [];
+            state.bonusFound = [];
+            state.revealedCells = [];
+            state.shuffleKey = 0;
+            await recompute();
+            const hist = state.levelHistory[state.currentLevel];
+            if (hist) state.foundWords = placedWords.filter(w => hist.includes(w));
+            saveProgress();
+            renderMenu();
         } else {
             showToast("Level " + val + " not available", "#ff8888");
         }
