@@ -48,7 +48,9 @@ function _synthNameForLevel(levelNum) {
 function _synthThemeForLevel(levelNum) {
     const offset = levelNum - _MASTER_START;
     const bandIdx = Math.floor(offset / _MASTER_BAND);
-    return THEME_LIST[bandIdx % THEME_LIST.length];
+    const sg = _SYNTH_GROUPS[bandIdx % _SYNTH_GROUPS.length];
+    const packIdx = Math.floor((offset % _MASTER_BAND) / (_MASTER_BAND / sg.packs.length));
+    return THEME_LIST[packIdx % THEME_LIST.length];
 }
 
 // ---- INITIALIZATION ----
