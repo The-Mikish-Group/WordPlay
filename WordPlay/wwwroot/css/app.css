@@ -358,6 +358,36 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.bonus-modal-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin: 12px 0 18px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.bonus-modal-word {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.bonus-modal-empty {
+    opacity: 0.4;
+    font-size: 14px;
+    margin: 12px 0 18px;
 }
 
 /* ---- COMPLETE MODAL ---- */

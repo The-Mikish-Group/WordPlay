@@ -702,6 +702,47 @@ function renderDailyModal(show) {
     };
 }
 
+function renderBonusModal(show) {
+    let overlay = document.getElementById("bonus-modal");
+    if (!show) {
+        if (overlay) overlay.style.display = "none";
+        return;
+    }
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "bonus-modal";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+
+    let listHtml = "";
+    if (state.bonusFound.length === 0) {
+        listHtml = `<p class="bonus-modal-empty">No bonus words found yet</p>`;
+    } else {
+        listHtml = `<div class="bonus-modal-list">` +
+            state.bonusFound.map(w => `<span class="bonus-modal-word">${w}</span>`).join("") +
+            `</div>`;
+    }
+
+    overlay.innerHTML = `
+        <div class="modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
+            <div class="modal-emoji">⭐</div>
+            <h2 class="modal-title" style="color:${theme.accent}">Bonus Words</h2>
+            <p class="modal-subtitle">${state.bonusFound.length} found · ${state.bonusCounter}/10 to next reward</p>
+            ${listHtml}
+            <button class="modal-next-btn" id="bonus-modal-close"
+                style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});box-shadow:0 4px 16px ${theme.accent}40">
+                Close
+            </button>
+        </div>
+    `;
+    document.getElementById("bonus-modal-close").onclick = () => renderBonusModal(false);
+    overlay.onclick = (e) => {
+        if (e.target === overlay) renderBonusModal(false);
+    };
+}
+
 // ---- GRID ----
 function renderGrid() {
     let area = document.getElementById("grid-area");
@@ -910,14 +951,14 @@ function renderWheel() {
             <div id="wheel-letters"></div>
         </div>
         <div class="bonus-star-area" id="bonus-star-area">
-            <div class="star-btn">
+            <button class="star-btn" id="bonus-star-btn">
                 <svg width="44" height="44" viewBox="0 0 24 24">
                     <polygon id="bonus-star-fill" points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
                         fill="none" stroke="${state.bonusCounter > 0 ? '#f4d03f' : 'rgba(255,255,255,0.35)'}" stroke-width="1.5"/>
                     <text id="bonus-star-counter" x="12" y="14.5" text-anchor="middle" font-size="7" font-weight="700"
                         font-family="system-ui, sans-serif" fill="rgba(255,255,255,0.6)">${state.bonusCounter}</text>
                 </svg>
-            </div>
+            </button>
         </div>
     `;
 
@@ -964,6 +1005,7 @@ function renderWheel() {
     document.getElementById("shuffle-btn").onclick = handleShuffle;
     document.getElementById("hint-btn").onclick = handleHint;
     document.getElementById("target-btn").onclick = handleTargetHint;
+    document.getElementById("bonus-star-btn").onclick = () => renderBonusModal(true);
 }
 
 function renderHintBtn() {
