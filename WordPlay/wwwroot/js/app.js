@@ -717,8 +717,9 @@ function renderBonusModal(show) {
     overlay.style.display = "flex";
 
     let listHtml = "";
+    const totalBonus = bonusPool ? bonusPool.length : 0;
     if (state.bonusFound.length === 0) {
-        listHtml = `<p class="bonus-modal-empty">No bonus words found yet</p>`;
+        listHtml = `<p class="bonus-modal-empty">No bonus words found in this level</p>`;
     } else {
         listHtml = `<div class="bonus-modal-list">` +
             state.bonusFound.map(w => `<span class="bonus-modal-word">${w}</span>`).join("") +
@@ -729,7 +730,7 @@ function renderBonusModal(show) {
         <div class="modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
             <div class="modal-emoji">⭐</div>
             <h2 class="modal-title" style="color:${theme.accent}">Bonus Words</h2>
-            <p class="modal-subtitle">${state.bonusFound.length} found · ${state.bonusCounter}/10 to next reward</p>
+            <p class="modal-subtitle">${state.bonusFound.length} of ${totalBonus} in this level · ${state.bonusCounter}/10 to next reward</p>
             ${listHtml}
             <button class="modal-next-btn" id="bonus-modal-close"
                 style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});box-shadow:0 4px 16px ${theme.accent}40">
