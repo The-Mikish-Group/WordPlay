@@ -1407,7 +1407,7 @@ function renderMap() {
         _mapExpandedPacks = {};
         for (const p of packs) {
             if (state.currentLevel >= p.start && state.currentLevel <= p.end) {
-                const key = p.group + "/" + p.pack;
+                const key = p.group + "/" + p.pack + "/" + p.start;
                 if ((p.end - p.start + 1) <= PACK_MAX_EXPANDABLE) {
                     _mapExpandedPacks[key] = true;
                 }
@@ -1420,7 +1420,7 @@ function renderMap() {
 
     let lastGroup = "";
     for (const p of packs) {
-        const key = p.group + "/" + p.pack;
+        const key = p.group + "/" + p.pack + "/" + p.start;
         const total = p.end - p.start + 1;
         const isGiant = total > PACK_MAX_EXPANDABLE;
         const packTheme = typeof getThemeForGroup === "function" ? getThemeForGroup(p.group) : "sunrise";
