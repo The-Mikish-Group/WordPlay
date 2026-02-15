@@ -413,6 +413,74 @@ function renderBonusStar() {
     }
 }
 
+// ---- COIN-SPEND ANIMATION ----
+function animateCoinSpend(buttonId, amount) {
+    const btn = document.getElementById(buttonId);
+    const coinDisplay = document.getElementById("coin-display");
+    if (!btn || !coinDisplay) return;
+
+    const btnRect = btn.getBoundingClientRect();
+    const coinRect = coinDisplay.getBoundingClientRect();
+    const startX = btnRect.left + btnRect.width / 2;
+    const startY = btnRect.top + btnRect.height / 2;
+    const endX = coinRect.left + coinRect.width / 2;
+    const endY = coinRect.top + coinRect.height / 2;
+
+    // Pulse the source button
+    btn.classList.add("btn-pulse");
+    setTimeout(() => btn.classList.remove("btn-pulse"), 500);
+
+    // Floating cost text
+    const costText = document.createElement("div");
+    costText.className = "coin-spend-text";
+    costText.textContent = "\u2212" + amount;
+    costText.style.left = startX + "px";
+    costText.style.top = startY + "px";
+    document.body.appendChild(costText);
+    setTimeout(() => costText.remove(), 900);
+
+    // Coin particles
+    const count = 5 + Math.floor(Math.random() * 4); // 5-8
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+            const p = document.createElement("div");
+            p.className = "coin-particle";
+            p.textContent = "\uD83E\uDE99";
+            p.style.left = startX + "px";
+            p.style.top = startY + "px";
+            document.body.appendChild(p);
+
+            // Random curve offset
+            const curveX = (Math.random() - 0.5) * 80;
+            const curveY = (Math.random() - 0.5) * 40 - 30;
+            const midX = (startX + endX) / 2 + curveX;
+            const midY = (startY + endY) / 2 + curveY;
+            const duration = 500 + Math.random() * 200;
+
+            let start = null;
+            function animate(ts) {
+                if (!start) start = ts;
+                const t = Math.min((ts - start) / duration, 1);
+                // Quadratic bezier
+                const u = 1 - t;
+                const x = u * u * startX + 2 * u * t * midX + t * t * endX;
+                const y = u * u * startY + 2 * u * t * midY + t * t * endY;
+                const scale = 1 - t * 0.6;
+                p.style.left = x + "px";
+                p.style.top = y + "px";
+                p.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                p.style.opacity = 1 - t * 0.7;
+                if (t < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    p.remove();
+                }
+            }
+            requestAnimationFrame(animate);
+        }, i * 80);
+    }
+}
+
 function handleHint() {
     const hasFree = state.freeHints > 0;
     if (!hasFree && state.coins < 100) return;
@@ -422,6 +490,7 @@ function handleHint() {
         state.freeHints--;
     } else {
         state.coins -= 100;
+        animateCoinSpend('hint-btn', 100);
     }
     state.revealedCells.push(cell);
     checkAutoCompleteWords();
@@ -441,7 +510,7 @@ function handleHint() {
 function handleTargetHint() {
     if (state.pickMode) { cancelPickMode(); return; }
     const hasFree = state.freeTargets > 0;
-    if (!hasFree && state.coins < 100) return;
+    if (!hasFree && state.coins < 200) return;
     if (!pickRandomUnrevealedCell()) return; // nothing to reveal
     state.pickMode = true;
     state._targetFree = hasFree; // remember whether this pick is free
@@ -458,12 +527,13 @@ function handlePickCell(key) {
     if (wasFree) {
         state.freeTargets--;
     } else {
-        state.coins -= 100;
+        state.coins -= 200;
+        animateCoinSpend('target-btn', 200);
     }
     state.revealedCells.push(key);
     checkAutoCompleteWords();
     saveProgress();
-    showToast(wasFree ? "🎯 Free target used!" : "🎯 Letter placed!  −100 🪙");
+    showToast(wasFree ? "🎯 Free target used!" : "🎯 Letter placed!  −200 🪙");
     renderGrid();
     flashHintCell(key);
     renderWordCount();
@@ -485,7 +555,7 @@ function cancelPickMode() {
 function renderTargetBtn() {
     const btn = document.getElementById("target-btn");
     if (!btn) return;
-    const canUse = state.freeTargets > 0 || state.coins >= 100;
+    const canUse = state.freeTargets > 0 || state.coins >= 200;
     btn.style.opacity = canUse ? "1" : "0.3";
     btn.classList.toggle("active-pick", state.pickMode);
     const badge = document.getElementById("target-badge");
@@ -937,7 +1007,7 @@ function renderWheel() {
     wheelState = { sel: [], word: "", dragging: false, ptr: null };
 
     const hintCanUse = state.freeHints > 0 || state.coins >= 100;
-    const targetCanUse = state.freeTargets > 0 || state.coins >= 100;
+    const targetCanUse = state.freeTargets > 0 || state.coins >= 200;
     const rocketCanUse = state.freeRockets > 0 || state.coins >= 300;
     // Button positions: upper pair flanks the current-word, lower pair below
     const upperBtnTop = -5; // centered on 42px current-word line
@@ -951,7 +1021,7 @@ function renderWheel() {
                 <line x1="4" y1="4" x2="9" y2="9"/>
             </svg>
         </button>
-        <button class="circle-btn" id="target-btn" title="Choose letter (100 coins)" style="left:12px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.3'}">
+        <button class="circle-btn" id="target-btn" title="Choose letter (200 coins)" style="left:12px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.3'}">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
             </svg>
@@ -1062,6 +1132,7 @@ function handleRocketHint() {
         state.freeRockets--;
     } else {
         state.coins -= 300;
+        animateCoinSpend('rocket-btn', 300);
     }
     const revealed = [firstCell];
     state.revealedCells.push(firstCell);

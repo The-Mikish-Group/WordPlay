@@ -1077,6 +1077,44 @@ html, body {
     50% { transform: scale(1.08); }
 }
 
+/* ---- COIN-SPEND ANIMATION ---- */
+.coin-particle {
+    position: fixed;
+    pointer-events: none;
+    z-index: 999;
+    font-size: 18px;
+    transform: translate(-50%, -50%);
+    will-change: left, top, transform, opacity;
+}
+
+.coin-spend-text {
+    position: fixed;
+    pointer-events: none;
+    z-index: 999;
+    font-size: 20px;
+    font-weight: 800;
+    font-family: system-ui, sans-serif;
+    color: #ff6b6b;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    transform: translate(-50%, -50%);
+    animation: coinSpendFloat 0.9s ease-out forwards;
+}
+
+@keyframes coinSpendFloat {
+    0%   { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
+    100% { opacity: 0; transform: translate(-50%, -50%) translateY(-40px); }
+}
+
+.circle-btn.btn-pulse {
+    animation: btnPulseGlow 0.5s ease;
+}
+
+@keyframes btnPulseGlow {
+    0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+    30%  { transform: scale(1.2); box-shadow: 0 0 16px 4px rgba(255,200,60,0.5); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,200,60,0); }
+}
+
 @keyframes mapPulse {
     0%, 100% { box-shadow: 0 0 0 0 var(--accent); }
     50% { box-shadow: 0 0 14px 4px var(--accent); }
