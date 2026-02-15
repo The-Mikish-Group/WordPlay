@@ -637,7 +637,7 @@ function renderHeader() {
         </div>
         <div class="header-right">
             <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">🪙 ${state.coins}</div>
-            <button class="daily-btn" id="daily-btn" style="background:${theme.accent};color:#000">🪙<span class="daily-btn-label">Free</span></button>
+            <button class="header-btn coin-display daily-btn" id="daily-btn" style="color:${theme.text}">🪙 Free</button>
         </div>
     `;
     document.getElementById("menu-btn").onclick = () => { state.showMenu = true; renderMenu(); };
