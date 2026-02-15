@@ -114,6 +114,7 @@ const state = {
     revealedCells: [],     // "row,col" strings for individually hinted letters (resets per level)
     freeHints: 0,          // accumulated free hints (persists)
     freeTargets: 0,        // accumulated free targeted hints (persists)
+    freeRockets: 0,        // accumulated free rocket hints (persists)
     levelsCompleted: 0,    // total levels completed (persists, for 10-level target reward)
     levelHistory: {},      // { levelNum: [foundWords] } — answers for completed levels
     lastDailyClaim: null,  // date string of last daily coin claim
@@ -219,6 +220,7 @@ function loadProgress() {
             state.revealedCells = d.rc || [];
             state.freeHints = d.fh || 0;
             state.freeTargets = d.ft || 0;
+            state.freeRockets = d.fr || 0;
             state.levelsCompleted = d.lc || 0;
             state.levelHistory = d.lh || {};
             state.lastDailyClaim = d.ldc || null;
@@ -239,6 +241,7 @@ function saveProgress() {
             rc: state.revealedCells,
             fh: state.freeHints,
             ft: state.freeTargets,
+            fr: state.freeRockets,
             lc: state.levelsCompleted,
             lh: state.levelHistory,
             ldc: state.lastDailyClaim,
@@ -281,6 +284,7 @@ function handleWord(word) {
         renderCoins();
         renderHintBtn();
         renderTargetBtn();
+        renderRocketBtn();
         if (state.foundWords.length === totalRequired) {
             state.levelHistory[state.currentLevel] = [...state.foundWords];
             saveProgress();
@@ -306,6 +310,7 @@ function handleWord(word) {
                 renderWordCount();
                 renderHintBtn();
                 renderTargetBtn();
+                renderRocketBtn();
                 showToast("⭐ Bonus Reward! Free letter!", theme.accent);
                 // Delayed flash so the grid renders first
                 setTimeout(() => flashHintCell(cell), 100);
@@ -410,23 +415,24 @@ function renderBonusStar() {
 
 function handleHint() {
     const hasFree = state.freeHints > 0;
-    if (!hasFree && state.coins < 25) return;
+    if (!hasFree && state.coins < 100) return;
     const cell = pickRandomUnrevealedCell();
     if (!cell) return;
     if (hasFree) {
         state.freeHints--;
     } else {
-        state.coins -= 25;
+        state.coins -= 100;
     }
     state.revealedCells.push(cell);
     checkAutoCompleteWords();
     saveProgress();
-    showToast(hasFree ? "💡 Free hint used!" : "💡 Letter revealed  −25 🪙");
+    showToast(hasFree ? "💡 Free hint used!" : "💡 Letter revealed  −100 🪙");
     renderGrid();
     flashHintCell(cell);
     renderWordCount();
     renderCoins();
     renderHintBtn();
+    renderRocketBtn();
     if (state.foundWords.length === totalRequired) {
         setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
     }
@@ -464,6 +470,7 @@ function handlePickCell(key) {
     renderCoins();
     renderHintBtn();
     renderTargetBtn();
+    renderRocketBtn();
     if (state.foundWords.length === totalRequired) {
         setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
     }
@@ -567,6 +574,9 @@ async function handleNextLevel() {
         }
         if (state.levelsCompleted % 10 === 0) {
             state.freeTargets++;
+        }
+        if (state.levelsCompleted % 10 === 0) {
+            state.freeRockets++;
         }
     }
     state.shuffleKey = 0;
@@ -701,6 +711,7 @@ function renderDailyModal(show) {
         renderCoins();
         renderHintBtn();
         renderTargetBtn();
+        renderRocketBtn();
         showToast("🪙 +100 daily coins!", theme.accent);
     };
     overlay.onclick = (e) => {
@@ -925,32 +936,43 @@ function renderWheel() {
     // Reset wheel state
     wheelState = { sel: [], word: "", dragging: false, ptr: null };
 
-    const hintCanUse = state.freeHints > 0 || state.coins >= 25;
+    const hintCanUse = state.freeHints > 0 || state.coins >= 100;
     const targetCanUse = state.freeTargets > 0 || state.coins >= 100;
+    const rocketCanUse = state.freeRockets > 0 || state.coins >= 300;
+    // Button positions: upper pair flanks the current-word, lower pair below
+    const upperBtnTop = -5; // centered on 42px current-word line
+    const lowerBtnTop = 57; // 52px button + 10px gap below upper
     section.innerHTML = `
         <div class="current-word" id="current-word" style="color:${theme.accent};text-shadow:0 0 20px ${theme.accent}40">&nbsp;</div>
-        <button class="circle-btn btn-left" id="shuffle-btn" title="Shuffle">
+        <button class="circle-btn" id="shuffle-btn" title="Shuffle" style="left:12px;top:${upperBtnTop}px">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
                 <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
                 <line x1="4" y1="4" x2="9" y2="9"/>
             </svg>
         </button>
-        <div class="btn-col-right">
-            <button class="circle-btn" id="hint-btn" title="Hint (25 coins)" style="opacity:${hintCanUse ? '1' : '0.3'}">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 18h6"/><path d="M10 22h4"/>
-                    <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
-                </svg>
-                <span class="circle-btn-badge" id="hint-badge">${state.freeHints > 0 ? state.freeHints : ''}</span>
-            </button>
-            <button class="circle-btn" id="target-btn" title="Choose letter (100 coins)" style="opacity:${targetCanUse ? '1' : '0.3'}">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
-                </svg>
-                <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
-            </button>
-        </div>
+        <button class="circle-btn" id="target-btn" title="Choose letter (100 coins)" style="left:12px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.3'}">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+            </svg>
+            <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
+        </button>
+        <button class="circle-btn" id="hint-btn" title="Hint (100 coins)" style="right:12px;top:${upperBtnTop}px;opacity:${hintCanUse ? '1' : '0.3'}">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18h6"/><path d="M10 22h4"/>
+                <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
+            </svg>
+            <span class="circle-btn-badge" id="hint-badge">${state.freeHints > 0 ? state.freeHints : ''}</span>
+        </button>
+        <button class="circle-btn" id="rocket-btn" title="Rocket hint (300 coins)" style="right:12px;top:${lowerBtnTop}px;opacity:${rocketCanUse ? '1' : '0.3'}">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+                <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+                <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+                <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+            </svg>
+            <span class="circle-btn-badge" id="rocket-badge">${state.freeRockets > 0 ? state.freeRockets : ''}</span>
+        </button>
         <div class="wheel-area" id="wheel-area" style="width:${cW}px;height:${cW}px">
             <svg id="wheel-svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">
                 <circle cx="${cx}" cy="${cy}" r="${discR}" fill="rgba(255,255,255,0.92)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
@@ -1012,6 +1034,7 @@ function renderWheel() {
     document.getElementById("shuffle-btn").onclick = handleShuffle;
     document.getElementById("hint-btn").onclick = handleHint;
     document.getElementById("target-btn").onclick = handleTargetHint;
+    document.getElementById("rocket-btn").onclick = handleRocketHint;
     document.getElementById("bonus-star-btn").onclick = () => renderBonusModal(true);
 
     document.addEventListener("click", (e) => {
@@ -1024,10 +1047,53 @@ function renderWheel() {
 function renderHintBtn() {
     const btn = document.getElementById("hint-btn");
     if (!btn) return;
-    const canUse = state.freeHints > 0 || state.coins >= 25;
+    const canUse = state.freeHints > 0 || state.coins >= 100;
     btn.style.opacity = canUse ? "1" : "0.3";
     const badge = document.getElementById("hint-badge");
     if (badge) badge.textContent = state.freeHints > 0 ? state.freeHints : "";
+}
+
+function handleRocketHint() {
+    const hasFree = state.freeRockets > 0;
+    if (!hasFree && state.coins < 300) return;
+    const firstCell = pickRandomUnrevealedCell();
+    if (!firstCell) return;
+    if (hasFree) {
+        state.freeRockets--;
+    } else {
+        state.coins -= 300;
+    }
+    const revealed = [firstCell];
+    state.revealedCells.push(firstCell);
+    checkAutoCompleteWords();
+    for (let i = 1; i < 5; i++) {
+        const cell = pickRandomUnrevealedCell();
+        if (!cell) break;
+        revealed.push(cell);
+        state.revealedCells.push(cell);
+        checkAutoCompleteWords();
+    }
+    saveProgress();
+    showToast(hasFree ? "🚀 Free rocket used! " + revealed.length + " letters!" : "🚀 " + revealed.length + " letters revealed  −300 🪙");
+    renderGrid();
+    revealed.forEach((cell, i) => setTimeout(() => flashHintCell(cell), i * 150));
+    renderWordCount();
+    renderCoins();
+    renderHintBtn();
+    renderTargetBtn();
+    renderRocketBtn();
+    if (state.foundWords.length === totalRequired) {
+        setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700 + revealed.length * 150);
+    }
+}
+
+function renderRocketBtn() {
+    const btn = document.getElementById("rocket-btn");
+    if (!btn) return;
+    const canUse = state.freeRockets > 0 || state.coins >= 300;
+    btn.style.opacity = canUse ? "1" : "0.3";
+    const badge = document.getElementById("rocket-badge");
+    if (badge) badge.textContent = state.freeRockets > 0 ? state.freeRockets : "";
 }
 
 function hitTestWheel(px, py) {
@@ -1440,6 +1506,7 @@ function renderMenu() {
             state.bonusCounter = 0;
             state.freeHints = 0;
             state.freeTargets = 0;
+            state.freeRockets = 0;
             state.levelsCompleted = 0;
             state.levelHistory = {};
             state.lastDailyClaim = null;

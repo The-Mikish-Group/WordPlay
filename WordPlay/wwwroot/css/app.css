@@ -293,6 +293,19 @@ html, body {
     right: 12px;
 }
 
+.btn-col-left {
+    position: absolute;
+    left: 12px;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn-col-left .circle-btn {
+    position: relative;
+}
+
 .btn-col-right {
     position: absolute;
     right: 12px;
