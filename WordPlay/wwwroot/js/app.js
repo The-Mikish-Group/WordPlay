@@ -429,6 +429,7 @@ function handleHint() {
 }
 
 function handleTargetHint() {
+    if (state.pickMode) { cancelPickMode(); return; }
     const hasFree = state.freeTargets > 0;
     if (!hasFree && state.coins < 100) return;
     if (!pickRandomUnrevealedCell()) return; // nothing to reveal
@@ -1007,6 +1008,12 @@ function renderWheel() {
     document.getElementById("hint-btn").onclick = handleHint;
     document.getElementById("target-btn").onclick = handleTargetHint;
     document.getElementById("bonus-star-btn").onclick = () => renderBonusModal(true);
+
+    document.addEventListener("click", (e) => {
+        if (!state.pickMode) return;
+        if (e.target.closest(".grid-cell") || e.target.closest("#target-btn")) return;
+        cancelPickMode();
+    });
 }
 
 function renderHintBtn() {
