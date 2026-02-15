@@ -398,10 +398,14 @@ function checkAutoCompleteWords() {
 }
 
 function renderBonusStar() {
+    const gold = state.bonusCounter > 0 || state.bonusFound.length > 0;
     const el = document.getElementById("bonus-star-counter");
-    if (el) el.textContent = state.bonusCounter;
+    if (el) el.textContent = state.bonusCounter || "";
     const fill = document.getElementById("bonus-star-fill");
-    if (fill) fill.setAttribute("stroke", state.bonusCounter > 0 ? "#f4d03f" : "rgba(255,255,255,0.35)");
+    if (fill) {
+        fill.style.stroke = gold ? "#f4d03f" : "rgba(255,255,255,0.35)";
+        fill.style.fill = gold ? "rgba(244,208,63,0.15)" : "none";
+    }
 }
 
 function handleHint() {
@@ -615,6 +619,7 @@ function renderAll() {
 
     renderWordCount();
     renderWheel();
+    renderBonusStar();
     renderCompleteModal();
     renderMenu();
     renderMap();
@@ -956,9 +961,9 @@ function renderWheel() {
             <button class="star-btn" id="bonus-star-btn">
                 <svg width="44" height="44" viewBox="0 0 24 24">
                     <polygon id="bonus-star-fill" points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
-                        fill="none" stroke="${state.bonusCounter > 0 ? '#f4d03f' : 'rgba(255,255,255,0.35)'}" stroke-width="1.5"/>
-                    <text id="bonus-star-counter" x="12" y="14.5" text-anchor="middle" font-size="7" font-weight="700"
-                        font-family="system-ui, sans-serif" fill="rgba(255,255,255,0.6)">${state.bonusCounter}</text>
+                        style="fill:${(state.bonusCounter > 0 || state.bonusFound.length > 0) ? 'rgba(244,208,63,0.15)' : 'none'};stroke:${(state.bonusCounter > 0 || state.bonusFound.length > 0) ? '#f4d03f' : 'rgba(255,255,255,0.35)'};stroke-width:1.5"/>
+                    <text id="bonus-star-counter" x="12" y="14.5" text-anchor="middle"
+                        style="font-size:7px;font-weight:700;font-family:system-ui,sans-serif;fill:rgba(255,255,255,0.85)">${state.bonusCounter || ''}</text>
                 </svg>
             </button>
         </div>
