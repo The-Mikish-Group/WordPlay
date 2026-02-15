@@ -116,6 +116,7 @@ const state = {
     freeTargets: 0,        // accumulated free targeted hints (persists)
     levelsCompleted: 0,    // total levels completed (persists, for 10-level target reward)
     levelHistory: {},      // { levelNum: [foundWords] } — answers for completed levels
+    lastDailyClaim: null,  // date string of last daily coin claim
     // Transient
     showMenu: false,
     showComplete: false,
@@ -220,6 +221,7 @@ function loadProgress() {
             state.freeTargets = d.ft || 0;
             state.levelsCompleted = d.lc || 0;
             state.levelHistory = d.lh || {};
+            state.lastDailyClaim = d.ldc || null;
         }
     } catch (e) { /* ignore */ }
 }
@@ -239,6 +241,7 @@ function saveProgress() {
             ft: state.freeTargets,
             lc: state.levelsCompleted,
             lh: state.levelHistory,
+            ldc: state.lastDailyClaim,
         }));
     } catch (e) { /* ignore */ }
 }
@@ -553,8 +556,10 @@ async function handleNextLevel() {
     state.showComplete = false;
     if (!isReplay) {
         state.coins += 1;
-        state.freeHints++;
         state.levelsCompleted++;
+        if (state.levelsCompleted % 10 === 0) {
+            state.freeHints++;
+        }
         if (state.levelsCompleted % 10 === 0) {
             state.freeTargets++;
         }
@@ -630,14 +635,71 @@ function renderHeader() {
             <div class="header-pack">${level.group} · ${level.pack}</div>
             <div class="header-level" style="color:${theme.accent}">Level ${getDisplayLevel()}</div>
         </div>
-        <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">🪙 ${state.coins}</div>
+        <div class="header-right">
+            <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">🪙 ${state.coins}</div>
+            <button class="daily-btn" id="daily-btn" style="background:${theme.accent};color:#000">🪙<span class="daily-btn-label">Free</span></button>
+        </div>
     `;
     document.getElementById("menu-btn").onclick = () => { state.showMenu = true; renderMenu(); };
+    document.getElementById("daily-btn").onclick = () => renderDailyModal(true);
+    renderDailyBtn();
 }
 
 function renderCoins() {
     const el = document.getElementById("coin-display");
     if (el) el.textContent = "🪙 " + state.coins;
+}
+
+function getTodayStr() {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function renderDailyBtn() {
+    const btn = document.getElementById("daily-btn");
+    if (!btn) return;
+    const claimed = state.lastDailyClaim === getTodayStr();
+    btn.style.display = claimed ? "none" : "";
+}
+
+function renderDailyModal(show) {
+    let overlay = document.getElementById("daily-modal");
+    if (!show) {
+        if (overlay) overlay.style.display = "none";
+        return;
+    }
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "daily-modal";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+    overlay.innerHTML = `
+        <div class="modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
+            <div class="modal-emoji">🪙</div>
+            <h2 class="modal-title" style="color:${theme.accent}">Daily Bonus</h2>
+            <p class="modal-coins" style="color:${theme.text}">+100 coins</p>
+            <button class="modal-next-btn" id="daily-claim-btn"
+                style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});box-shadow:0 4px 16px ${theme.accent}40">
+                Claim
+            </button>
+        </div>
+    `;
+    document.getElementById("daily-claim-btn").onclick = () => {
+        state.coins += 100;
+        state.lastDailyClaim = getTodayStr();
+        saveProgress();
+        renderDailyModal(false);
+        renderDailyBtn();
+        renderCoins();
+        renderHintBtn();
+        renderTargetBtn();
+        showToast("🪙 +100 daily coins!", theme.accent);
+    };
+    overlay.onclick = (e) => {
+        if (e.target === overlay) renderDailyModal(false);
+    };
 }
 
 // ---- GRID ----
@@ -1325,6 +1387,7 @@ function renderMenu() {
             state.freeTargets = 0;
             state.levelsCompleted = 0;
             state.levelHistory = {};
+            state.lastDailyClaim = null;
             state.coins = 50;
             state.showMenu = false;
             saveProgress();

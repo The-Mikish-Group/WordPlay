@@ -132,6 +132,34 @@ html, body {
     cursor: default;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.daily-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 10px;
+    padding: 3px 8px;
+    font-size: 16px;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.1;
+    animation: dailyPulse 2s ease-in-out infinite;
+}
+
+.daily-btn-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 /* ---- GRID AREA ---- */
 .grid-area {
     flex: 1 1 0;
@@ -1010,6 +1038,11 @@ html, body {
 
 .menu-map-btn:active {
     opacity: 0.85;
+}
+
+@keyframes dailyPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
 }
 
 @keyframes mapPulse {
