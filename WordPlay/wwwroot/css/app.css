@@ -142,6 +142,8 @@ html, body {
 .daily-btn {
     cursor: pointer;
     animation: dailyPulse 2s ease-in-out infinite;
+    background: rgba(80, 200, 80, 0.25);
+    border-color: rgba(80, 200, 80, 0.35);
 }
 
 /* ---- GRID AREA ---- */
