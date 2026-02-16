@@ -1194,20 +1194,11 @@ function renderWheel() {
             <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
         </button>
         <button class="circle-btn" id="hint-btn" title="Hint (100 coins)" style="right:12px;top:${upperBtnTop}px;opacity:${hintCanUse ? '1' : '0.3'}">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" fill="#ffeb3b" stroke="#f9a825" stroke-width="1.8"/>
-                <path d="M9 18h6" stroke="#f9a825" stroke-width="2"/><path d="M10 22h4" stroke="#f9a825" stroke-width="2"/>
-            </svg>
+            <span style="font-size:30px;line-height:1">💡</span>
             <span class="circle-btn-badge" id="hint-badge">${state.freeHints > 0 ? state.freeHints : ''}</span>
         </button>
         <button class="circle-btn" id="rocket-btn" title="Rocket hint (300 coins)" style="right:12px;top:${lowerBtnTop}px;opacity:${rocketCanUse ? '1' : '0.3'}">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" fill="#ff9800" stroke="#e65100" stroke-width="1.5"/>
-                <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" fill="#e0e0e0" stroke="#9e9e9e" stroke-width="1.5"/>
-                <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" fill="#42a5f5" stroke="#1565c0" stroke-width="1.2"/>
-                <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" fill="#42a5f5" stroke="#1565c0" stroke-width="1.2"/>
-                <circle cx="16.5" cy="7.5" r="1.5" fill="#e53935"/>
-            </svg>
+            <span style="font-size:30px;line-height:1">🚀</span>
             <span class="circle-btn-badge" id="rocket-badge">${state.freeRockets > 0 ? state.freeRockets : ''}</span>
         </button>
         <div class="wheel-area" id="wheel-area" style="width:${cW}px;height:${cW}px">
