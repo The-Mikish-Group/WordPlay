@@ -1074,18 +1074,65 @@ function animateGridEntrance() {
     const gc = document.getElementById("grid-container");
     if (!gc) return;
     const { rows, cols } = crossword;
-    const maxDist = rows + cols - 2;
     const cells = gc.children;
+
+    // Pick a random entrance pattern
+    const patterns = ["topLeft", "bottomRight", "leftRight", "rightLeft", "starburst"];
+    const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+
+    const midR = (rows - 1) / 2;
+    const midC = (cols - 1) / 2;
+
+    function cellDist(ri, ci) {
+        switch (pattern) {
+            case "topLeft":     return ri + ci;
+            case "bottomRight": return (rows - 1 - ri) + (cols - 1 - ci);
+            case "leftRight":   return ci;
+            case "rightLeft":   return cols - 1 - ci;
+            case "starburst":   return Math.round(Math.sqrt((ri - midR) ** 2 + (ci - midC) ** 2));
+        }
+    }
+
+    // Find max distance for this pattern
+    let maxDist = 0;
+    for (let ri = 0; ri < rows; ri++)
+        for (let ci = 0; ci < cols; ci++)
+            maxDist = Math.max(maxDist, cellDist(ri, ci));
+
+    // Ascending scale notes — one per wave
+    const scaleNotes = [262, 294, 330, 370, 415, 466, 523, 587, 659, 740, 831, 932, 1047];
+    const playedDist = new Set();
+
     for (let ri = 0; ri < rows; ri++) {
         for (let ci = 0; ci < cols; ci++) {
             const div = cells[ri * cols + ci];
             if (!div || !div.classList.contains("grid-cell")) continue;
-            const dist = ri + ci;
-            const delay = dist * 40;
+            const dist = cellDist(ri, ci);
+            const delay = dist * 90;
+
+            // Play a note for each new wave
+            if (!playedDist.has(dist)) {
+                playedDist.add(dist);
+                const noteIdx = Math.min(dist, scaleNotes.length - 1);
+                setTimeout(() => {
+                    if (!state.soundEnabled) return;
+                    try {
+                        const ctx = getAudioCtx();
+                        const now = ctx.currentTime;
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        o.type = "sine";
+                        o.frequency.value = scaleNotes[noteIdx];
+                        g.gain.setValueAtTime(0.1, now);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                        o.connect(g); g.connect(ctx.destination);
+                        o.start(now); o.stop(now + 0.25);
+                    } catch (e) {}
+                }, delay);
+            }
             div.style.opacity = "0";
             div.style.transform = "scale(0)";
             div.style.transition = "none";
-            // Force reflow then animate
             div.offsetHeight;
             div.style.transition = `opacity 0.3s ease ${delay}ms, transform 0.35s cubic-bezier(0.34,1.56,0.64,1) ${delay}ms`;
             div.style.opacity = "1";
@@ -1093,7 +1140,7 @@ function animateGridEntrance() {
         }
     }
     // Clean up inline transitions after animation completes
-    const totalTime = maxDist * 40 + 400;
+    const totalTime = maxDist * 90 + 400;
     setTimeout(() => {
         for (let i = 0; i < cells.length; i++) {
             if (cells[i].classList.contains("grid-cell")) {
@@ -1183,7 +1230,7 @@ function renderWheel() {
     section.innerHTML = `
         <div class="current-word" id="current-word" style="color:${theme.accent};text-shadow:0 0 20px ${theme.accent}40">&nbsp;</div>
         <button class="circle-btn" id="shuffle-btn" title="Shuffle" style="left:12px;top:${upperBtnTop}px">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="16 3 21 3 21 8" stroke="#5bc0eb"/><line x1="4" y1="20" x2="21" y2="3" stroke="#5bc0eb"/>
                 <polyline points="21 16 21 21 16 21" stroke="#f7b32b"/><line x1="15" y1="15" x2="21" y2="21" stroke="#f7b32b"/>
                 <line x1="4" y1="4" x2="9" y2="9" stroke="#fc6471"/>
@@ -1194,11 +1241,11 @@ function renderWheel() {
             <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
         </button>
         <button class="circle-btn" id="hint-btn" title="Hint (100 coins)" style="right:12px;top:${upperBtnTop}px;opacity:${hintCanUse ? '1' : '0.3'}">
-            <span style="font-size:30px;line-height:1">💡</span>
+            <span style="font-size:24px;line-height:1">💡</span>
             <span class="circle-btn-badge" id="hint-badge">${state.freeHints > 0 ? state.freeHints : ''}</span>
         </button>
         <button class="circle-btn" id="rocket-btn" title="Rocket hint (300 coins)" style="right:12px;top:${lowerBtnTop}px;opacity:${rocketCanUse ? '1' : '0.3'}">
-            <span style="font-size:30px;line-height:1">🚀</span>
+            <span style="font-size:26px;line-height:1">🚀</span>
             <span class="circle-btn-badge" id="rocket-badge">${state.freeRockets > 0 ? state.freeRockets : ''}</span>
         </button>
         <div class="wheel-area" id="wheel-area" style="width:${cW}px;height:${cW}px">
