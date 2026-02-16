@@ -1105,6 +1105,25 @@ html, body {
     100% { opacity: 0; transform: translate(-50%, -50%) translateY(-40px); }
 }
 
+.coin-gain-text {
+    position: fixed;
+    pointer-events: none;
+    z-index: 999;
+    font-size: 20px;
+    font-weight: 800;
+    font-family: system-ui, sans-serif;
+    color: #4caf50;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    transform: translate(-50%, -50%);
+    animation: coinGainFloat 0.9s ease-out forwards;
+}
+
+@keyframes coinGainFloat {
+    0%   { opacity: 1; transform: translate(-50%, -50%) translateY(0) scale(1); }
+    50%  { opacity: 1; transform: translate(-50%, -50%) translateY(-20px) scale(1.3); }
+    100% { opacity: 0; transform: translate(-50%, -50%) translateY(-40px) scale(1); }
+}
+
 .circle-btn.btn-pulse {
     animation: btnPulseGlow 0.5s ease;
 }

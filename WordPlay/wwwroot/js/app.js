@@ -614,6 +614,68 @@ function playSound(name) {
     } catch (e) { /* audio not available */ }
 }
 
+function animateCoinGain(amount) {
+    const coinDisplay = document.getElementById("coin-display");
+    if (!coinDisplay) return;
+    const coinRect = coinDisplay.getBoundingClientRect();
+    const endX = coinRect.left + coinRect.width / 2;
+    const endY = coinRect.top + coinRect.height / 2;
+    // Start from center of screen
+    const startX = window.innerWidth / 2;
+    const startY = window.innerHeight / 2;
+
+    // Floating gain text
+    const gainText = document.createElement("div");
+    gainText.className = "coin-gain-text";
+    gainText.textContent = "+" + amount;
+    gainText.style.left = endX + "px";
+    gainText.style.top = endY + "px";
+    document.body.appendChild(gainText);
+    setTimeout(() => gainText.remove(), 900);
+
+    // Coin particles flying to coin display
+    const count = 6 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+            const p = document.createElement("div");
+            p.className = "coin-particle";
+            p.textContent = "\uD83E\uDE99";
+            // Scatter start positions around center
+            const sx = startX + (Math.random() - 0.5) * 60;
+            const sy = startY + (Math.random() - 0.5) * 60;
+            p.style.left = sx + "px";
+            p.style.top = sy + "px";
+            document.body.appendChild(p);
+
+            const curveX = (Math.random() - 0.5) * 80;
+            const curveY = (Math.random() - 0.5) * 40 - 30;
+            const midX = (sx + endX) / 2 + curveX;
+            const midY = (sy + endY) / 2 + curveY;
+            const duration = 500 + Math.random() * 200;
+
+            let start = null;
+            function animate(ts) {
+                if (!start) start = ts;
+                const t = Math.min((ts - start) / duration, 1);
+                const u = 1 - t;
+                const x = u * u * sx + 2 * u * t * midX + t * t * endX;
+                const y = u * u * sy + 2 * u * t * midY + t * t * endY;
+                const scale = 0.6 + t * 0.4;
+                p.style.left = x + "px";
+                p.style.top = y + "px";
+                p.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                p.style.opacity = 0.4 + t * 0.6;
+                if (t < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    p.remove();
+                }
+            }
+            requestAnimationFrame(animate);
+        }, i * 60);
+    }
+}
+
 function handleHint() {
     const hasFree = state.freeHints > 0;
     if (!hasFree && state.coins < 100) return;
@@ -1648,6 +1710,11 @@ function claimSpinPrize(winner) {
     renderRocketBtn();
     renderSpinBtn();
     showToast("🎁 " + winner.emoji + " " + winner.label + "!", theme.accent);
+    // Coin gain animation for coin prizes
+    if (winner.label === "50 Coins" || winner.label === "100 Coins") {
+        const amt = winner.label === "50 Coins" ? 50 : 100;
+        setTimeout(() => animateCoinGain(amt), 200);
+    }
     // Pulse the relevant element after a brief delay so it's visible
     let targetId = null;
     if (winner.label === "Hint") targetId = "hint-btn";
