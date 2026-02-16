@@ -698,6 +698,7 @@ async function handleNextLevel() {
     await recompute();
     restoreLevelState();
     renderAll();
+    animateGridEntrance();
 }
 
 async function goToLevel(num) {
@@ -721,6 +722,7 @@ async function goToLevel(num) {
     restoreLevelState();
     saveProgress();
     renderAll();
+    animateGridEntrance();
 }
 
 // ============================================================
@@ -972,6 +974,40 @@ function renderGrid() {
             }
         }
     }
+}
+
+// Animate grid cells appearing when entering a new level
+function animateGridEntrance() {
+    const gc = document.getElementById("grid-container");
+    if (!gc) return;
+    const { rows, cols } = crossword;
+    const maxDist = rows + cols - 2;
+    const cells = gc.children;
+    for (let ri = 0; ri < rows; ri++) {
+        for (let ci = 0; ci < cols; ci++) {
+            const div = cells[ri * cols + ci];
+            if (!div || !div.classList.contains("grid-cell")) continue;
+            const dist = ri + ci;
+            const delay = dist * 40;
+            div.style.opacity = "0";
+            div.style.transform = "scale(0)";
+            div.style.transition = "none";
+            // Force reflow then animate
+            div.offsetHeight;
+            div.style.transition = `opacity 0.3s ease ${delay}ms, transform 0.35s cubic-bezier(0.34,1.56,0.64,1) ${delay}ms`;
+            div.style.opacity = "1";
+            div.style.transform = "scale(1)";
+        }
+    }
+    // Clean up inline transitions after animation completes
+    const totalTime = maxDist * 40 + 400;
+    setTimeout(() => {
+        for (let i = 0; i < cells.length; i++) {
+            if (cells[i].classList.contains("grid-cell")) {
+                cells[i].style.transition = "";
+            }
+        }
+    }, totalTime);
 }
 
 // Highlight cells of a just-found word
@@ -1836,6 +1872,7 @@ async function init() {
     // Build the UI
     app.innerHTML = "";
     renderAll();
+    animateGridEntrance();
 
     // In-app browser banner
     if (window._inAppBrowser && !window.matchMedia('(display-mode: standalone)').matches && !sessionStorage.getItem('inapp-dismissed')) {
