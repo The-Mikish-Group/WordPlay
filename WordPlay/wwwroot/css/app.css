@@ -1119,3 +1119,81 @@ html, body {
     0%, 100% { box-shadow: 0 0 0 0 var(--accent); }
     50% { box-shadow: 0 0 14px 4px var(--accent); }
 }
+
+/* ---- RESCUE SPIN WHEEL ---- */
+.spin-btn-area {
+    position: absolute;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    right: 12px;
+    z-index: 2;
+}
+
+.prize-pulse {
+    animation: prizePulseGlow 0.6s ease;
+}
+
+@keyframes prizePulseGlow {
+    0%   { transform: scale(1);   filter: brightness(1);   box-shadow: 0 0 0 0 rgba(255,200,60,0.6); }
+    35%  { transform: scale(1.3); filter: brightness(1.5); box-shadow: 0 0 18px 6px rgba(255,200,60,0.5); }
+    100% { transform: scale(1);   filter: brightness(1);   box-shadow: 0 0 0 0 rgba(255,200,60,0); }
+}
+
+.spin-badge-btn {
+    border: none;
+    border-radius: 14px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.spin-modal-box {
+    background: rgba(20,15,30,0.96);
+    border-radius: 22px;
+    padding: 24px 20px;
+    text-align: center;
+    max-width: 340px;
+    width: 100%;
+    animation: pop 0.4s ease;
+}
+
+.spin-wheel-container {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    margin: 16px auto;
+}
+
+.spin-wheel-container canvas {
+    display: block;
+}
+
+.spin-pointer {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 22px solid #ffd54f;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+    z-index: 2;
+    border-radius: 3px;
+}
+
+.spin-result {
+    margin: 12px 0;
+}
+
+.spin-result-emoji {
+    font-size: 42px;
+}
+
+.spin-result-text {
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 4px;
+}

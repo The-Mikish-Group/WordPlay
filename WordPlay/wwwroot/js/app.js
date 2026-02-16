@@ -125,6 +125,7 @@ const state = {
     showMap: false,
     loading: false,
     pickMode: false,       // target-hint: user taps a cell to reveal it
+    soundEnabled: true,    // sound effects on/off
 };
 
 // ---- MAP STATE ----
@@ -226,6 +227,7 @@ function loadProgress() {
             state.levelHistory = d.lh || {};
             state.inProgress = d.ip || {};
             state.lastDailyClaim = d.ldc || null;
+            state.soundEnabled = d.se !== undefined ? d.se : true;
         }
     } catch (e) { /* ignore */ }
 }
@@ -248,6 +250,7 @@ function saveProgress() {
             lh: state.levelHistory,
             ip: state.inProgress,
             ldc: state.lastDailyClaim,
+            se: state.soundEnabled,
         }));
     } catch (e) { /* ignore */ }
 }
@@ -321,11 +324,13 @@ function handleWord(word) {
         saveProgress();
         renderGrid();
         highlightWord(w);
+        playSound("wordFound");
         renderWordCount();
         renderCoins();
         renderHintBtn();
         renderTargetBtn();
         renderRocketBtn();
+        renderSpinBtn();
         if (state.foundWords.length === totalRequired) {
             state.levelHistory[state.currentLevel] = [...state.foundWords];
             delete state.inProgress[state.currentLevel];
@@ -335,6 +340,7 @@ function handleWord(word) {
         return;
     }
     if (bonusPool && bonusPool.includes(w)) {
+        playSound("bonusChime");
         state.bonusFound.push(w);
         state.coins += 5;
         state.bonusCounter++;
@@ -353,6 +359,7 @@ function handleWord(word) {
                 renderHintBtn();
                 renderTargetBtn();
                 renderRocketBtn();
+                renderSpinBtn();
                 showToast("⭐ Bonus Reward! Free letter!", theme.accent);
                 // Delayed flash so the grid renders first
                 setTimeout(() => flashHintCell(cell), 100);
@@ -464,16 +471,17 @@ function animateCoinSpend(buttonId, amount) {
 
     const btnRect = btn.getBoundingClientRect();
     const coinRect = coinDisplay.getBoundingClientRect();
-    const startX = btnRect.left + btnRect.width / 2;
-    const startY = btnRect.top + btnRect.height / 2;
-    const endX = coinRect.left + coinRect.width / 2;
-    const endY = coinRect.top + coinRect.height / 2;
+    // Coins fly FROM coin display TO button (money leaving wallet)
+    const startX = coinRect.left + coinRect.width / 2;
+    const startY = coinRect.top + coinRect.height / 2;
+    const endX = btnRect.left + btnRect.width / 2;
+    const endY = btnRect.top + btnRect.height / 2;
 
-    // Pulse the source button
+    // Pulse the target button
     btn.classList.add("btn-pulse");
     setTimeout(() => btn.classList.remove("btn-pulse"), 500);
 
-    // Floating cost text
+    // Floating cost text at coin display (where money leaves)
     const costText = document.createElement("div");
     costText.className = "coin-spend-text";
     costText.textContent = "\u2212" + amount;
@@ -483,6 +491,7 @@ function animateCoinSpend(buttonId, amount) {
     setTimeout(() => costText.remove(), 900);
 
     // Coin particles
+    playSound("coinSpend");
     const count = 5 + Math.floor(Math.random() * 4); // 5-8
     for (let i = 0; i < count; i++) {
         setTimeout(() => {
@@ -524,6 +533,92 @@ function animateCoinSpend(buttonId, amount) {
     }
 }
 
+// ---- SOUND ENGINE ----
+let _audioCtx = null;
+function getAudioCtx() {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === "suspended") _audioCtx.resume();
+    return _audioCtx;
+}
+
+function playSound(name) {
+    if (!state.soundEnabled) return;
+    try {
+        const ctx = getAudioCtx();
+        const now = ctx.currentTime;
+        if (name === "letterClick") {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = "sine"; o.frequency.value = 1200;
+            g.gain.setValueAtTime(0.15, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(now); o.stop(now + 0.03);
+        } else if (name === "wordFound") {
+            [523, 659, 784].forEach((f, i) => {
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = "sine"; o.frequency.value = f;
+                const t = now + i * 0.1;
+                g.gain.setValueAtTime(0.18, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                o.connect(g); g.connect(ctx.destination);
+                o.start(t); o.stop(t + 0.15);
+            });
+        } else if (name === "coinSpend") {
+            [0, 60, 120, 180].forEach((d) => {
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = "square"; o.frequency.value = 800 + Math.random() * 200;
+                const t = now + d / 1000;
+                g.gain.setValueAtTime(0.08, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+                o.connect(g); g.connect(ctx.destination);
+                o.start(t); o.stop(t + 0.04);
+            });
+        } else if (name === "spinTick") {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = "square"; o.frequency.value = 600;
+            g.gain.setValueAtTime(0.1, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(now); o.stop(now + 0.02);
+        } else if (name === "spinPrize") {
+            [523, 659, 784, 1047].forEach((f, i) => {
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = "triangle"; o.frequency.value = f;
+                const t = now + i * 0.12;
+                g.gain.setValueAtTime(0.2, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+                o.connect(g); g.connect(ctx.destination);
+                o.start(t); o.stop(t + 0.2);
+            });
+        } else if (name === "hintReveal") {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = "sine"; o.frequency.value = 880;
+            o.frequency.exponentialRampToValueAtTime(1320, now + 0.12);
+            g.gain.setValueAtTime(0.18, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(now); o.stop(now + 0.2);
+        } else if (name === "bonusChime") {
+            [659, 784].forEach((f, i) => {
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = "sine"; o.frequency.value = f;
+                const t = now + i * 0.12;
+                g.gain.setValueAtTime(0.15, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+                o.connect(g); g.connect(ctx.destination);
+                o.start(t); o.stop(t + 0.18);
+            });
+        }
+    } catch (e) { /* audio not available */ }
+}
+
 function handleHint() {
     const hasFree = state.freeHints > 0;
     if (!hasFree && state.coins < 100) return;
@@ -545,6 +640,7 @@ function handleHint() {
     renderCoins();
     renderHintBtn();
     renderRocketBtn();
+    renderSpinBtn();
     if (state.foundWords.length === totalRequired) {
         setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
     }
@@ -584,6 +680,7 @@ function handlePickCell(key) {
     renderHintBtn();
     renderTargetBtn();
     renderRocketBtn();
+    renderSpinBtn();
     if (state.foundWords.length === totalRequired) {
         setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
     }
@@ -822,6 +919,7 @@ function renderDailyModal(show) {
         renderHintBtn();
         renderTargetBtn();
         renderRocketBtn();
+        renderSpinBtn();
         showToast("🪙 +100 daily coins!", theme.accent);
     };
     overlay.onclick = (e) => {
@@ -1027,6 +1125,7 @@ function highlightWord(word) {
 function flashHintCell(key) {
     const el = document.querySelector(`.grid-cell[data-key="${key}"]`);
     if (!el) return;
+    playSound("hintReveal");
     el.classList.add("hint-flash");
     setTimeout(() => el.classList.remove("hint-flash"), 2500);
 }
@@ -1089,31 +1188,34 @@ function renderWheel() {
     section.innerHTML = `
         <div class="current-word" id="current-word" style="color:${theme.accent};text-shadow:0 0 20px ${theme.accent}40">&nbsp;</div>
         <button class="circle-btn" id="shuffle-btn" title="Shuffle" style="left:12px;top:${upperBtnTop}px">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
-                <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
-                <line x1="4" y1="4" x2="9" y2="9"/>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 3 21 3 21 8" stroke="#5bc0eb"/><line x1="4" y1="20" x2="21" y2="3" stroke="#5bc0eb"/>
+                <polyline points="21 16 21 21 16 21" stroke="#f7b32b"/><line x1="15" y1="15" x2="21" y2="21" stroke="#f7b32b"/>
+                <line x1="4" y1="4" x2="9" y2="9" stroke="#fc6471"/>
             </svg>
         </button>
         <button class="circle-btn" id="target-btn" title="Choose letter (200 coins)" style="left:12px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.3'}">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2.2"/>
+                <circle cx="12" cy="12" r="6" stroke="#42A5F5" stroke-width="2"/>
+                <circle cx="12" cy="12" r="2.5" fill="#f44336" stroke="none"/>
             </svg>
             <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
         </button>
         <button class="circle-btn" id="hint-btn" title="Hint (100 coins)" style="right:12px;top:${upperBtnTop}px;opacity:${hintCanUse ? '1' : '0.3'}">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 18h6"/><path d="M10 22h4"/>
-                <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" fill="#ffeb3b" stroke="#f9a825" stroke-width="1.8"/>
+                <path d="M9 18h6" stroke="#f9a825" stroke-width="2"/><path d="M10 22h4" stroke="#f9a825" stroke-width="2"/>
             </svg>
             <span class="circle-btn-badge" id="hint-badge">${state.freeHints > 0 ? state.freeHints : ''}</span>
         </button>
         <button class="circle-btn" id="rocket-btn" title="Rocket hint (300 coins)" style="right:12px;top:${lowerBtnTop}px;opacity:${rocketCanUse ? '1' : '0.3'}">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-                <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-                <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
-                <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" fill="#ff9800" stroke="#e65100" stroke-width="1.5"/>
+                <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" fill="#e0e0e0" stroke="#9e9e9e" stroke-width="1.5"/>
+                <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" fill="#42a5f5" stroke="#1565c0" stroke-width="1.2"/>
+                <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" fill="#42a5f5" stroke="#1565c0" stroke-width="1.2"/>
+                <circle cx="16.5" cy="7.5" r="1.5" fill="#e53935"/>
             </svg>
             <span class="circle-btn-badge" id="rocket-badge">${state.freeRockets > 0 ? state.freeRockets : ''}</span>
         </button>
@@ -1132,6 +1234,9 @@ function renderWheel() {
                         style="font-size:7px;font-weight:700;font-family:system-ui,sans-serif;fill:rgba(255,255,255,0.85)">${state.bonusCounter || ''}</text>
                 </svg>
             </button>
+        </div>
+        <div class="spin-btn-area" id="spin-btn-area" style="display:none">
+            <button class="spin-badge-btn" id="spin-btn" style="background:${theme.accentDark};color:#000">🎰 Spin</button>
         </div>
     `;
 
@@ -1180,6 +1285,8 @@ function renderWheel() {
     document.getElementById("target-btn").onclick = handleTargetHint;
     document.getElementById("rocket-btn").onclick = handleRocketHint;
     document.getElementById("bonus-star-btn").onclick = () => renderBonusModal(true);
+    document.getElementById("spin-btn").onclick = () => openSpinModal();
+    renderSpinBtn();
 
     document.addEventListener("click", (e) => {
         if (!state.pickMode) return;
@@ -1221,14 +1328,15 @@ function handleRocketHint() {
     saveProgress();
     showToast(hasFree ? "🚀 Free rocket used! " + revealed.length + " letters!" : "🚀 " + revealed.length + " letters revealed  −300 🪙");
     renderGrid();
-    revealed.forEach((cell, i) => setTimeout(() => flashHintCell(cell), i * 150));
+    revealed.forEach((cell, i) => setTimeout(() => flashHintCell(cell), i * 400));
     renderWordCount();
     renderCoins();
     renderHintBtn();
     renderTargetBtn();
     renderRocketBtn();
+    renderSpinBtn();
     if (state.foundWords.length === totalRequired) {
-        setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700 + revealed.length * 150);
+        setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700 + revealed.length * 400);
     }
 }
 
@@ -1239,6 +1347,295 @@ function renderRocketBtn() {
     btn.style.opacity = canUse ? "1" : "0.3";
     const badge = document.getElementById("rocket-badge");
     if (badge) badge.textContent = state.freeRockets > 0 ? state.freeRockets : "";
+}
+
+function renderSpinBtn() {
+    const el = document.getElementById("spin-btn-area");
+    if (!el) return;
+    const dailyAvailable = state.lastDailyClaim !== getTodayStr();
+    const stuck = state.freeHints === 0 && state.freeTargets === 0 && state.freeRockets === 0 && state.coins < 100 && !dailyAvailable;
+    el.style.display = stuck ? "" : "none";
+}
+
+// ---- RESCUE SPIN WHEEL ----
+let _spinAngle = 0;
+let _spinAnimating = false;
+const SPIN_SLICES = [
+    { label: "Hint",      emoji: "💡", color: "#4CAF50" },
+    { label: "Rocket",    emoji: "🚀", color: "#9C27B0" },
+    { label: "Target",    emoji: "🎯", color: "#2196F3" },
+    { label: "50 Coins",  emoji: "🪙", color: "#FFC107" },
+    { label: "Hint",      emoji: "💡", color: "#66BB6A" },
+    { label: "Rocket",    emoji: "🚀", color: "#7B1FA2" },
+    { label: "Target",    emoji: "🎯", color: "#42A5F5" },
+    { label: "100 Coins", emoji: "🪙", color: "#FF9800" },
+];
+
+function drawSpinWheel(canvas, angle) {
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const size = 280;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+    ctx.scale(dpr, dpr);
+    const cx = size / 2, cy = size / 2, r = size / 2 - 4;
+    const sliceAngle = (Math.PI * 2) / SPIN_SLICES.length;
+
+    ctx.clearRect(0, 0, size, size);
+
+    // Outer glow ring
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 3, 0, Math.PI * 2);
+    ctx.shadowColor = "rgba(255,200,60,0.5)";
+    ctx.shadowBlur = 14;
+    ctx.strokeStyle = "rgba(255,220,100,0.6)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+
+    for (let i = 0; i < SPIN_SLICES.length; i++) {
+        const startA = angle + i * sliceAngle;
+        const endA = startA + sliceAngle;
+
+        // Slice fill with radial gradient
+        const mid = startA + sliceAngle / 2;
+        const gx = cx + Math.cos(mid) * r * 0.5;
+        const gy = cy + Math.sin(mid) * r * 0.5;
+        const grad = ctx.createRadialGradient(cx, cy, r * 0.15, gx, gy, r);
+        const baseColor = SPIN_SLICES[i].color;
+        grad.addColorStop(0, "#fff");
+        grad.addColorStop(0.25, baseColor + "cc");
+        grad.addColorStop(1, baseColor);
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, startA, endA);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Slice divider lines
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(startA) * r, cy + Math.sin(startA) * r);
+        ctx.strokeStyle = "rgba(255,255,255,0.5)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Text label ABOVE, emoji BELOW
+        const tx = cx + Math.cos(mid) * (r * 0.6);
+        const ty = cy + Math.sin(mid) * (r * 0.6);
+        ctx.save();
+        ctx.translate(tx, ty);
+        ctx.rotate(mid + Math.PI / 2);
+        // Label on top
+        ctx.font = "bold 10px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.fillText(SPIN_SLICES[i].label, 0.5, -11.5);
+        ctx.fillStyle = "#fff";
+        ctx.fillText(SPIN_SLICES[i].label, 0, -12);
+        // Emoji below
+        ctx.font = "28px sans-serif";
+        ctx.fillText(SPIN_SLICES[i].emoji, 0, 12);
+        ctx.restore();
+    }
+
+    // Outer rim
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Tick marks on rim
+    for (let i = 0; i < SPIN_SLICES.length; i++) {
+        const a = angle + i * sliceAngle;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 4, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.fill();
+    }
+
+    // Center hub — metallic style
+    const hubGrad = ctx.createRadialGradient(cx - 4, cy - 4, 2, cx, cy, 22);
+    hubGrad.addColorStop(0, "#ffd54f");
+    hubGrad.addColorStop(0.5, "#f9a825");
+    hubGrad.addColorStop(1, "#e65100");
+    ctx.beginPath();
+    ctx.arc(cx, cy, 22, 0, Math.PI * 2);
+    ctx.fillStyle = hubGrad;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Inner hub circle
+    ctx.beginPath();
+    ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.fill();
+    ctx.font = "bold 11px system-ui, sans-serif";
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("SPIN", cx, cy);
+}
+
+function openSpinModal() {
+    if (_spinAnimating) return;
+    let overlay = document.getElementById("spin-modal");
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "spin-modal";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+    overlay.innerHTML = `
+        <div class="spin-modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
+            <h2 class="modal-title" style="color:${theme.accent}">Rescue Spin!</h2>
+            <p class="modal-subtitle">Spin the wheel for a free prize</p>
+            <div class="spin-wheel-container">
+                <canvas id="spin-canvas" width="280" height="280"></canvas>
+                <div class="spin-pointer"></div>
+            </div>
+            <div class="spin-result" id="spin-result" style="display:none">
+                <div class="spin-result-emoji" id="spin-result-emoji"></div>
+                <div class="spin-result-text" id="spin-result-text"></div>
+            </div>
+            <button class="modal-next-btn" id="spin-go-btn"
+                style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});box-shadow:0 4px 16px ${theme.accent}40">
+                SPIN!
+            </button>
+        </div>
+    `;
+    const canvas = document.getElementById("spin-canvas");
+    _spinAngle = Math.random() * Math.PI * 2;
+    drawSpinWheel(canvas, _spinAngle);
+    document.getElementById("spin-go-btn").onclick = startSpin;
+    overlay.onclick = (e) => {
+        if (e.target === overlay && !_spinAnimating) closeSpinModal();
+    };
+}
+
+function closeSpinModal() {
+    const overlay = document.getElementById("spin-modal");
+    if (overlay) overlay.style.display = "none";
+}
+
+function startSpin() {
+    if (_spinAnimating) return;
+    _spinAnimating = true;
+    const btn = document.getElementById("spin-go-btn");
+    if (btn) { btn.textContent = "Spinning..."; btn.onclick = null; }
+    const result = document.getElementById("spin-result");
+    if (result) result.style.display = "none";
+
+    const canvas = document.getElementById("spin-canvas");
+    let velocity = 15 + Math.random() * 10; // 15-25 rad/s
+    const friction = 0.97;
+    let lastSlice = -1;
+    const sliceAngle = (Math.PI * 2) / SPIN_SLICES.length;
+
+    function frame() {
+        _spinAngle += velocity * 0.016; // ~60fps
+        velocity *= friction;
+        drawSpinWheel(canvas, _spinAngle);
+
+        // Tick sound on segment boundary
+        const normalAngle = ((-_spinAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const currentSlice = Math.floor(normalAngle / sliceAngle);
+        if (currentSlice !== lastSlice && lastSlice !== -1) {
+            playSound("spinTick");
+        }
+        lastSlice = currentSlice;
+
+        if (velocity > 0.002) {
+            requestAnimationFrame(frame);
+        } else {
+            onSpinComplete();
+        }
+    }
+    requestAnimationFrame(frame);
+}
+
+function getWinningSlice() {
+    // The pointer is at the top (angle = -PI/2 or 3PI/2)
+    // Normalize angle to find which slice is at top
+    const pointerAngle = -Math.PI / 2;
+    const normalAngle = ((pointerAngle - _spinAngle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+    const sliceAngle = (Math.PI * 2) / SPIN_SLICES.length;
+    const idx = Math.floor(normalAngle / sliceAngle) % SPIN_SLICES.length;
+    return idx;
+}
+
+function onSpinComplete() {
+    const winIdx = getWinningSlice();
+    const winner = SPIN_SLICES[winIdx];
+    playSound("spinPrize");
+
+    const result = document.getElementById("spin-result");
+    const emoji = document.getElementById("spin-result-emoji");
+    const text = document.getElementById("spin-result-text");
+    if (result && emoji && text) {
+        emoji.textContent = winner.emoji;
+        text.textContent = "You won: " + winner.label + "!";
+        result.style.display = "block";
+        result.style.animation = "none";
+        result.offsetHeight;
+        result.style.animation = "pop 0.4s ease";
+    }
+    const btn = document.getElementById("spin-go-btn");
+    if (btn) {
+        btn.textContent = "Claim!";
+        btn.onclick = () => claimSpinPrize(winner);
+    }
+}
+
+function claimSpinPrize(winner) {
+    if (winner.label === "Hint") {
+        state.freeHints++;
+    } else if (winner.label === "50 Coins") {
+        state.coins += 50;
+    } else if (winner.label === "Target") {
+        state.freeTargets++;
+    } else if (winner.label === "Rocket") {
+        state.freeRockets++;
+    } else if (winner.label === "100 Coins") {
+        state.coins += 100;
+    }
+    // No Prize = nothing
+    saveProgress();
+    _spinAnimating = false;
+    closeSpinModal();
+    renderCoins();
+    renderHintBtn();
+    renderTargetBtn();
+    renderRocketBtn();
+    renderSpinBtn();
+    showToast("🎰 " + winner.emoji + " " + winner.label + "!", theme.accent);
+    // Pulse the relevant element after a brief delay so it's visible
+    let targetId = null;
+    if (winner.label === "Hint") targetId = "hint-btn";
+    else if (winner.label === "Target") targetId = "target-btn";
+    else if (winner.label === "Rocket") targetId = "rocket-btn";
+    else if (winner.label === "50 Coins" || winner.label === "100 Coins") targetId = "coin-display";
+    if (targetId) {
+        setTimeout(() => {
+            const el = document.getElementById(targetId);
+            if (!el) return;
+            playSound("spinPrize");
+            el.classList.remove("prize-pulse");
+            el.offsetHeight;
+            el.classList.add("prize-pulse");
+            setTimeout(() => el.classList.remove("prize-pulse"), 700);
+        }, 300);
+    }
 }
 
 function hitTestWheel(px, py) {
@@ -1269,6 +1666,7 @@ function onWheelStart(e) {
         wheelState.sel = [i];
         wheelState.word = wheelLetters[i];
         wheelState.ptr = p;
+        playSound("letterClick");
         updateWheelVisuals();
     }
 }
@@ -1284,6 +1682,7 @@ function onWheelMove(e) {
         if (!wheelState.sel.includes(i)) {
             wheelState.sel.push(i);
             wheelState.word += wheelLetters[i];
+            playSound("letterClick");
         } else if (wheelState.sel.length > 1 && i === wheelState.sel[wheelState.sel.length - 2]) {
             wheelState.sel.pop();
             wheelState.word = wheelState.word.slice(0, -1);
@@ -1471,6 +1870,14 @@ function renderMenu() {
         </div>
     `;
 
+    // Sound toggle
+    html += `
+        <div class="menu-setting">
+            <label class="menu-setting-label">Sound</label>
+            <button class="menu-setting-btn" id="sound-toggle-btn" style="background:${state.soundEnabled ? theme.accent : 'rgba(255,255,255,0.1)'};color:${state.soundEnabled ? '#000' : 'rgba(255,255,255,0.6)'};width:100%;padding:10px 0;font-size:14px">${state.soundEnabled ? '🔊 On' : '🔇 Off'}</button>
+        </div>
+    `;
+
     // Check for Updates
     html += `
         <div class="menu-setting">
@@ -1521,6 +1928,12 @@ function renderMenu() {
 
     // Wire up event handlers
     document.getElementById("menu-close-btn").onclick = () => { state.showMenu = false; renderAll(); };
+
+    document.getElementById("sound-toggle-btn").onclick = () => {
+        state.soundEnabled = !state.soundEnabled;
+        saveProgress();
+        renderMenu();
+    };
 
     document.getElementById("menu-map-btn").onclick = () => {
         state.showMenu = false;
@@ -1657,6 +2070,7 @@ function renderMenu() {
             state.levelHistory = {};
             state.inProgress = {};
             state.lastDailyClaim = null;
+            state.soundEnabled = true;
             state.coins = 50;
             state.showMenu = false;
             saveProgress();
@@ -1888,6 +2302,11 @@ async function init() {
             sessionStorage.setItem('inapp-dismissed', '1');
         };
     }
+
+    // Warm up AudioContext on first user gesture
+    const _warmAudio = () => { getAudioCtx(); document.removeEventListener("touchstart", _warmAudio); document.removeEventListener("mousedown", _warmAudio); };
+    document.addEventListener("touchstart", _warmAudio, { once: true });
+    document.addEventListener("mousedown", _warmAudio, { once: true });
 
     // Handle resize
     window.addEventListener("resize", () => {
