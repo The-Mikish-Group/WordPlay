@@ -177,12 +177,7 @@ async function recompute() {
 }
 
 function rebuildWheelLetters() {
-    const arr = level.letters.split("");
-    if (state.shuffleKey === 0) {
-        wheelLetters = arr;
-        return;
-    }
-    const a = [...arr];
+    const a = level.letters.split("");
     for (let i = a.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [a[i], a[j]] = [a[j], a[i]];
@@ -1195,11 +1190,7 @@ function renderWheel() {
             </svg>
         </button>
         <button class="circle-btn" id="target-btn" title="Choose letter (200 coins)" style="left:12px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.3'}">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10" stroke="#2196F3" stroke-width="2.2"/>
-                <circle cx="12" cy="12" r="6" stroke="#42A5F5" stroke-width="2"/>
-                <circle cx="12" cy="12" r="2.5" fill="#f44336" stroke="none"/>
-            </svg>
+            <span style="font-size:30px;line-height:1">🎯</span>
             <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
         </button>
         <button class="circle-btn" id="hint-btn" title="Hint (100 coins)" style="right:12px;top:${upperBtnTop}px;opacity:${hintCanUse ? '1' : '0.3'}">
@@ -1236,7 +1227,7 @@ function renderWheel() {
             </button>
         </div>
         <div class="spin-btn-area" id="spin-btn-area" style="display:none">
-            <button class="spin-badge-btn" id="spin-btn" style="background:${theme.accentDark};color:#000">🎰 Spin</button>
+            <button class="spin-badge-btn" id="spin-btn" style="background:${theme.accentDark};color:#000">🎁 Spin</button>
         </div>
     `;
 
@@ -1404,10 +1395,10 @@ function drawSpinWheel(canvas, angle) {
         const mid = startA + sliceAngle / 2;
         const gx = cx + Math.cos(mid) * r * 0.5;
         const gy = cy + Math.sin(mid) * r * 0.5;
-        const grad = ctx.createRadialGradient(cx, cy, r * 0.15, gx, gy, r);
+        const grad = ctx.createRadialGradient(cx, cy, 22, gx, gy, r);
         const baseColor = SPIN_SLICES[i].color;
-        grad.addColorStop(0, "#fff");
-        grad.addColorStop(0.25, baseColor + "cc");
+        grad.addColorStop(0, baseColor + "ee");
+        grad.addColorStop(0.15, baseColor + "cc");
         grad.addColorStop(1, baseColor);
 
         ctx.beginPath();
@@ -1618,7 +1609,7 @@ function claimSpinPrize(winner) {
     renderTargetBtn();
     renderRocketBtn();
     renderSpinBtn();
-    showToast("🎰 " + winner.emoji + " " + winner.label + "!", theme.accent);
+    showToast("🎁 " + winner.emoji + " " + winner.label + "!", theme.accent);
     // Pulse the relevant element after a brief delay so it's visible
     let targetId = null;
     if (winner.label === "Hint") targetId = "hint-btn";
