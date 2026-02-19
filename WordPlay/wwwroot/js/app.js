@@ -863,6 +863,7 @@ async function goToLevel(num) {
     if (num === state.currentLevel) {
         state.showMap = false;
         renderMap();
+        renderWheel();
         return;
     }
     saveInProgressState();
@@ -919,7 +920,7 @@ function renderHeader() {
         </div>
         <div class="header-right">
             <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">🪙 ${state.coins}</div>
-            <button class="header-btn coin-display daily-btn" id="daily-btn" style="color:${theme.text}"><svg width="18" height="22" viewBox="0 0 18 22" style="vertical-align:middle;margin-right:3px">${[0,1,2,3,4].map(i=>{const y=18-i*3.5;return `<path d="M1,${y} v-2 a8,3 0 0,1 16,0 v2 a8,3 0 0,1 -16,0z" fill="#c49a1c"/><ellipse cx="9" cy="${y-2}" rx="8" ry="3" fill="#e8b730"/>`}).join('')}</svg> Free</button>
+            <button class="daily-btn" id="daily-btn"><span class="daily-text">FREE</span><svg class="daily-coins" width="16" height="22" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg></button>
         </div>
     `;
     document.getElementById("menu-btn").onclick = () => { state.showMenu = true; renderMenu(); };
@@ -1385,6 +1386,20 @@ function renderWheel() {
     document.getElementById("bonus-star-btn").onclick = () => renderBonusModal(true);
     document.getElementById("spin-btn").onclick = () => openSpinModal();
     renderSpinBtn();
+
+    // Show "Next Level" overlay on wheel when level is already complete
+    if (state.foundWords.length === totalRequired && !state.showComplete) {
+        const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
+        const isLast = state.currentLevel >= maxLv;
+        const overlay = document.createElement("div");
+        overlay.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;border-radius:50%;background:rgba(0,0,0,0.35)";
+        const btn = document.createElement("button");
+        btn.textContent = isLast ? "All Done!" : "Next Level \u2192";
+        btn.style.cssText = `background:linear-gradient(135deg,${theme.accent},${theme.accentDark});color:#000;border:none;padding:14px 28px;border-radius:30px;font-size:18px;font-weight:700;font-family:system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 16px ${theme.accent}40`;
+        btn.onclick = () => { playSound("wordFound"); handleNextLevel(); };
+        overlay.appendChild(btn);
+        document.getElementById("wheel-area").appendChild(overlay);
+    }
 
     document.addEventListener("click", (e) => {
         if (!state.pickMode) return;
@@ -2253,7 +2268,7 @@ function renderMap() {
     const packs = typeof getLevelPacks === "function" ? getLevelPacks() : [];
     if (!packs.length) {
         overlay.innerHTML = `<div class="map-header"><h2 class="map-title" style="color:${theme.accent}">Level Map</h2><button class="menu-close" id="map-close-btn">✕</button></div><div class="map-scroll"><p style="opacity:0.5;text-align:center;padding:40px">No level data available</p></div>`;
-        document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); };
+        document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); renderWheel(); };
         return;
     }
 
@@ -2331,7 +2346,7 @@ function renderMap() {
     overlay.innerHTML = html;
 
     // Wire close button
-    document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); };
+    document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); renderWheel(); };
 
     // Wire pack header toggles (accordion — only one open at a time)
     overlay.querySelectorAll(".map-pack-header.expandable").forEach(hdr => {

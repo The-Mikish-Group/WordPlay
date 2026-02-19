@@ -142,8 +142,37 @@ html, body {
 .daily-btn {
     cursor: pointer;
     animation: dailyPulse 2s ease-in-out infinite;
-    background: rgba(80, 200, 80, 0.25);
-    border-color: rgba(80, 200, 80, 0.35);
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 0 0 12px;
+    height: 24px;
+    position: relative;
+    overflow: visible;
+    box-shadow: none;
+}
+
+.daily-btn::before {
+    content: '';
+    position: absolute;
+    inset: 4px 0;
+    background: linear-gradient(135deg, #7b2ff2, #c840e9);
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 5px 50%);
+    z-index: -1;
+}
+
+.daily-text {
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    font-family: system-ui, sans-serif;
+    letter-spacing: 1.5px;
+}
+
+.daily-coins {
+    flex-shrink: 0;
 }
 
 /* ---- GRID AREA ---- */
