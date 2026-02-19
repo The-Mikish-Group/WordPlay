@@ -978,6 +978,8 @@ function renderDailyModal(show) {
         renderRocketBtn();
         renderSpinBtn();
         showToast("🪙 +100 daily coins!", theme.accent);
+        playSound("spinPrize");
+        setTimeout(() => animateCoinGain(100), 200);
     };
     overlay.onclick = (e) => {
         if (e.target === overlay) renderDailyModal(false);
@@ -2133,17 +2135,24 @@ function renderMenu() {
         const input = document.getElementById("seed-level-input");
         const val = parseInt(input.value);
         if (val >= 1 && val <= maxLv && !isNaN(val)) {
-            state.highestLevel = Math.max(state.highestLevel, val);
-            state.currentLevel = val + 1;
+            state.highestLevel = val;
+            state.currentLevel = val;
             state.foundWords = [];
             state.bonusFound = [];
             state.revealedCells = [];
             state.shuffleKey = 0;
+            // Clean up history/progress for levels at or above the new value
+            for (const key of Object.keys(state.levelHistory)) {
+                if (parseInt(key) >= val) delete state.levelHistory[key];
+            }
+            for (const key of Object.keys(state.inProgress)) {
+                if (parseInt(key) >= val) delete state.inProgress[key];
+            }
             saveProgress();
             recompute().then(() => {
                 state.showMenu = false;
                 renderAll();
-                showToast("Progress set through level " + val.toLocaleString());
+                showToast("Progress set to level " + val.toLocaleString());
             });
         } else {
             showToast("Invalid level number", "#ff8888");
