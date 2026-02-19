@@ -196,7 +196,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 800;
+    font-weight: 600;
     font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
     transition: background 0.35s ease, color 0.35s ease, border 0.2s ease;
 }
@@ -286,8 +286,8 @@ html, body {
     font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
     pointer-events: none;
     transition: transform 0.12s, background 0.12s, color 0.12s;
-    -webkit-text-stroke: 0.5px rgba(0,0,0,0.15);
-    text-shadow: 0 2px 4px rgba(0,0,0,0.35);
+    -webkit-text-stroke: 0.5px rgba(0,0,0,0.2);
+    text-shadow: 0 1px 0 rgba(0,0,0,0.25), 0 2px 0 rgba(0,0,0,0.12);
 }
 
 .wheel-letter.active {
@@ -418,6 +418,7 @@ html, body {
     padding: 0;
     margin: 0;
     cursor: pointer;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
     -webkit-appearance: none;
     appearance: none;
 }
@@ -1231,10 +1232,11 @@ html, body {
     content: '';
     position: absolute;
     inset: 4px 0;
-    background: linear-gradient(135deg, var(--accent, #e8b730), var(--accent-dark, #c49a1c));
+    background: linear-gradient(180deg, var(--accent, #e8b730), var(--accent-dark, #c49a1c));
     border-radius: 0 10px 10px 0;
-    border: 1px solid rgba(0,0,0,0.2);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-bottom-color: rgba(0,0,0,0.2);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
     z-index: -1;
 }
 
@@ -1242,6 +1244,7 @@ html, body {
     font-size: 22px;
     line-height: 1;
     margin-right: 2px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
 }
 
 .spin-text {

@@ -131,6 +131,8 @@ const state = {
 // ---- MAP STATE ----
 let _mapExpandedPacks = {};       // { "group/pack": true }
 let _mapAutoExpanded = false;     // only auto-expand the active pack once per open
+let _mapHasScrolled = false;      // only auto-scroll to current level on first render
+let _mapScrollTarget = null;      // pack key to scroll to after toggle
 const PACK_MAX_EXPANDABLE = 100;  // giant packs won't expand to show nodes
 
 // ---- COMPUTED ----
@@ -913,7 +915,7 @@ function renderHeader() {
     }
     hdr.style.color = theme.text;
     hdr.innerHTML = `
-        <button class="header-btn" id="menu-btn" style="color:${theme.text}">☰</button>
+        <button id="menu-btn" style="background:none;border:none;padding:4px;cursor:pointer;font-size:28px;line-height:1">⚙️</button>
         <div class="header-center">
             <div class="header-pack">${level.group} · ${level.pack}</div>
             <div class="header-level" style="color:${theme.accent}">Level ${getDisplayLevel()}</div>
@@ -1070,7 +1072,7 @@ function renderGrid() {
     const vh = window.innerHeight * 0.34;
     const cs = Math.min(Math.floor(vw / cols), Math.floor(vh / rows), 44);
     const gap = Math.max(2, Math.min(4, cs > 30 ? 4 : 2));
-    const fs = Math.max(cs * 0.55, 12);
+    const fs = Math.max(cs * 0.55, 16);
     const br = cs >= 36 ? 6 : cs >= 26 ? 3 : 2;
 
     gc.className = "grid-container";
@@ -1115,9 +1117,10 @@ function renderGrid() {
             div.style.fontSize = fs + "px";
 
             if (isR) {
-                div.style.background = "rgba(255,255,255,0.88)";
+                div.style.background = theme.accent + "cc";
                 div.style.border = "none";
-                div.style.color = "#1a1a2e";
+                div.style.color = "#fff";
+                div.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
                 div.textContent = cell;
             } else {
                 div.style.background = state.pickMode ? "rgba(255,255,200,0.85)" : "rgba(255,255,255,0.75)";
@@ -1251,12 +1254,7 @@ function renderWordCount() {
         if (area && area.nextSibling) app.insertBefore(wc, area.nextSibling);
         else app.appendChild(wc);
     }
-    wc.style.color = theme.dim;
-    let html = state.foundWords.length + " of " + totalRequired + " words";
-    if (state.bonusFound.length > 0) {
-        html += ` <span style="color:${theme.accent}"> · ${state.bonusFound.length} bonus</span>`;
-    }
-    wc.innerHTML = html;
+    wc.innerHTML = "&nbsp;";
 }
 
 // ---- LETTER WHEEL ----
@@ -1273,12 +1271,12 @@ function renderWheel() {
     }
 
     const count = wheelLetters.length;
-    const wheelR = Math.min(110, (window.innerWidth - 100) / 2.6);
+    const wheelR = Math.min(125, (window.innerWidth - 100) / 2.4);
     const letterR = Math.min(28, Math.max(20, wheelR * 0.23));
     const pad = letterR + 16;
     const cx = wheelR + pad, cy = wheelR + pad;
     const cW = (wheelR + pad) * 2;
-    const discR = wheelR + letterR + 4;
+    const discR = wheelR + letterR + 8;
 
     wheelPositions = wheelLetters.map((_, i) => {
         const a = (i / count) * Math.PI * 2 - Math.PI / 2;
@@ -1295,7 +1293,7 @@ function renderWheel() {
     const upperBtnTop = -5; // centered on 42px current-word line
     const lowerBtnTop = 57; // 52px button + 10px gap below upper
     section.innerHTML = `
-        <div class="current-word" id="current-word" style="color:${theme.accent};text-shadow:0 0 20px ${theme.accent}40">&nbsp;</div>
+        <div class="current-word" id="current-word" style="color:${theme.accent};text-shadow:0 1px 0 rgba(255,255,255,0.3),0 2px 0 rgba(0,0,0,0.3),0 3px 0 rgba(0,0,0,0.15),0 0 4px ${theme.accent}80">&nbsp;</div>
         <button class="circle-btn" id="shuffle-btn" title="Shuffle" style="left:12px;top:${upperBtnTop}px">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="16 3 21 3 21 8" stroke="#5bc0eb"/><line x1="4" y1="20" x2="21" y2="3" stroke="#5bc0eb"/>
@@ -1341,7 +1339,7 @@ function renderWheel() {
 
     // Render letter circles
     const lettersDiv = document.getElementById("wheel-letters");
-    const letterFS = Math.max(36, wheelR * 0.42);
+    const letterFS = Math.max(38, wheelR * 0.46);
     for (let i = 0; i < wheelLetters.length; i++) {
         const p = wheelPositions[i];
         const div = document.createElement("div");
@@ -1393,9 +1391,17 @@ function renderWheel() {
         const isLast = state.currentLevel >= maxLv;
         const overlay = document.createElement("div");
         overlay.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;border-radius:50%;background:rgba(0,0,0,0.35)";
+        // Stop wheel touch/mouse handlers from intercepting
+        const stopWheel = (e) => { e.stopPropagation(); };
+        overlay.addEventListener("touchstart", stopWheel, { passive: false });
+        overlay.addEventListener("touchmove", stopWheel, { passive: false });
+        overlay.addEventListener("touchend", stopWheel, { passive: false });
+        overlay.addEventListener("mousedown", stopWheel);
+        overlay.addEventListener("mousemove", stopWheel);
+        overlay.addEventListener("mouseup", stopWheel);
         const btn = document.createElement("button");
-        btn.textContent = isLast ? "All Done!" : "Next Level \u2192";
-        btn.style.cssText = `background:linear-gradient(135deg,${theme.accent},${theme.accentDark});color:#000;border:none;padding:14px 28px;border-radius:30px;font-size:18px;font-weight:700;font-family:system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 16px ${theme.accent}40`;
+        btn.innerHTML = isLast ? "All Done!" : `Next Level <svg width="18" height="18" viewBox="0 0 24 24" style="vertical-align:middle;margin-left:4px"><path d="M5 12h14M13 5l7 7-7 7" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        btn.style.cssText = `background:linear-gradient(180deg,${theme.accent},${theme.accentDark});color:#000;border:1px solid rgba(255,255,255,0.3);border-bottom-color:rgba(0,0,0,0.15);padding:10px 20px;border-radius:24px;font-size:15px;font-weight:700;font-family:system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 12px ${theme.accent}40,inset 0 1px 0 rgba(255,255,255,0.3);display:flex;align-items:center`;
         btn.onclick = () => { playSound("wordFound"); handleNextLevel(); };
         overlay.appendChild(btn);
         document.getElementById("wheel-area").appendChild(overlay);
@@ -1910,6 +1916,7 @@ function renderCompleteModal() {
         state.showComplete = false;
         state.showMap = true;
         _mapAutoExpanded = false;
+        _mapHasScrolled = false;
         renderCompleteModal();
         renderMap();
     };
@@ -2057,6 +2064,7 @@ function renderMenu() {
         state.showMenu = false;
         state.showMap = true;
         _mapAutoExpanded = false;
+        _mapHasScrolled = false;
         renderMenu();
         renderMap();
     };
@@ -2355,6 +2363,7 @@ function renderMap() {
             const wasOpen = _mapExpandedPacks[packKey];
             _mapExpandedPacks = {};
             if (!wasOpen) _mapExpandedPacks[packKey] = true;
+            _mapScrollTarget = wasOpen ? null : packKey;
             renderMap();
         };
     });
@@ -2370,14 +2379,21 @@ function renderMap() {
         };
     });
 
-    // Auto-scroll to current level or active pack
+    // Auto-scroll: on initial open go to current level, on pack toggle go to that pack
     setTimeout(() => {
-        const currentNode = overlay.querySelector(".map-node.current");
-        if (currentNode) {
-            currentNode.scrollIntoView({ block: "center", behavior: "smooth" });
-        } else {
-            const activePack = overlay.querySelector(".map-pack.active");
-            if (activePack) activePack.scrollIntoView({ block: "center", behavior: "smooth" });
+        if (_mapScrollTarget) {
+            const target = overlay.querySelector(`.map-pack-header[data-pack-key="${_mapScrollTarget}"]`);
+            if (target) target.scrollIntoView({ block: "start", behavior: "smooth" });
+            _mapScrollTarget = null;
+        } else if (!_mapHasScrolled) {
+            _mapHasScrolled = true;
+            const currentNode = overlay.querySelector(".map-node.current");
+            if (currentNode) {
+                currentNode.scrollIntoView({ block: "center", behavior: "smooth" });
+            } else {
+                const activePack = overlay.querySelector(".map-pack.active");
+                if (activePack) activePack.scrollIntoView({ block: "center", behavior: "smooth" });
+            }
         }
     }, 100);
 }
