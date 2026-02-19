@@ -496,15 +496,17 @@ html, body {
 }
 
 .modal-next-btn {
-    border: none;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-bottom-color: rgba(0,0,0,0.15);
     border-radius: 14px;
     padding: 13px 0;
     font-size: 17px;
     font-weight: 700;
     cursor: pointer;
     width: 100%;
-    font-family: Georgia, serif;
+    font-family: system-ui, sans-serif;
     color: #000;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 3px 8px rgba(0,0,0,0.2);
 }
 
 /* ---- LEVEL MENU ---- */
@@ -1226,6 +1228,13 @@ html, body {
     overflow: visible;
     cursor: pointer;
     font-family: inherit;
+    animation: spinBtnPulse 3s ease-in-out infinite;
+}
+
+@keyframes spinBtnPulse {
+    0%, 70%, 100% { transform: scale(1); }
+    80% { transform: scale(1.15); }
+    90% { transform: scale(1.05); }
 }
 
 .spin-badge-btn::before {

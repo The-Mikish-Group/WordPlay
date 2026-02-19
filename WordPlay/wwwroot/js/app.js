@@ -1523,18 +1523,34 @@ function drawSpinWheel(canvas, angle) {
         const mid = startA + sliceAngle / 2;
         const gx = cx + Math.cos(mid) * r * 0.5;
         const gy = cy + Math.sin(mid) * r * 0.5;
-        const grad = ctx.createRadialGradient(cx, cy, 22, gx, gy, r);
         const baseColor = SPIN_SLICES[i].color;
+
+        // Base slice
+        const grad = ctx.createRadialGradient(cx, cy, 22, gx, gy, r);
         grad.addColorStop(0, baseColor + "ee");
         grad.addColorStop(0.15, baseColor + "cc");
         grad.addColorStop(1, baseColor);
-
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.arc(cx, cy, r, startA, endA);
         ctx.closePath();
         ctx.fillStyle = grad;
         ctx.fill();
+
+        // Pillowed highlight along inner edge of slice
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, startA, endA);
+        ctx.closePath();
+        ctx.clip();
+        const hlGrad = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r * 0.85);
+        hlGrad.addColorStop(0, "rgba(255,255,255,0.25)");
+        hlGrad.addColorStop(0.6, "rgba(255,255,255,0.05)");
+        hlGrad.addColorStop(1, "rgba(0,0,0,0.15)");
+        ctx.fillStyle = hlGrad;
+        ctx.fill();
+        ctx.restore();
 
         // Slice divider lines
         ctx.beginPath();
@@ -1544,22 +1560,22 @@ function drawSpinWheel(canvas, angle) {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Text label ABOVE, emoji BELOW
-        const tx = cx + Math.cos(mid) * (r * 0.6);
-        const ty = cy + Math.sin(mid) * (r * 0.6);
+        // Text label ABOVE, emoji BELOW — pushed toward edge
+        const tx = cx + Math.cos(mid) * (r * 0.68);
+        const ty = cy + Math.sin(mid) * (r * 0.68);
         ctx.save();
         ctx.translate(tx, ty);
         ctx.rotate(mid + Math.PI / 2);
         // Label on top
-        ctx.font = "bold 10px system-ui, sans-serif";
+        ctx.font = "bold 13px system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "rgba(0,0,0,0.4)";
-        ctx.fillText(SPIN_SLICES[i].label, 0.5, -11.5);
+        ctx.fillText(SPIN_SLICES[i].label, 0.5, -13.5);
         ctx.fillStyle = "#fff";
-        ctx.fillText(SPIN_SLICES[i].label, 0, -12);
+        ctx.fillText(SPIN_SLICES[i].label, 0, -14);
         // Emoji below
-        ctx.font = "28px sans-serif";
+        ctx.font = "30px sans-serif";
         ctx.fillText(SPIN_SLICES[i].emoji, 0, 12);
         ctx.restore();
     }
@@ -1628,7 +1644,7 @@ function openSpinModal() {
                 <div class="spin-result-text" id="spin-result-text"></div>
             </div>
             <button class="modal-next-btn" id="spin-go-btn"
-                style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});box-shadow:0 4px 16px ${theme.accent}40">
+                style="background:linear-gradient(180deg,${theme.accent},${theme.accentDark});border:1px solid rgba(255,255,255,0.3);border-bottom-color:rgba(0,0,0,0.15);box-shadow:0 4px 16px ${theme.accent}40,inset 0 1px 0 rgba(255,255,255,0.3);font-size:18px;letter-spacing:2px">
                 SPIN!
             </button>
         </div>
