@@ -1304,7 +1304,7 @@ function renderWheel() {
             </svg>
         </button>
         <button class="circle-btn" id="target-btn" title="Choose letter (200 coins)" style="left:12px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.3'}">
-            <span style="font-size:30px;line-height:1">🎯</span>
+            <span style="font-size:30px;line-height:1;padding-left:2px">🎯</span>
             <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
             <span class="circle-btn-price">200</span>
         </button>
@@ -1335,7 +1335,7 @@ function renderWheel() {
             </button>
         </div>
         <div class="spin-btn-area" id="spin-btn-area" style="display:none">
-            <button class="spin-badge-btn" id="spin-btn" style="background:${theme.accentDark};color:#000">🎁 Spin</button>
+            <button class="spin-badge-btn" id="spin-btn" style="--accent:${theme.accent};--accent-dark:${theme.accentDark}"><span class="spin-gift">🎁</span><span class="spin-text">Spin</span></button>
         </div>
     `;
 

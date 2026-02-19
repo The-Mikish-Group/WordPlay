@@ -262,11 +262,12 @@ html, body {
     align-items: center;
     justify-content: center;
     font-size: 42px;
-    font-weight: 800;
-    letter-spacing: 3px;
+    font-weight: 900;
+    letter-spacing: 4px;
     text-transform: uppercase;
-    font-family: 'Segoe UI Semibold', 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Arial Black', 'Segoe UI Black', 'Helvetica Neue', Arial, sans-serif;
     transform: scaleX(0.85);
+    -webkit-text-stroke: 0.5px currentColor;
 }
 
 .wheel-area {
@@ -286,6 +287,7 @@ html, body {
     pointer-events: none;
     transition: transform 0.12s, background 0.12s, color 0.12s;
     -webkit-text-stroke: 0.5px rgba(0,0,0,0.15);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.35);
 }
 
 .wheel-letter.active {
@@ -308,6 +310,14 @@ html, body {
     position: absolute;
     z-index: 2;
     transition: background 0.15s, opacity 0.2s;
+}
+
+.circle-btn > span:first-child {
+    text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.circle-btn > svg:first-child {
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
 }
 
 .circle-btn:active {
@@ -1205,12 +1215,42 @@ html, body {
 
 .spin-badge-btn {
     border: none;
-    border-radius: 14px;
-    padding: 8px 14px;
-    font-size: 14px;
-    font-weight: 700;
-    font-family: inherit;
+    background: none;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 12px 0 0;
+    height: 26px;
+    position: relative;
+    overflow: visible;
     cursor: pointer;
+    font-family: inherit;
+}
+
+.spin-badge-btn::before {
+    content: '';
+    position: absolute;
+    inset: 4px 0;
+    background: linear-gradient(135deg, var(--accent, #e8b730), var(--accent-dark, #c49a1c));
+    border-radius: 0 10px 10px 0;
+    border: 1px solid rgba(0,0,0,0.2);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    z-index: -1;
+}
+
+.spin-gift {
+    font-size: 22px;
+    line-height: 1;
+    margin-right: 2px;
+}
+
+.spin-text {
+    color: #000;
+    font-size: 12px;
+    font-weight: 800;
+    font-family: system-ui, sans-serif;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 .spin-modal-box {
