@@ -315,6 +315,8 @@ function handleWord(word) {
     }
     if (placedWords.includes(w)) {
         state.foundWords.push(w);
+        // Auto-complete any crossing words whose cells are all now visible
+        while (checkAutoCompleteWords()) {}
         state.coins += 1;
         saveProgress();
         renderGrid();
