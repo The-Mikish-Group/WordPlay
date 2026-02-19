@@ -919,7 +919,7 @@ function renderHeader() {
         </div>
         <div class="header-right">
             <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">🪙 ${state.coins}</div>
-            <button class="header-btn coin-display daily-btn" id="daily-btn" style="color:${theme.text}">🪙 Free</button>
+            <button class="header-btn coin-display daily-btn" id="daily-btn" style="color:${theme.text}"><svg width="18" height="22" viewBox="0 0 18 22" style="vertical-align:middle;margin-right:3px">${[0,1,2,3,4].map(i=>{const y=18-i*3.5;return `<path d="M1,${y} v-2 a8,3 0 0,1 16,0 v2 a8,3 0 0,1 -16,0z" fill="#c49a1c"/><ellipse cx="9" cy="${y-2}" rx="8" ry="3" fill="#e8b730"/>`}).join('')}</svg> Free</button>
         </div>
     `;
     document.getElementById("menu-btn").onclick = () => { state.showMenu = true; renderMenu(); };
@@ -1305,14 +1305,17 @@ function renderWheel() {
         <button class="circle-btn" id="target-btn" title="Choose letter (200 coins)" style="left:12px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.3'}">
             <span style="font-size:30px;line-height:1">🎯</span>
             <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
+            <span class="circle-btn-price">200</span>
         </button>
         <button class="circle-btn" id="hint-btn" title="Hint (100 coins)" style="right:12px;top:${upperBtnTop}px;opacity:${hintCanUse ? '1' : '0.3'}">
             <span style="font-size:24px;line-height:1">💡</span>
             <span class="circle-btn-badge" id="hint-badge">${state.freeHints > 0 ? state.freeHints : ''}</span>
+            <span class="circle-btn-price">100</span>
         </button>
         <button class="circle-btn" id="rocket-btn" title="Rocket hint (300 coins)" style="right:12px;top:${lowerBtnTop}px;opacity:${rocketCanUse ? '1' : '0.3'}">
             <span style="font-size:26px;line-height:1">🚀</span>
             <span class="circle-btn-badge" id="rocket-badge">${state.freeRockets > 0 ? state.freeRockets : ''}</span>
+            <span class="circle-btn-price">300</span>
         </button>
         <div class="wheel-area" id="wheel-area" style="width:${cW}px;height:${cW}px">
             <svg id="wheel-svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">
