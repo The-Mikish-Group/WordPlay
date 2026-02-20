@@ -966,7 +966,7 @@ function renderDailyModal(show) {
             <h2 class="modal-title" style="color:${theme.accent}">Daily Bonus</h2>
             <p class="modal-coins" style="color:${theme.text}">+100 coins</p>
             <button class="modal-next-btn" id="daily-claim-btn"
-                style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});box-shadow:0 4px 16px ${theme.accent}40">
+                style="background:linear-gradient(180deg,${theme.accent} 0%,${theme.accentDark} 100%);border:2px solid ${theme.accent};border-bottom-color:${theme.accentDark};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
                 Claim
             </button>
         </div>
@@ -1022,7 +1022,7 @@ function renderBonusModal(show) {
             <p class="modal-subtitle">${state.bonusFound.length} of ${totalBonus} in this level · ${state.bonusCounter}/10 to next reward</p>
             ${listHtml}
             <button class="modal-next-btn" id="bonus-modal-close"
-                style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});box-shadow:0 4px 16px ${theme.accent}40">
+                style="background:linear-gradient(180deg,${theme.accent} 0%,${theme.accentDark} 100%);border:2px solid ${theme.accent};border-bottom-color:${theme.accentDark};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
                 Close
             </button>
         </div>
@@ -1525,31 +1525,64 @@ function drawSpinWheel(canvas, angle) {
         const gy = cy + Math.sin(mid) * r * 0.5;
         const baseColor = SPIN_SLICES[i].color;
 
-        // Base slice
-        const grad = ctx.createRadialGradient(cx, cy, 22, gx, gy, r);
-        grad.addColorStop(0, baseColor + "ee");
-        grad.addColorStop(0.15, baseColor + "cc");
-        grad.addColorStop(1, baseColor);
+        // Base slice fill
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.arc(cx, cy, r, startA, endA);
         ctx.closePath();
-        ctx.fillStyle = grad;
+        ctx.fillStyle = baseColor;
         ctx.fill();
 
-        // Pillowed highlight along inner edge of slice
+        // Pillow/3D effect — clip to slice, then layer highlights and shadows
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.arc(cx, cy, r, startA, endA);
         ctx.closePath();
         ctx.clip();
-        const hlGrad = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r * 0.85);
-        hlGrad.addColorStop(0, "rgba(255,255,255,0.25)");
-        hlGrad.addColorStop(0.6, "rgba(255,255,255,0.05)");
-        hlGrad.addColorStop(1, "rgba(0,0,0,0.15)");
+
+        // Bright center highlight (raised center)
+        const hlX = cx + Math.cos(mid) * r * 0.45;
+        const hlY = cy + Math.sin(mid) * r * 0.45;
+        const hlGrad = ctx.createRadialGradient(hlX, hlY, 0, hlX, hlY, r * 0.6);
+        hlGrad.addColorStop(0, "rgba(255,255,255,0.35)");
+        hlGrad.addColorStop(0.5, "rgba(255,255,255,0.1)");
+        hlGrad.addColorStop(1, "rgba(255,255,255,0)");
         ctx.fillStyle = hlGrad;
         ctx.fill();
+
+        // Dark edges — inner shadow along divider lines
+        const edgeShadow = (edgeAngle) => {
+            const ex = cx + Math.cos(edgeAngle) * r * 0.5;
+            const ey = cy + Math.sin(edgeAngle) * r * 0.5;
+            const perpX = -Math.sin(edgeAngle);
+            const perpY = Math.cos(edgeAngle);
+            const sg = ctx.createLinearGradient(ex - perpX * 20, ey - perpY * 20, ex + perpX * 20, ey + perpY * 20);
+            sg.addColorStop(0, "rgba(0,0,0,0)");
+            sg.addColorStop(0.35, "rgba(0,0,0,0)");
+            sg.addColorStop(0.5, "rgba(0,0,0,0.2)");
+            sg.addColorStop(1, "rgba(0,0,0,0)");
+            ctx.fillStyle = sg;
+            ctx.fill();
+        };
+        edgeShadow(startA);
+        edgeShadow(endA);
+
+        // Darken outer rim edge
+        const rimGrad = ctx.createRadialGradient(cx, cy, r * 0.7, cx, cy, r);
+        rimGrad.addColorStop(0, "rgba(0,0,0,0)");
+        rimGrad.addColorStop(0.7, "rgba(0,0,0,0)");
+        rimGrad.addColorStop(1, "rgba(0,0,0,0.25)");
+        ctx.fillStyle = rimGrad;
+        ctx.fill();
+
+        // Darken center edge
+        const ctrGrad = ctx.createRadialGradient(cx, cy, 18, cx, cy, 35);
+        ctrGrad.addColorStop(0, "rgba(0,0,0,0.2)");
+        ctrGrad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = ctrGrad;
+        ctx.fill();
+
         ctx.restore();
 
         // Slice divider lines
@@ -1644,7 +1677,7 @@ function openSpinModal() {
                 <div class="spin-result-text" id="spin-result-text"></div>
             </div>
             <button class="modal-next-btn" id="spin-go-btn"
-                style="background:linear-gradient(180deg,${theme.accent},${theme.accentDark});border:1px solid rgba(255,255,255,0.3);border-bottom-color:rgba(0,0,0,0.15);box-shadow:0 4px 16px ${theme.accent}40,inset 0 1px 0 rgba(255,255,255,0.3);font-size:18px;letter-spacing:2px">
+                style="background:linear-gradient(180deg,${theme.accent} 0%,${theme.accentDark} 100%);border:2px solid ${theme.accent};border-bottom-color:${theme.accentDark};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);font-size:20px;letter-spacing:3px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
                 SPIN!
             </button>
         </div>
@@ -1921,7 +1954,7 @@ function renderCompleteModal() {
             <p class="modal-subtitle">${level.group} · ${level.pack} · Level ${getDisplayLevel()}</p>
             <p class="modal-coins" style="color:${theme.text}">+1 🪙${bonusCount > 0 ? " · +" + bonusCount + " bonus" : ""}</p>
             <button class="modal-next-btn" id="next-btn"
-                style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});box-shadow:0 4px 16px ${theme.accent}40">
+                style="background:linear-gradient(180deg,${theme.accent} 0%,${theme.accentDark} 100%);border:2px solid ${theme.accent};border-bottom-color:${theme.accentDark};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
                 ${isLast ? "🏆 All Done!" : "Next Level →"}
             </button>
             <button class="modal-map-btn" id="modal-map-btn" style="border-color:${theme.accent}40;color:${theme.text}">View Map</button>
@@ -1938,7 +1971,7 @@ function renderCompleteModal() {
     };
 }
 
-// ---- LEVEL MENU ----
+// ---- Settings MENU ----
 function renderMenu() {
     let overlay = document.getElementById("menu-overlay");
     if (!state.showMenu) {
@@ -1957,19 +1990,36 @@ function renderMenu() {
 
     let html = `
         <div class="menu-header">
-            <h2 class="menu-title" style="color:${theme.accent}">Levels</h2>
+            <h2 class="menu-title" style="color:${theme.accent}">Settings</h2>
             <button class="menu-close" id="menu-close-btn">✕</button>
         </div>
         <div class="menu-scroll">
     `;
 
-    // Current level info
+    // Stats + Current Level side by side
     html += `
-        <div class="menu-current">
-            <div class="menu-current-label">Current Level</div>
-            <div class="menu-current-num" style="color:${theme.accent}">${state.currentLevel.toLocaleString()}</div>
-            <div class="menu-current-info">${level ? level.group + " \u00b7 " + level.pack : ""}</div>
-            <div class="menu-current-progress">${state.foundWords.length} of ${totalRequired} words found</div>
+        <div class="menu-top-row">
+            <div class="menu-top-col">
+                <div class="menu-current-label">Stats</div>
+                <div class="menu-stat">Highest Level: <span style="color:${theme.accent}">${state.highestLevel.toLocaleString()}</span></div>
+                <div class="menu-stat">Coins: <span style="color:${theme.accent}">🪙 ${state.coins}</span></div>
+                <div class="menu-stat">Levels Available: <span style="color:${theme.accent}">${maxLv.toLocaleString()}</span></div>
+            </div>
+            <div class="menu-top-col">
+                <div class="menu-current-label">Current Level</div>
+                <div class="menu-current-num" style="color:${theme.accent}">${state.currentLevel.toLocaleString()}</div>
+                <div class="menu-current-info">${level ? level.group + " \u00b7 " + level.pack : ""}</div>
+                <div class="menu-current-progress">${state.foundWords.length} of ${totalRequired} words found</div>
+            </div>
+        </div>
+    `;
+
+    // Quick navigation
+    html += `
+        <div class="menu-nav-row">
+            <button class="menu-nav-btn" id="menu-prev" style="border-color:${theme.accent}40">◀ Prev</button>
+            <button class="menu-nav-btn" id="menu-restart" style="border-color:${theme.accent}40">↺ Restart Level</button>
+            <button class="menu-nav-btn" id="menu-next" style="border-color:${theme.accent}40">Next ▶</button>
         </div>
     `;
 
@@ -1980,34 +2030,35 @@ function renderMenu() {
         </button>
     `;
 
-    // Quick navigation
-    html += `
-        <div class="menu-nav-row">
-            <button class="menu-nav-btn" id="menu-prev" style="border-color:${theme.accent}40">◀ Prev</button>
-            <button class="menu-nav-btn" id="menu-restart" style="border-color:${theme.accent}40">↺ Restart</button>
-            <button class="menu-nav-btn" id="menu-next" style="border-color:${theme.accent}40">Next ▶</button>
-        </div>
-    `;
-
-    // Go to level
+    // Go to a past level
     html += `
         <div class="menu-setting">
-            <label class="menu-setting-label">Go to Level</label>
+            <label class="menu-setting-label">Go to a past Level:</label>
             <div class="menu-setting-row">
-                <input type="number" id="goto-level-input" value="${state.currentLevel}" min="1" max="${maxLv}" class="menu-setting-input">
+                <input type="number" id="goto-level-input" value="${state.currentLevel}" min="1" max="${state.highestLevel}" class="menu-setting-input">
                 <button class="menu-setting-btn" id="goto-level-btn" style="background:${theme.accent};color:#000">Go</button>
             </div>
-            <div class="menu-setting-hint">Enter any level number (1 – ${maxLv.toLocaleString()})</div>
+            <div class="menu-setting-hint">Enter any past level number (1 – ${state.highestLevel.toLocaleString()})</div>
         </div>
     `;
 
-    // Stats
+    // Set progress (seeding for migrating from another app)
     html += `
         <div class="menu-setting">
-            <label class="menu-setting-label">Stats</label>
-            <div class="menu-stat">Highest Level: <span style="color:${theme.accent}">${state.highestLevel.toLocaleString()}</span></div>
-            <div class="menu-stat">Coins: <span style="color:${theme.accent}">🪙 ${state.coins}</span></div>
-            <div class="menu-stat">Levels Available: <span style="color:${theme.accent}">${maxLv.toLocaleString()}</span></div>
+            <label class="menu-setting-label">Set Your Progress:</label>
+            <div class="menu-setting-row">
+                <input type="number" id="seed-level-input" value="${state.highestLevel}" min="1" max="${maxLv}" class="menu-setting-input">
+                <button class="menu-setting-btn" id="seed-level-btn" style="background:${theme.accent};color:#000">Set</button>
+            </div>
+            <div class="menu-setting-hint">Mark all levels through this number as completed</div>
+        </div>
+    `;
+
+    // Reset option
+    html += `
+        <div class="menu-setting">
+            <label class="menu-setting-label">Reset</label>
+            <button class="menu-setting-btn" id="reset-progress-btn" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3)">Reset All Progress</button>
         </div>
     `;
 
@@ -2043,26 +2094,6 @@ function renderMenu() {
         html += `<div style="text-align:center;opacity:0.4;font-size:13px;padding:4px 0">Install not available in this browser</div>`;
     }
     html += `</div>`;
-
-    // Set progress (seeding for migrating from another app)
-    html += `
-        <div class="menu-setting">
-            <label class="menu-setting-label">Set Progress</label>
-            <div class="menu-setting-row">
-                <input type="number" id="seed-level-input" value="${state.highestLevel}" min="1" max="${maxLv}" class="menu-setting-input">
-                <button class="menu-setting-btn" id="seed-level-btn" style="background:${theme.accent};color:#000">Set</button>
-            </div>
-            <div class="menu-setting-hint">Mark all levels through this number as completed</div>
-        </div>
-    `;
-
-    // Reset option
-    html += `
-        <div class="menu-setting">
-            <label class="menu-setting-label">Reset</label>
-            <button class="menu-setting-btn" id="reset-progress-btn" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3)">Reset All Progress</button>
-        </div>
-    `;
 
     html += `</div>`; // close menu-scroll
     overlay.innerHTML = html;
@@ -2113,14 +2144,17 @@ function renderMenu() {
         saveProgress();
         renderMenu();
     };
-    document.getElementById("menu-restart").onclick = () => {
+    document.getElementById("menu-restart").onclick = async () => {
         state.foundWords = [];
         state.bonusFound = [];
         state.revealedCells = [];
         delete state.levelHistory[state.currentLevel];
         delete state.inProgress[state.currentLevel];
+        state.shuffleKey = 0;
+        await recompute();
         saveProgress();
-        renderMenu();
+        state.showMenu = false;
+        renderAll();
         showToast("Level restarted");
     };
     

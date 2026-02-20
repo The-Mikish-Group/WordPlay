@@ -585,6 +585,21 @@ html, body {
     cursor: default;
 }
 
+.menu-top-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.menu-top-col {
+    flex: 1;
+    text-align: center;
+    padding: 14px 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+}
+
 .menu-current {
     text-align: center;
     padding: 20px 0;
@@ -600,7 +615,7 @@ html, body {
 }
 
 .menu-current-num {
-    font-size: 48px;
+    font-size: 36px;
     font-weight: 800;
     line-height: 1.1;
 }
