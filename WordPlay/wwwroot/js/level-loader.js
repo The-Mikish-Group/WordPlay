@@ -12,22 +12,60 @@ let _maxLevel = 0;
 let _useBuiltIn = false;
 
 // ---- THEME ASSIGNMENT ----
-// Maps group names to themes (cycling through available themes)
-const GROUP_THEMES = {};
+// Semantic mapping of group names to visually matching themes
 const THEME_LIST = [
     "sunrise", "forest", "canyon", "sky",
     "ocean", "lavender", "autumn", "midnight",
     "arctic", "volcano", "meadow", "storm",
     "coral", "aurora", "desert", "twilight",
 ];
-let _themeIdx = 0;
+
+const GROUP_THEMES = {
+    // sunrise — warm gold/orange/purple gradients
+    "Sunrise": "sunrise", "Vista": "sunrise", "Bluff": "sunrise",
+    // forest — deep greens
+    "Forest": "forest", "Woodland": "forest", "Foliage": "forest",
+    "Jungle": "forest", "Wildwood": "forest", "Rain forest": "forest", "Green": "forest",
+    // canyon — warm brown/terracotta
+    "Canyon": "canyon", "Ravine": "canyon", "Stone": "canyon",
+    "Passage": "canyon", "Formation": "canyon",
+    // sky — blue sky tones
+    "Sky": "sky", "Air": "sky", "Cloud": "sky", "Wind": "sky",
+    // ocean — deep teal/cyan
+    "Ocean": "ocean", "High seas": "ocean", "Tide": "ocean", "Lake": "ocean",
+    // lavender — purple florals
+    "Flora": "lavender", "Bloom": "lavender", "Flourish": "lavender", "Botanical": "lavender",
+    // autumn — warm orange/red-brown
+    "Autumn": "autumn", "Fall": "autumn", "Marsh": "autumn", "Woods": "autumn",
+    // midnight — deep indigo/cosmic
+    "Celestial": "midnight", "Galaxy": "midnight", "Astral": "midnight",
+    "Sublime": "midnight", "Starlight": "midnight", "Majesty": "midnight",
+    // arctic — icy blue
+    "Arctic": "arctic", "Ice": "arctic", "Frost": "arctic",
+    "Frigid": "arctic", "Winter": "arctic",
+    // volcano — fiery red
+    "Tower": "volcano", "Crest": "volcano", "Bare": "volcano",
+    // meadow — bright yellow-green
+    "Meadow": "meadow", "Rows": "meadow", "Field": "meadow", "Thrive": "meadow",
+    // storm — grey-blue moody
+    "Mist": "storm", "Fog": "storm", "Timberland": "storm",
+    "Hills": "storm", "Placid": "storm",
+    // coral — warm pink/coastal
+    "Beach": "coral", "Shore": "coral", "Coast": "coral",
+    "Lagoon": "coral", "Strand": "coral", "Tropic": "coral",
+    // aurora — green/teal glow
+    "Aurora": "aurora", "Reflect": "aurora", "Tarn": "aurora",
+    // desert — sandy gold/brown
+    "Desert": "desert", "Arid": "desert", "Outback": "desert",
+    "Parched": "desert", "West": "desert",
+    // twilight — purple dusk/mountain
+    "Twilight": "twilight", "Cliff": "twilight", "Peak": "twilight",
+    "Summit": "twilight", "Mountain": "twilight", "Basin": "twilight",
+    "View": "twilight", "Precipice": "twilight",
+};
 
 function getThemeForGroup(group) {
-    if (!GROUP_THEMES[group]) {
-        GROUP_THEMES[group] = THEME_LIST[_themeIdx % THEME_LIST.length];
-        _themeIdx++;
-    }
-    return GROUP_THEMES[group];
+    return GROUP_THEMES[group] || "sunrise";
 }
 
 // ---- MASTER/UNKNOWN SYNTHETIC NAMING ----

@@ -1,0 +1,1598 @@
+{
+  "Sunrise|Rise": {
+    "desc": "Golden light spilling over a low eastern ridge as the first rays of morning break across a misty valley. Warm haze clings to rolling hills while the sky shifts from deep violet to amber.",
+    "colors": "warm gold, soft violet, amber haze"
+  },
+  "Sunrise|Grow": {
+    "desc": "A sun-drenched hillside where wildflowers stretch toward the brightening sky, dew catching the first light. Tender green shoots push through rich soil as dawn washes over the landscape.",
+    "colors": "sunrise peach, fresh green, soft yellow"
+  },
+  "Sunrise|Shine": {
+    "desc": "Brilliant morning sunlight reflecting off a glassy lake surrounded by silhouetted pines, the entire scene glowing with radiant warmth. Beams of light pierce through scattered clouds.",
+    "colors": "radiant gold, sky blue, bright white"
+  },
+  "Forest|Pine": {
+    "desc": "Towering evergreen pines rising into a cool overcast sky, their dark needles forming a dense canopy over a carpet of fallen needles and soft moss.",
+    "colors": "deep forest green, bark brown, misty grey"
+  },
+  "Forest|Dew": {
+    "desc": "Early morning droplets glistening on fern fronds and spider webs stretched between moss-covered trunks in a quiet old-growth forest. Light filters softly through the canopy.",
+    "colors": "emerald green, crystal clear, soft silver"
+  },
+  "Forest|Flow": {
+    "desc": "A gentle woodland stream winding through ancient trees, water slipping over smooth stones and fallen logs while dappled sunlight dances on the surface.",
+    "colors": "mossy green, cool blue, warm brown"
+  },
+  "Forest|Fog": {
+    "desc": "Dense fog rolling between tall tree trunks, reducing the forest to ghostly silhouettes layered in receding planes of grey and muted green.",
+    "colors": "pale grey, muted sage, charcoal"
+  },
+  "Forest|Life": {
+    "desc": "A vibrant forest floor bursting with ferns, mushrooms, and wildflowers beneath a lush green canopy alive with filtered sunlight and rich earth tones.",
+    "colors": "vivid green, rich brown, dappled gold"
+  },
+  "Canyon|Ravine": {
+    "desc": "A deep narrow gorge carved into layered red and ochre sandstone, with a thin ribbon of turquoise water far below and sheer walls rising on both sides.",
+    "colors": "terracotta red, deep ochre, turquoise"
+  },
+  "Canyon|Pass": {
+    "desc": "A winding path through a sun-bleached canyon corridor where wind-sculpted walls tower overhead and the sky is a narrow strip of brilliant blue.",
+    "colors": "sandstone tan, sky blue, burnt sienna"
+  },
+  "Canyon|Arch": {
+    "desc": "A massive natural stone arch spanning a wide canyon, framing a distant vista of mesas and buttes bathed in warm afternoon light.",
+    "colors": "russet orange, warm gold, desert tan"
+  },
+  "Canyon|Cliff": {
+    "desc": "Sheer canyon cliffs dropping hundreds of feet to a winding river below, striped with geological layers of red, cream, and purple stone.",
+    "colors": "clay red, cream, dusty purple"
+  },
+  "Canyon|Pillar": {
+    "desc": "Tall isolated stone pillars and hoodoos standing like sentinels in a vast canyon basin, their caps of harder rock balanced on eroded columns.",
+    "colors": "sandy beige, iron red, pale blue sky"
+  },
+  "Sky|Wind": {
+    "desc": "Sweeping cloud formations streaking across a vast open sky above windswept grasslands, the atmosphere alive with motion and shifting light.",
+    "colors": "cerulean blue, cloud white, pale grey"
+  },
+  "Sky|Rays": {
+    "desc": "Dramatic crepuscular rays fanning out from behind towering cumulus clouds, shafts of golden light illuminating patches of the landscape far below.",
+    "colors": "golden yellow, steel grey, bright white"
+  },
+  "Sky|Dusk": {
+    "desc": "The sky ablaze with layers of magenta, coral, and deep indigo as the sun sinks below a flat horizon, silhouetting distant treelines.",
+    "colors": "magenta, coral pink, deep indigo"
+  },
+  "Sky|Cloud": {
+    "desc": "Billowing cumulus towers rising into a deep blue sky, their sunlit tops brilliant white and their bases cast in soft purple shadow.",
+    "colors": "bright white, deep blue, soft purple"
+  },
+  "Sky|Sun": {
+    "desc": "A blazing sun dominating a clear sky, its intense light washing the landscape in warm tones and casting long sharp shadows across open terrain.",
+    "colors": "blazing yellow, warm orange, light blue"
+  },
+  "Tropic|Shore": {
+    "desc": "A tropical shoreline where turquoise waves lap against white sand, backed by lush green vegetation and swaying coconut palms under a cloudless sky.",
+    "colors": "turquoise, white sand, palm green"
+  },
+  "Tropic|Frond": {
+    "desc": "Enormous tropical fronds fanning out in layers of vivid green, sunlight filtering through their translucent leaves creating patterns of light and shadow.",
+    "colors": "bright green, lime, golden light"
+  },
+  "Tropic|Palm": {
+    "desc": "Tall palm trees leaning over a calm lagoon at golden hour, their silhouettes reflected in the still warm water as the sky glows peach and rose.",
+    "colors": "peach, rose gold, silhouette black"
+  },
+  "Tropic|Beach": {
+    "desc": "A wide crescent of pristine tropical beach stretching between rocky headlands, the sand almost pink in the late afternoon light with gentle waves rolling in.",
+    "colors": "blush pink, aquamarine, soft gold"
+  },
+  "Tropic|Coast": {
+    "desc": "A rugged tropical coastline where volcanic rock meets crashing surf, dense jungle growing right to the cliff edges above tide pools filled with crystal-clear water.",
+    "colors": "ocean blue, jungle green, dark basalt"
+  },
+  "Mountain|Crest": {
+    "desc": "A jagged mountain crest line running against a dramatic sky, the ridge dusted with fresh snow while lower slopes show dark exposed rock and alpine meadows.",
+    "colors": "snow white, slate grey, alpine green"
+  },
+  "Mountain|Fjord": {
+    "desc": "Steep mountain walls plunging directly into a deep blue fjord, waterfalls cascading down moss-covered cliffs into the still dark water below.",
+    "colors": "deep navy, emerald green, misty white"
+  },
+  "Mountain|Climb": {
+    "desc": "A steep rocky mountainside ascending into thin clouds, switchback trails visible on the exposed face with distant peaks emerging from the mist beyond.",
+    "colors": "granite grey, cloud white, faded blue"
+  },
+  "Mountain|Scale": {
+    "desc": "An immense mountain face dwarfing everything around it, its massive scale revealed by the tiny trees at its base and the glaciers carved into its flanks.",
+    "colors": "stone grey, ice blue, dark green"
+  },
+  "Mountain|Peak": {
+    "desc": "A singular snow-capped mountain peak rising above a sea of clouds, the summit catching the last light of day in shades of pink and gold.",
+    "colors": "rose pink, snow white, twilight blue"
+  },
+  "Winter|Chill": {
+    "desc": "A frozen landscape under a pale winter sky, bare trees standing in deep snow with their branches encased in ice that glints in the weak sunlight.",
+    "colors": "icy blue, pale grey, stark white"
+  },
+  "Winter|Bite": {
+    "desc": "A harsh winter scene with driving snow obscuring a rugged mountain pass, the bitter cold suggested by the blue-grey tones and wind-sculpted snowdrifts.",
+    "colors": "steel blue, ash grey, cold white"
+  },
+  "Winter|Flake": {
+    "desc": "Delicate snowflakes drifting down through still air over a peaceful winter meadow, each crystal catching light as it falls past dark evergreen branches.",
+    "colors": "soft white, powder blue, pine green"
+  },
+  "Winter|White": {
+    "desc": "An endless white winter expanse stretching to the horizon, the snow unbroken except for gentle rolling contours and the faintest blue shadows in its hollows.",
+    "colors": "pure white, shadow blue, pale lavender"
+  },
+  "Winter|Frost": {
+    "desc": "Intricate frost patterns coating every surface of a winter forest clearing, transforming branches, grass, and stones into crystalline sculptures under a crisp blue sky.",
+    "colors": "crystal white, frost blue, clear sky blue"
+  },
+  "Flora|Petal": {
+    "desc": "Soft flower petals scattered across a sun-warmed garden path, their delicate pinks and whites catching the breeze against a backdrop of lush green foliage.",
+    "colors": "petal pink, soft white, garden green"
+  },
+  "Flora|Lily": {
+    "desc": "Elegant water lilies floating on the surface of a tranquil pond, their white and pink blooms open to the sky among broad green lily pads.",
+    "colors": "lily white, blush pink, pond green"
+  },
+  "Flora|Bloom": {
+    "desc": "A hillside erupting in full bloom with wildflowers of every color, the meadow a tapestry of purple, yellow, and red stretching toward distant blue mountains.",
+    "colors": "wildflower purple, sunny yellow, poppy red"
+  },
+  "Flora|Field": {
+    "desc": "A vast field of lavender stretching in neat rows to the horizon, the purple haze of blossoms meeting a golden sunset sky with rolling hills beyond.",
+    "colors": "lavender purple, sunset gold, sage green"
+  },
+  "Flora|Seed": {
+    "desc": "Dandelion seeds drifting on a warm breeze over a sunlit meadow, their wispy forms silhouetted against the soft light of a spring afternoon sky.",
+    "colors": "warm cream, soft green, gentle gold"
+  },
+  "Autumn|Fall": {
+    "desc": "Leaves cascading from towering maples in a riot of orange, red, and gold, carpeting a winding forest path in layers of autumn color.",
+    "colors": "burnt orange, crimson red, golden yellow"
+  },
+  "Autumn|Bark": {
+    "desc": "Rough textured bark of ancient oaks framing an autumn forest scene, the trees' gnarled trunks standing firm as their canopies blaze with seasonal color.",
+    "colors": "bark brown, amber gold, russet red"
+  },
+  "Autumn|Red": {
+    "desc": "A hillside of red maples at peak autumn color, the intense scarlet foliage reflected in a still lake below under a clear cool sky.",
+    "colors": "deep scarlet, lake blue, cool grey"
+  },
+  "Autumn|Vivid": {
+    "desc": "An explosion of vivid autumn color across a mountain valley, every shade from lemon yellow to deep burgundy painting the forest in breathtaking intensity.",
+    "colors": "vivid magenta, electric yellow, deep burgundy"
+  },
+  "Autumn|Cover": {
+    "desc": "A thick blanket of fallen leaves covering a forest floor, the rich carpet of amber, copper, and brown crunching underfoot beneath a canopy going bare.",
+    "colors": "copper, warm amber, chocolate brown"
+  },
+  "Jungle|Vine": {
+    "desc": "Thick tropical vines hanging from enormous trees, draping across the jungle canopy and creating natural curtains of green in the humid, filtered light.",
+    "colors": "vine green, shadowy brown, humid grey"
+  },
+  "Jungle|Thick": {
+    "desc": "Impenetrable jungle vegetation pressing in from all sides, layers of leaves, branches, and undergrowth forming a dense wall of green in every direction.",
+    "colors": "dark green, deep olive, shadowed black"
+  },
+  "Jungle|Wild": {
+    "desc": "An untamed jungle landscape where massive trees erupt from rocky ground, their roots exposed and tangled, with wild orchids clinging to every surface.",
+    "colors": "wild green, orchid purple, root brown"
+  },
+  "Jungle|Lush": {
+    "desc": "A lush jungle clearing where a waterfall feeds a crystal pool surrounded by giant ferns, bromeliads, and towering tropical hardwoods dripping with moisture.",
+    "colors": "lush emerald, waterfall white, fern green"
+  },
+  "Jungle|Green": {
+    "desc": "An overwhelming sea of green stretching across a jungle canopy seen from above, countless shades from lime to forest green rippling in the tropical breeze.",
+    "colors": "lime green, forest green, jade"
+  },
+  "Desert|Spire": {
+    "desc": "Tall sandstone spires rising from the desert floor like ancient monuments, their weathered surfaces glowing red and orange in the harsh midday sun.",
+    "colors": "fiery red, burnt orange, bright sand"
+  },
+  "Desert|Rock": {
+    "desc": "Massive desert boulders balanced on eroded pedestals, the ancient rock formations casting sharp shadows across the parched cracked earth below.",
+    "colors": "rust brown, shadow grey, bleached tan"
+  },
+  "Desert|Sierra": {
+    "desc": "A rugged desert sierra rising abruptly from the flat basin, its jagged ridgeline cutting a dramatic profile against a vast desert sky streaked with high clouds.",
+    "colors": "mesa brown, sky blue, dusty rose"
+  },
+  "Desert|Dune": {
+    "desc": "Smooth sand dunes rolling toward the horizon in graceful curves, their knife-edge crests casting deep shadows on one side while the other glows warm gold.",
+    "colors": "warm gold, deep shadow, apricot"
+  },
+  "Desert|Sand": {
+    "desc": "An endless expanse of fine desert sand stretching in every direction, subtle ripples created by wind forming delicate patterns under a blazing white sun.",
+    "colors": "pale sand, bleached white, heat shimmer gold"
+  },
+  "Ocean|Vast": {
+    "desc": "The open ocean stretching to infinity under a towering sky, nothing but water and horizon in every direction with deep swells rolling across the surface.",
+    "colors": "deep ocean blue, sky grey, foam white"
+  },
+  "Ocean|Wave": {
+    "desc": "Powerful ocean waves curling and crashing in sequence, their translucent green walls backlit by the sun before exploding into white spray on the reef.",
+    "colors": "sea green, spray white, deep blue"
+  },
+  "Ocean|Storm": {
+    "desc": "Dark storm clouds gathering over a churning ocean, the water turned slate grey and black as towering waves build beneath a sky split by distant lightning.",
+    "colors": "storm grey, black water, electric white"
+  },
+  "Ocean|Blue": {
+    "desc": "Crystal-clear blue ocean water seen from above, the varying depths creating a gradient from pale aqua in the shallows to profound navy in the deep.",
+    "colors": "aqua, sapphire blue, deep navy"
+  },
+  "Ocean|Depth": {
+    "desc": "The ocean seen as layers of deepening blue, shafts of light penetrating the surface and fading into an abyss of indigo and midnight darkness below.",
+    "colors": "midnight blue, indigo, fading turquoise"
+  },
+  "Field|Sail": {
+    "desc": "Golden wheat fields rippling like ocean waves under a wide sky, their stalks bending gracefully in the wind as if sailing across the open plain.",
+    "colors": "wheat gold, sky blue, gentle cream"
+  },
+  "Field|Haze": {
+    "desc": "A warm haze hanging over endless farmland at midday, the horizon blurred and soft as heat rises from sun-baked fields of golden grain.",
+    "colors": "hazy gold, warm beige, washed-out blue"
+  },
+  "Field|Soar": {
+    "desc": "A sweeping aerial view of patchwork fields and meadows spreading below, the landscape a mosaic of greens and golds seen from a soaring height.",
+    "colors": "patchwork green, harvest gold, aerial blue"
+  },
+  "Field|Wind": {
+    "desc": "Strong wind bending tall grass and wildflowers across an open prairie, streaks of silver and green racing across the field under fast-moving clouds.",
+    "colors": "silver-green, grass green, cloud grey"
+  },
+  "Field|Amber": {
+    "desc": "Fields of amber grain glowing in the warm light of late afternoon, the rich golden color deepening toward the edges where shadows gather.",
+    "colors": "deep amber, warm honey, burnt gold"
+  },
+  "Lake|Calm": {
+    "desc": "A perfectly still lake reflecting the surrounding mountains and sky like a flawless mirror, not a single ripple disturbing the glassy surface at dawn.",
+    "colors": "mirror blue, mountain grey, dawn pink"
+  },
+  "Lake|Set": {
+    "desc": "A mountain lake at sunset with the sky's fiery colors reflected in the water, pine-covered shores dark against the blazing orange and magenta sky.",
+    "colors": "sunset orange, magenta, dark pine"
+  },
+  "Lake|Serene": {
+    "desc": "A serene alpine lake nestled in a quiet valley, its clear water revealing smooth stones on the bottom while mist drifts gently across the surface.",
+    "colors": "serene blue, soft mist, stone grey"
+  },
+  "Lake|Air": {
+    "desc": "A high-altitude lake surrounded by thin crisp air and rocky terrain, the water an impossibly vivid blue against the stark grey of the alpine landscape.",
+    "colors": "vivid blue, alpine grey, thin white"
+  },
+  "Lake|Grace": {
+    "desc": "A graceful lakeshore where weeping willows trail their branches in the calm water, soft light playing across gentle ripples in shades of green and silver.",
+    "colors": "willow green, silver water, soft gold"
+  },
+  "Vista|Climb": {
+    "desc": "A panoramic view earned from a steep climb, the trail behind dropping away to reveal layer upon layer of forested ridges fading into blue distance.",
+    "colors": "distant blue, forest green, trail brown"
+  },
+  "Vista|Above": {
+    "desc": "Looking down from high above on a vast landscape of valleys, rivers, and patchwork forests, the curvature of the earth barely perceptible at the horizon.",
+    "colors": "aerial blue, verdant green, haze white"
+  },
+  "Vista|Fall": {
+    "desc": "An expansive autumn vista stretching across multiple mountain ridges, each successive range showing different stages of fall color from green to blazing orange.",
+    "colors": "fall orange, ridge blue, forest green"
+  },
+  "Vista|Below": {
+    "desc": "A dramatic overlook revealing a deep valley far below, the river at its bottom reduced to a silver thread winding through dark forest and cliff walls.",
+    "colors": "deep valley green, silver, cliff grey"
+  },
+  "Vista|Arrive": {
+    "desc": "The triumphant final view from a summit where the entire landscape opens up in every direction, distant horizons glowing in the warm light of achievement.",
+    "colors": "panoramic gold, sky blue, mountain purple"
+  },
+  "Cliff|Mist": {
+    "desc": "Towering sea cliffs shrouded in rolling mist, their dark faces appearing and disappearing as clouds drift along the rugged coastline above crashing waves.",
+    "colors": "cliff grey, mist white, dark sea blue"
+  },
+  "Cliff|Bright": {
+    "desc": "White chalk cliffs blazing bright in full sunlight, their sheer faces reflecting light over a turquoise sea below under a perfectly clear summer sky.",
+    "colors": "chalk white, bright turquoise, vivid blue"
+  },
+  "Cliff|Dawn": {
+    "desc": "Cliff faces catching the first rosy light of dawn, the rock warming from cool grey to soft pink as the sun crests the horizon behind them.",
+    "colors": "dawn rose, warm stone, soft grey"
+  },
+  "Cliff|Brood": {
+    "desc": "Dark brooding cliffs under an overcast sky, their imposing faces streaked with rain and draped in shadow, the mood heavy and atmospheric.",
+    "colors": "dark charcoal, stormy grey, muted green"
+  },
+  "Cliff|View": {
+    "desc": "A breathtaking clifftop view stretching out over the ocean, the edge dropping away sharply to reveal miles of coastline and distant headlands below.",
+    "colors": "ocean teal, clifftop green, horizon blue"
+  },
+  "Beach|Fresh": {
+    "desc": "A freshly washed beach at low tide, the sand smooth and glistening, with clean salt air and gentle morning light illuminating tide pools and wet stones.",
+    "colors": "fresh blue, wet sand gold, morning white"
+  },
+  "Beach|Shell": {
+    "desc": "A beach scattered with countless seashells in delicate pinks, whites, and creams, the shells catching sunlight against fine sand with gentle waves beyond.",
+    "colors": "shell pink, pearl white, sand cream"
+  },
+  "Beach|Wash": {
+    "desc": "Foamy waves washing up the beach in thin sheets of water, the retreating tide leaving intricate lace patterns of bubbles and wet sand in its wake.",
+    "colors": "foam white, wet sand brown, wave blue"
+  },
+  "Beach|Aqua": {
+    "desc": "A tropical beach with impossibly aqua water shading from pale turquoise near shore to deeper teal, the sand blindingly white under a tropical sun.",
+    "colors": "aqua, bright turquoise, white sand"
+  },
+  "Beach|Pebble": {
+    "desc": "A pebble beach where smooth rounded stones in greys, whites, and blacks are lapped by clear Mediterranean waters under warm golden afternoon light.",
+    "colors": "stone grey, warm gold, Mediterranean blue"
+  },
+  "Fog|Wood": {
+    "desc": "A dense woodland dissolving into thick fog, tree trunks fading into nothingness just a few dozen yards away, the ground soft with damp leaves.",
+    "colors": "fog grey, bark brown, damp green"
+  },
+  "Fog|Valley": {
+    "desc": "A valley filled with a sea of fog, the tops of hills and ridges poking through like islands in a white ocean under a clear sky above.",
+    "colors": "white fog, ridge green, clear blue"
+  },
+  "Fog|Lake": {
+    "desc": "Morning fog hovering just above a still lake surface, the water invisible beneath the blanket of mist while shoreline trees stand as dark ghosts.",
+    "colors": "silver mist, dark silhouette, pale blue"
+  },
+  "Fog|Range": {
+    "desc": "Mountain ranges layered in fog, each successive ridge lighter and more faded than the last, creating a serene gradient of grey silhouettes receding to nothing.",
+    "colors": "layered grey, pale blue, mist white"
+  },
+  "Fog|River": {
+    "desc": "A winding river barely visible beneath tendrils of fog snaking along its course through a quiet valley, the water dark and mysterious below the mist.",
+    "colors": "river dark, tendril white, valley olive"
+  },
+  "Celestial|Cosmo": {
+    "desc": "A vast cosmic landscape of swirling nebulae and distant galaxies seen above a dark mountain horizon, the night sky alive with deep space color and light.",
+    "colors": "nebula purple, cosmic blue, starlight white"
+  },
+  "Celestial|Luna": {
+    "desc": "A luminous full moon hanging over a silver-lit landscape, every surface bathed in cool lunar light that transforms the world into shades of blue and silver.",
+    "colors": "lunar silver, midnight blue, pale glow"
+  },
+  "Celestial|Strato": {
+    "desc": "The edge of the stratosphere visible at extreme altitude, the sky deepening from pale blue through cobalt to the blackness of space with stars becoming visible.",
+    "colors": "cobalt blue, black space, thin white atmosphere"
+  },
+  "Celestial|Polar": {
+    "desc": "Shimmering curtains of northern lights rippling across a polar sky, their ethereal greens and purples reflected on a frozen snow-covered landscape below.",
+    "colors": "aurora green, electric purple, snow white"
+  },
+  "Celestial|Solis": {
+    "desc": "The sun viewed as a celestial body at the golden hour, its warm corona spreading across the sky and painting high cirrus clouds in every shade of flame.",
+    "colors": "solar gold, flame orange, corona white"
+  },
+  "Woodland|Ray": {
+    "desc": "Shafts of warm sunlight piercing through a deciduous woodland canopy, each ray illuminating floating dust motes and painting golden pools on the mossy floor.",
+    "colors": "golden ray, leaf green, moss brown"
+  },
+  "Woodland|Azure": {
+    "desc": "A woodland clearing opening to reveal a brilliant azure sky above, the surrounding trees framing the vivid blue like a natural cathedral window.",
+    "colors": "azure blue, canopy green, bark grey"
+  },
+  "Woodland|Toad": {
+    "desc": "A damp woodland floor rich with toadstools and bracket fungi growing on fallen logs, the understory lush and dark with decomposing leaves and wet earth.",
+    "colors": "mushroom cream, wet brown, dark forest green"
+  },
+  "Woodland|Brook": {
+    "desc": "A bubbling brook tumbling over mossy rocks through a sunlit woodland, the water catching light as it splashes between fern-lined banks under arching branches.",
+    "colors": "brook blue, fern green, sunlit gold"
+  },
+  "Woodland|Leaf": {
+    "desc": "A canopy of broad woodland leaves in every shade of green, sunlight filtering through their translucent surfaces creating a living stained-glass ceiling overhead.",
+    "colors": "translucent green, dappled gold, stem brown"
+  },
+  "Outback|Flat": {
+    "desc": "An impossibly flat outback plain stretching to the horizon in every direction, the red earth meeting a vast dome of blue sky with scattered scrub brush.",
+    "colors": "outback red, flat blue sky, scrub olive"
+  },
+  "Outback|Erode": {
+    "desc": "Deeply eroded outback terrain showing layers of ancient geology, gullies and channels carved by rare flash floods through soft red and ochre sedimentary rock.",
+    "colors": "eroded ochre, deep red, gully brown"
+  },
+  "Outback|Arid": {
+    "desc": "A parched arid landscape of cracked earth and sparse saltbush under a relentless sun, the air shimmering with heat above the bone-dry outback plain.",
+    "colors": "dry tan, heat white, cracked brown"
+  },
+  "Outback|Lime": {
+    "desc": "Unusual lime-green mineral deposits streaking through red outback rock formations, creating a striking contrast of color in the harsh arid landscape at midday.",
+    "colors": "lime green, outback red, mineral white"
+  },
+  "Outback|Arch": {
+    "desc": "A weathered natural rock arch in the outback carved by millennia of wind erosion, the rusty orange stone framing a view of the vast empty plains beyond.",
+    "colors": "rusty orange, plain tan, empty blue"
+  },
+  "Frost|White": {
+    "desc": "A landscape rendered entirely in white by a deep frost, every blade of grass, every twig, and every wire coated in thick white ice crystals under a pale sky.",
+    "colors": "frost white, ice crystal, pale sky blue"
+  },
+  "Frost|Valley": {
+    "desc": "A frost-filled valley at dawn where cold air has settled overnight, every surface sparkling with ice crystals while the surrounding hilltops glow warm above the inversion.",
+    "colors": "icy silver, warm hilltop gold, valley blue"
+  },
+  "Frost|Lake": {
+    "desc": "A frozen lake rimmed with frost-covered reeds and grasses, the ice surface etched with delicate crystal patterns and covered in a thin dusting of fresh snow.",
+    "colors": "frozen blue, reed gold, crystal white"
+  },
+  "Frost|Icy": {
+    "desc": "An intensely icy landscape where everything is locked in thick clear ice, icicles hanging from every overhang and the ground a treacherous sheet of frozen water.",
+    "colors": "ice clear, frozen blue, sharp white"
+  },
+  "Frost|Shine": {
+    "desc": "Morning sunlight hitting a frost-covered landscape and setting it ablaze with glittering light, every crystal surface reflecting and refracting the sun into tiny rainbows.",
+    "colors": "glitter gold, prism rainbow, frost silver"
+  },
+  "Timberland|Mist": {
+    "desc": "Vast stands of timber disappearing into mountain mist, the tall straight trunks of conifers rising like pillars into a soft grey canopy of cloud and fog.",
+    "colors": "timber brown, mist grey, conifer green"
+  },
+  "Timberland|Bright": {
+    "desc": "A bright clearing in dense timberland where sunlight pours down onto a carpet of wildflowers and young saplings, the surrounding forest dark by contrast.",
+    "colors": "bright sunlight, wildflower color, dark timber"
+  },
+  "Timberland|Dawn": {
+    "desc": "First light breaking over a timberland horizon, the treetops catching pink and gold light while the forest floor remains in cool blue pre-dawn shadow.",
+    "colors": "dawn pink, cool blue shadow, treetop gold"
+  },
+  "Timberland|Brood": {
+    "desc": "A brooding timberland under dark storm clouds, the massive trees swaying in gusting wind as the sky turns an ominous shade of green-grey before rain.",
+    "colors": "storm green-grey, dark wood, ominous black"
+  },
+  "Timberland|View": {
+    "desc": "A sweeping view across miles of unbroken timberland from an elevated ridge, the dense forest canopy rolling like a green carpet over hills and valleys.",
+    "colors": "canopy green, ridge brown, sky blue"
+  },
+  "Hills|Climb": {
+    "desc": "Rolling green hills rising steadily upward, each crest revealing another set of higher hills beyond, the landscape inviting a steady climb through pastoral meadows.",
+    "colors": "grass green, path brown, gentle blue"
+  },
+  "Hills|Above": {
+    "desc": "Looking down from the highest hilltop across a undulating landscape of rounded green hills, their shadows creating a beautiful pattern of light and dark in the afternoon sun.",
+    "colors": "sunlit green, shadow purple, warm gold"
+  },
+  "Hills|Fall": {
+    "desc": "Gentle hills draped in autumn color, the rounded landscape softened by golden grasses and scattered trees ablaze in orange and red under a hazy sky.",
+    "colors": "golden grass, autumn orange, hazy blue"
+  },
+  "Hills|Below": {
+    "desc": "A deep valley visible between two prominent hills, the view plunging down to a river winding through farmland and forest far below the hilltop vantage point.",
+    "colors": "valley green, river silver, hill brown"
+  },
+  "Hills|Arrive": {
+    "desc": "The crest of the final hill revealing a spectacular destination landscape beyond, a wide fertile valley opening up with a lake glimmering at its center.",
+    "colors": "valley gold, lake shimmer, welcoming green"
+  },
+  "Mist|Ray": {
+    "desc": "Rays of light cutting through thick morning mist like spotlights, each beam visible as a solid shaft of gold illuminating swirling particles in the damp air.",
+    "colors": "beam gold, mist silver, shadow grey"
+  },
+  "Mist|Azure": {
+    "desc": "Mist slowly burning off to reveal an azure sky above, the fog retreating down valleys and hollows as blue sky claims more and more territory overhead.",
+    "colors": "clearing azure, retreating mist, warm horizon"
+  },
+  "Mist|Toad": {
+    "desc": "A misty bog where the air hangs heavy and damp, the ground spongy with peat and dotted with mossy hummocks and strange fungi emerging from the gloom.",
+    "colors": "bog brown, misty grey, fungi cream"
+  },
+  "Mist|Brook": {
+    "desc": "A small brook vanishing into and reappearing from patches of low-lying mist, the water gurgling invisibly through the fog before emerging bright and clear downstream.",
+    "colors": "brook clear, mist white, bank green"
+  },
+  "Mist|Leaf": {
+    "desc": "Leaves dripping with condensed mist, heavy droplets rolling off their edges and falling to the forest floor, every surface wet and glistening in the diffused light.",
+    "colors": "wet green, droplet clear, diffused grey"
+  },
+  "Formation|Calm": {
+    "desc": "Serene geological formations of layered sedimentary rock rising from calm waters, the horizontal strata reflected perfectly in the undisturbed lake surface at their base.",
+    "colors": "sediment tan, calm water blue, layered cream"
+  },
+  "Formation|Set": {
+    "desc": "Dramatic rock formations silhouetted against a setting sun, the ancient stones transformed into dark angular shapes against bands of orange, red, and purple sky.",
+    "colors": "silhouette black, sunset orange, rock purple"
+  },
+  "Formation|Serene": {
+    "desc": "Graceful rock formations worn smooth by wind and water into flowing organic shapes, set in a serene desert valley under soft evening light.",
+    "colors": "smooth sandstone, serene lavender, soft peach"
+  },
+  "Formation|Air": {
+    "desc": "Gravity-defying rock formations balanced on thin pillars of stone, the structures seeming to float in the clear mountain air with blue sky visible beneath their caps.",
+    "colors": "balanced stone, mountain air blue, cap brown"
+  },
+  "Formation|Grace": {
+    "desc": "Gracefully arching natural stone formations creating elegant curves against the sky, their wind-polished surfaces gleaming in warm afternoon light over a peaceful plateau.",
+    "colors": "polished amber, sky blue, plateau green"
+  },
+  "Coast|Fresh": {
+    "desc": "A fresh coastal morning with crisp salt air, the shoreline washed clean by overnight tides revealing fresh sand patterns and scattered kelp along the waterline.",
+    "colors": "morning blue, fresh sand, kelp green"
+  },
+  "Coast|Shell": {
+    "desc": "A rugged coastline where waves deposit shells and sea glass on rocky shelves, the tide pools filled with colorful fragments among smooth water-worn stones.",
+    "colors": "sea glass green, shell pink, rock grey"
+  },
+  "Coast|Wash": {
+    "desc": "Waves washing against a dramatic coastline of dark volcanic rock, the white water contrasting sharply with the black stone and deep blue ocean beyond.",
+    "colors": "volcanic black, wash white, deep blue"
+  },
+  "Coast|Aqua": {
+    "desc": "An aquamarine coastline where clear shallow water reveals a sandy seabed, the gradient of blue-green color intensifying over deeper channels between offshore rocks.",
+    "colors": "aquamarine, sandy bottom gold, deep channel blue"
+  },
+  "Coast|Pebble": {
+    "desc": "A coastal stretch of smooth pebbles in every shade of grey, the stones wet and glistening as waves advance and retreat with a rhythmic clatter.",
+    "colors": "wet grey, stone charcoal, wave green"
+  },
+  "Twilight|Mist": {
+    "desc": "Twilight mist rising from a cooling landscape as day turns to night, the air taking on a dusky purple quality as the last light fades from the sky.",
+    "colors": "dusky purple, twilight blue, mist lavender"
+  },
+  "Twilight|Bright": {
+    "desc": "The last bright flash of the setting sun during twilight, an intense band of light on the horizon painting the underside of clouds in vivid peach and gold.",
+    "colors": "bright peach, twilight gold, darkening blue"
+  },
+  "Twilight|Dawn": {
+    "desc": "The mirror of twilight at dawn, the sky transitioning from deep night blue through bands of teal and rose as the horizon begins to glow with approaching light.",
+    "colors": "night blue, teal, dawn rose"
+  },
+  "Twilight|Brood": {
+    "desc": "A brooding twilight sky heavy with purple and grey clouds, the landscape falling into deep shadow as the last color drains from the darkening world.",
+    "colors": "brooding purple, deep grey, fading ochre"
+  },
+  "Twilight|View": {
+    "desc": "A sweeping twilight view from a high overlook, the landscape below transitioning from warm lit tones to cool blue shadow as darkness creeps across the valley.",
+    "colors": "warm amber fading, cool blue shadow, twilight violet"
+  },
+  "Marsh|Fall": {
+    "desc": "An autumn marsh with golden reeds and cattails standing in dark still water, the surrounding trees reflected in rich tones of amber and russet on the surface.",
+    "colors": "golden reed, dark water, russet reflection"
+  },
+  "Marsh|Bark": {
+    "desc": "Weathered tree trunks rising from standing marsh water, their pale bark reflected in the dark tannin-stained water among floating leaves and aquatic plants.",
+    "colors": "pale bark, tannin brown, marsh green"
+  },
+  "Marsh|Red": {
+    "desc": "A marsh landscape where red-tinged grasses and sedges color the wetland in warm crimson tones, the shallow water reflecting the vivid reds of the autumn marsh plants.",
+    "colors": "crimson sedge, warm red, water mirror"
+  },
+  "Marsh|Vivid": {
+    "desc": "A vividly colored marsh at peak season with brilliant green duckweed, purple loosestrife, and golden marsh marigolds creating a tapestry of intense color over dark water.",
+    "colors": "vivid green, bright purple, marsh gold"
+  },
+  "Marsh|Cover": {
+    "desc": "Dense marsh vegetation covering the water surface completely, a thick mat of floating plants, lily pads, and algae creating an unbroken green carpet across the wetland.",
+    "colors": "covering green, water dark, lily pad jade"
+  },
+  "Woods|Fir": {
+    "desc": "A stand of tall fir trees in a quiet wood, their dark aromatic branches layered in symmetrical tiers with soft brown needles carpeting the ground below.",
+    "colors": "fir green, needle brown, quiet grey"
+  },
+  "Woods|Leaf": {
+    "desc": "A deciduous woodland floor covered in freshly fallen leaves, the layered carpet of gold, brown, and orange crunching underfoot between sturdy tree trunks.",
+    "colors": "leaf gold, bark grey, carpet brown"
+  },
+  "Woods|Fall": {
+    "desc": "A picturesque wood in full autumn transformation, some trees still green while others blaze in yellow and orange, creating a patchwork of seasonal change.",
+    "colors": "transitional green, blaze orange, bright yellow"
+  },
+  "Woods|Mossy": {
+    "desc": "An ancient wood where every surface is cloaked in thick green moss, the rocks, fallen trees, and standing trunks all softened into rounded green forms.",
+    "colors": "moss green, ancient brown, damp emerald"
+  },
+  "Woods|Bright": {
+    "desc": "A bright airy wood with well-spaced trees allowing generous sunlight to reach the flower-dotted floor, the atmosphere warm and inviting in the dappled shade.",
+    "colors": "bright sunshine, airy green, flower white"
+  },
+  "Arid|Rise": {
+    "desc": "A dry mesa rising from an arid plain, its flat top and steep sides testament to ages of erosion in a landscape of sparse vegetation and baked earth.",
+    "colors": "mesa red, baked earth tan, dry blue sky"
+  },
+  "Arid|Sand": {
+    "desc": "Wind-blown sand gathering against the bases of rocky outcrops in an arid badlands, the terrain stripped bare by relentless dry conditions and fierce winds.",
+    "colors": "sand tan, stripped grey, arid blue"
+  },
+  "Arid|Dawn": {
+    "desc": "Dawn breaking over an arid landscape, the cool blue pre-dawn light giving way to warm tones that reveal the stark beauty of the dry terrain.",
+    "colors": "pre-dawn blue, warming tan, dawn pink"
+  },
+  "Arid|Drift": {
+    "desc": "Sand and dust drifting slowly across a desolate arid landscape, the fine particles catching light as they move over cracked earth and dry creek beds.",
+    "colors": "drift gold, cracked grey, dusty rose"
+  },
+  "Arid|Dry": {
+    "desc": "The driest landscape imaginable, a salt flat extending to the horizon with geometric cracks in the white crust and absolutely no vegetation in sight.",
+    "colors": "salt white, crack brown, empty blue"
+  },
+  "Tide|Ripple": {
+    "desc": "Gentle tidal ripples spreading across a shallow bay, each small wave catching light and creating an intricate pattern of moving luminous lines on the sandy bottom.",
+    "colors": "ripple gold, shallow blue, sand glow"
+  },
+  "Tide|Wave": {
+    "desc": "Tidal waves rolling in across a broad flat beach, each wave a thin sheet of water advancing and retreating across the firm wet sand in rhythm.",
+    "colors": "tide blue, wet sand, foam line white"
+  },
+  "Tide|Calm": {
+    "desc": "A calm tidal estuary where the water barely moves, the glassy surface reflecting sky and clouds perfectly while exposed mudflats glisten at the water's edge.",
+    "colors": "glassy blue, mudflat brown, reflected sky"
+  },
+  "Tide|Breeze": {
+    "desc": "A coastal scene where the tidal breeze ruffles the water surface into tiny wavelets, carrying the scent of salt across dune grass bending in the steady wind.",
+    "colors": "breeze blue, dune gold, grass green"
+  },
+  "Tide|Float": {
+    "desc": "Driftwood and seaweed floating gently on a rising tide, the debris carried slowly shoreward by the calm incoming water in warm afternoon light.",
+    "colors": "driftwood grey, seaweed green, warm tide blue"
+  },
+  "Passage|River": {
+    "desc": "A river cutting a narrow passage through a deep gorge, the water swift and dark between sheer rock walls that rise vertically on both sides.",
+    "colors": "gorge shadow, swift water dark, rock face grey"
+  },
+  "Passage|Curve": {
+    "desc": "A winding passage through sculpted slot canyon walls, the narrow corridor curving back and forth between smooth water-carved sandstone glowing with reflected light.",
+    "colors": "slot canyon orange, reflected warm, shadow purple"
+  },
+  "Passage|Hole": {
+    "desc": "A natural opening or blowhole in a rocky coastline where waves surge through and spray erupts upward, the passage connecting the ocean to an inland pool.",
+    "colors": "spray white, rock dark, pool turquoise"
+  },
+  "Passage|Mist": {
+    "desc": "A mountain passage shrouded in mist, the trail disappearing into fog between towering rock walls with moisture dripping from every surface and visibility fading quickly.",
+    "colors": "mist thick, wet rock, passage grey"
+  },
+  "Passage|Spire": {
+    "desc": "A narrow desert passage winding between towering rock spires, the tall formations creating a dramatic corridor of stone columns against a deep blue sky above.",
+    "colors": "spire red, passage sand, corridor blue"
+  },
+  "Air|Valley": {
+    "desc": "A wide valley seen through crystal-clear air, every detail of the distant landscape sharp and vivid in the clean atmosphere after a cleansing rain.",
+    "colors": "clear air blue, valley green, rain-washed clarity"
+  },
+  "Air|Sky": {
+    "desc": "Nothing but open sky and pure atmosphere, a gradient from deep blue overhead to pale blue at the horizon with wisps of high cirrus clouds.",
+    "colors": "zenith blue, horizon pale, cirrus white"
+  },
+  "Air|Lake": {
+    "desc": "A mountain lake where the air is so thin and clear that the water appears to glow from within, the transparency of both elements merging at the shore.",
+    "colors": "thin air blue, glowing water, transparent clarity"
+  },
+  "Air|Vast": {
+    "desc": "An immense open landscape where the air itself seems vast, the enormous sky dwarfing the terrain below with nothing to obstruct the endless atmosphere.",
+    "colors": "vast blue, terrain tan, atmosphere white"
+  },
+  "Air|Shore": {
+    "desc": "A breezy lakeshore where the fresh air carries mist from small waves, the atmosphere alive with moisture droplets catching sunlight above the water's edge.",
+    "colors": "fresh blue, shore gold, mist sparkle"
+  },
+  "Lagoon|Palm": {
+    "desc": "A tranquil tropical lagoon ringed by swaying palms, the shallow turquoise water calm and clear over a white sand bottom in the protected inlet.",
+    "colors": "lagoon turquoise, palm green, white sand"
+  },
+  "Lagoon|Beach": {
+    "desc": "A sheltered lagoon beach with the calmest water imaginable, the sand sloping gently into warm shallow water that barely ripples behind the protective reef.",
+    "colors": "warm shallow blue, gentle sand, reef white"
+  },
+  "Lagoon|Clear": {
+    "desc": "Crystal-clear lagoon water so transparent the bottom is visible at great depth, the different shades of blue and green revealing the underwater topography below.",
+    "colors": "crystal clear, depth blue, visible sand"
+  },
+  "Lagoon|Star": {
+    "desc": "A tropical lagoon under a canopy of brilliant stars, the night sky reflected in the still warm water creating a double cosmos of twinkling points of light.",
+    "colors": "star white, night navy, lagoon dark"
+  },
+  "Lagoon|Dusk": {
+    "desc": "Dusk settling over a peaceful lagoon, the water turning from turquoise to deep purple as the sky blazes with the last warm colors of the dying day.",
+    "colors": "dusk purple, warm blaze, fading turquoise"
+  },
+  "Peak|Valley": {
+    "desc": "A dramatic view from a mountain peak straight down into a lush valley far below, the contrast between the barren summit and the green depths striking.",
+    "colors": "barren grey, lush valley green, distance blue"
+  },
+  "Peak|Up": {
+    "desc": "Looking straight up at a towering mountain peak from its base, the sheer face of rock and ice rising vertically into the clouds above.",
+    "colors": "rock face grey, ice white, cloud cover"
+  },
+  "Peak|Height": {
+    "desc": "A mountain peak at extreme height where the air is thin and the sky darkens toward space, snow and ice covering every surface in brilliant white.",
+    "colors": "extreme white, dark sky blue, thin atmosphere"
+  },
+  "Peak|Peace": {
+    "desc": "A peaceful mountain peak above the clouds at sunset, the world below hidden beneath a cotton sea while the summit basks in warm golden serenity.",
+    "colors": "peace gold, cloud white, serene blue"
+  },
+  "Peak|Crest": {
+    "desc": "The narrow crest of a mountain peak with dizzying drops on both sides, the knife-edge ridge connecting two summits against a backdrop of distant ranges.",
+    "colors": "ridge stone, drop blue, distant purple"
+  },
+  "Ice|Frost": {
+    "desc": "A landscape locked in deep ice with frost formations growing on every exposed surface, the frozen world glittering under a cold winter sun in shades of blue and white.",
+    "colors": "deep ice blue, frost white, cold sparkle"
+  },
+  "Ice|Freeze": {
+    "desc": "A waterfall frozen mid-cascade, massive icicles and frozen sheets of ice capturing the motion of water in a spectacular crystalline sculpture of blue and white.",
+    "colors": "frozen blue, icicle clear, cascade white"
+  },
+  "Ice|Light": {
+    "desc": "Sunlight refracting through ice formations creating prismatic displays of color, the frozen structures acting as natural lenses and prisms in the winter landscape.",
+    "colors": "prismatic rainbow, ice clear, light gold"
+  },
+  "Ice|Melt": {
+    "desc": "The edge where ice meets warming ground, meltwater streaming from glacial faces and pooling in vivid blue ponds, the transition from frozen to flowing dramatic and beautiful.",
+    "colors": "melt blue, glacial white, warming brown"
+  },
+  "Ice|Snow": {
+    "desc": "Fresh snow blanketing an icy landscape, the soft white powder smoothing over the hard angular ice beneath into gentle rolling forms under a pewter sky.",
+    "colors": "snow white, ice blue, pewter grey"
+  },
+  "Bloom|Mist": {
+    "desc": "Morning mist drifting through a garden in full bloom, the flowers appearing soft and dreamlike through the haze, their colors muted but still beautiful.",
+    "colors": "misty flower pink, soft green, haze white"
+  },
+  "Bloom|Pond": {
+    "desc": "A garden pond surrounded by blooming flowers, water lilies floating on the surface while irises and primroses crowd the banks in a riot of spring color.",
+    "colors": "iris purple, primrose yellow, pond green"
+  },
+  "Bloom|Shine": {
+    "desc": "Flowers glistening with dew in bright morning sunshine, each petal and leaf shining with moisture droplets that act as tiny lenses focusing the light.",
+    "colors": "shine white, petal color, dew crystal"
+  },
+  "Bloom|Grass": {
+    "desc": "Wildflowers blooming among thick meadow grass, the blossoms rising above the green blades in scattered clusters of purple, yellow, and white across a gentle slope.",
+    "colors": "meadow green, blossom purple, wild yellow"
+  },
+  "Bloom|Frond": {
+    "desc": "Tropical blooms nestled among lush green fronds, exotic flowers in vivid reds and oranges contrasting with the deep green of surrounding palm and fern leaves.",
+    "colors": "exotic red, frond green, tropical orange"
+  },
+  "Fall|Fog": {
+    "desc": "Autumn fog hanging among trees shedding their leaves, the mist softening the bright fall colors into a dreamy impressionist landscape of muted golds and reds.",
+    "colors": "muted gold, fog soft, dreamy red"
+  },
+  "Fall|Birch": {
+    "desc": "White birch trees in their autumn glory, papery bark gleaming against a canopy of pure golden-yellow leaves, the forest floor carpeted in fallen gold.",
+    "colors": "birch white, golden yellow, carpet gold"
+  },
+  "Fall|Ruby": {
+    "desc": "A grove of trees in deep ruby-red autumn color, the intense jewel-toned foliage glowing against a grey sky like rubies set in a silver crown.",
+    "colors": "ruby red, jewel deep, silver grey"
+  },
+  "Fall|Oak": {
+    "desc": "Massive oak trees in full autumn dress, their broad spreading canopies turned bronze and copper, acorns scattered across the ground beneath their ancient trunks.",
+    "colors": "oak bronze, copper leaf, acorn brown"
+  },
+  "Fall|Grove": {
+    "desc": "A grove of mixed deciduous trees each showing different autumn colors, the varied species creating a stunning palette from pale yellow through deep maroon.",
+    "colors": "varied autumn, pale yellow, deep maroon"
+  },
+  "Rain forest|Green": {
+    "desc": "The overwhelming green of a tropical rainforest where every surface supports plant life, layers of vegetation from ground cover to towering emergent trees all in lush green.",
+    "colors": "jungle green, canopy emerald, understory dark"
+  },
+  "Rain forest|Grow": {
+    "desc": "Explosive growth in a rainforest where plants climb over each other reaching for light, epiphytes crowding every branch and vines spiraling up massive trunks.",
+    "colors": "growth green, vine bright, trunk dark"
+  },
+  "Rain forest|Curl": {
+    "desc": "Unfurling fern fronds and curling tendrils in a rainforest understory, the spiral forms of new growth creating elegant natural patterns in the filtered green light.",
+    "colors": "curl green, frond light, shadow deep"
+  },
+  "Rain forest|Frond": {
+    "desc": "Giant palm fronds and tree fern leaves creating a layered canopy in the rainforest, each massive leaf a feat of natural engineering catching every available ray of light.",
+    "colors": "frond green, filtered gold, trunk grey"
+  },
+  "Rain forest|Lush": {
+    "desc": "The most lush and dense vegetation imaginable in a pristine rainforest, moisture dripping from every leaf, the air thick and warm with the humidity of thriving plant life.",
+    "colors": "lush emerald, moisture silver, warm green"
+  },
+  "Rows|Field": {
+    "desc": "Perfectly ordered rows of crops stretching across a vast field to the horizon, the geometric lines creating a pattern of green and brown stripes in the landscape.",
+    "colors": "crop green, furrow brown, field gold"
+  },
+  "Rows|Lines": {
+    "desc": "Parallel lines of plowed earth running to a vanishing point on the horizon, the mathematical precision of agriculture imposing order on the natural landscape.",
+    "colors": "earth brown, sky blue, line precision"
+  },
+  "Rows|Far": {
+    "desc": "Rows of lavender or grain diminishing into the far distance, the perspective creating a sense of immense scale as the lines converge toward a hazy horizon.",
+    "colors": "lavender purple, far haze, diminishing gold"
+  },
+  "Rows|Grain": {
+    "desc": "Golden grain standing in neat rows ready for harvest, the heavy heads of wheat bowing in the breeze as warm late-summer light bathes the productive landscape.",
+    "colors": "grain gold, harvest amber, warm sky"
+  },
+  "Rows|Seed": {
+    "desc": "Freshly planted rows of seeds in dark rich soil, the neat lines of turned earth promising future growth under a spring sky with scattered rain clouds.",
+    "colors": "soil dark, spring green, rain cloud grey"
+  },
+  "Basin|Chill": {
+    "desc": "A cold mountain basin where chill air pools in the depression, the frost-covered ground and frozen puddles suggesting temperatures well below the surrounding terrain.",
+    "colors": "chill blue, frost white, basin grey"
+  },
+  "Basin|Slope": {
+    "desc": "A broad basin surrounded by gentle slopes leading up to ridgelines, the concave landscape collecting wildflowers and grasses in the sheltered bowl of the depression.",
+    "colors": "slope green, basin floor gold, rim brown"
+  },
+  "Basin|Rock": {
+    "desc": "A rocky desert basin littered with boulders and scree, the eroded landscape revealing ancient geological layers in bands of red, grey, and cream colored stone.",
+    "colors": "boulder grey, band red, cream stone"
+  },
+  "Basin|Cove": {
+    "desc": "A sheltered basin forming a natural cove where calm water collects, surrounded by protective hills and fed by small streams tumbling down the encircling slopes.",
+    "colors": "cove blue, hill green, stream white"
+  },
+  "Basin|Marsh": {
+    "desc": "A low-lying basin filled with marsh grasses and standing water, the wetland rich with reeds, sedges, and the dark reflective surface of shallow nutrient-rich water.",
+    "colors": "marsh dark, reed gold, sedge green"
+  },
+  "View|View": {
+    "desc": "A quintessential scenic overlook presenting the perfect balanced view of mountains, forest, and a winding river valley bathed in ideal afternoon light.",
+    "colors": "scenic blue, forest green, river silver"
+  },
+  "View|River": {
+    "desc": "A dramatic river view from a high bluff, the waterway curving through its valley in great sweeping bends, sandbars and islands dotting its course below.",
+    "colors": "river blue, bluff brown, sandbar gold"
+  },
+  "View|Cliff": {
+    "desc": "A view dominated by massive cliff faces across a narrow valley, the sheer vertical walls of striated rock commanding attention with their scale and geological beauty.",
+    "colors": "cliff face tan, striation bands, valley shadow"
+  },
+  "View|Rapid": {
+    "desc": "A view of river rapids churning through a rocky stretch, the white water tumbling and foaming over boulders while the calmer pools above and below shine smooth.",
+    "colors": "rapid white, boulder dark, pool smooth blue"
+  },
+  "View|Pine": {
+    "desc": "A classic mountain view framed by tall pines in the foreground, their dark silhouettes providing depth to a scene of distant snow-capped peaks and blue sky.",
+    "colors": "pine dark, peak white, sky blue"
+  },
+  "Precipice|Below": {
+    "desc": "The dizzying view from a precipice edge straight down a vertical drop, the ground far below appearing miniature and the depth inducing a sense of vast height.",
+    "colors": "depth dark, distant ground, vertigo blue"
+  },
+  "Precipice|Coast": {
+    "desc": "A coastal precipice where the land ends in a sheer drop to churning surf far below, the cliff edge sharp and dramatic against the endless ocean.",
+    "colors": "edge sharp, surf white, ocean endless blue"
+  },
+  "Precipice|Sea": {
+    "desc": "A precipitous cliff face meeting the sea directly, the rock wall plunging into deep water with no beach or shore, waves smashing against the base.",
+    "colors": "sea dark blue, cliff face, spray white"
+  },
+  "Precipice|Lavish": {
+    "desc": "A lavishly vegetated precipice where lush plants cling to the cliff face in defiance of gravity, cascading greenery hanging from rock ledges above a rich valley.",
+    "colors": "lavish green, cascade vine, rich valley gold"
+  },
+  "Precipice|Bluff": {
+    "desc": "A prominent bluff forming a natural precipice above a wide river, the exposed rock face showing layers of geological history while trees crown its flat top.",
+    "colors": "bluff tan, river blue, crown green"
+  },
+  "Starlight|Light": {
+    "desc": "Pure starlight illuminating a remote landscape far from any artificial glow, the Milky Way so bright it casts faint shadows on the moonless terrain below.",
+    "colors": "starlight silver, Milky Way white, deep space black"
+  },
+  "Starlight|Gaze": {
+    "desc": "A clear night sky perfect for stargazing, thousands of visible stars forming familiar patterns above a silhouetted horizon of mountains and trees in perfect stillness.",
+    "colors": "star field white, night deep blue, silhouette black"
+  },
+  "Starlight|Sky": {
+    "desc": "An impossibly star-filled sky arching over a dark landscape, the stellar canopy so dense with points of light it appears almost luminous overhead.",
+    "colors": "stellar white, canopy blue, dark ground"
+  },
+  "Starlight|Watch": {
+    "desc": "A serene nightscape designed for watching the stars, a calm clearing surrounded by dark trees with the full dome of the night sky visible overhead.",
+    "colors": "serene night blue, clearing dark, sky dome indigo"
+  },
+  "Starlight|Shine": {
+    "desc": "Bright stars shining with unusual intensity in a crystal-clear atmosphere, their light twinkling and pulsing above a frost-covered winter landscape below.",
+    "colors": "bright star, frost shimmer, winter dark blue"
+  },
+  "Reflect|Glass": {
+    "desc": "A glassy lake surface creating a perfect mirror reflection of the surrounding landscape, the inverted world below as sharp and detailed as the real one above.",
+    "colors": "mirror glass, reflected sky, doubled landscape"
+  },
+  "Reflect|Still": {
+    "desc": "Perfectly still water in a sheltered mountain lake reflecting snow-capped peaks with such clarity that the reflection is indistinguishable from the reality above it.",
+    "colors": "still water blue, peak reflection white, mountain grey"
+  },
+  "Reflect|Crest": {
+    "desc": "Mountain crests reflected in a wide alpine lake, the inverted peaks rippling slightly as a gentle breeze touches the water surface and distorts the mirror image.",
+    "colors": "crest grey, ripple blue, gentle green"
+  },
+  "Reflect|Ripple": {
+    "desc": "A single ripple spreading across a reflective water surface, distorting the perfect mirror image into concentric rings of color that slowly restore to clarity.",
+    "colors": "ripple ring, distorted color, returning clarity"
+  },
+  "Reflect|Arise": {
+    "desc": "The sun arising over a reflective lake, the emerging light creating a double sunrise as both the real and reflected sun climb toward each other on the water.",
+    "colors": "arising gold, double sun, reflected dawn"
+  },
+  "Majesty|Pyre": {
+    "desc": "A majestic volcanic landscape with glowing lava flows illuminating the night sky, streams of molten rock descending like fiery rivers down a dark mountainside.",
+    "colors": "lava orange, fire red, volcanic black"
+  },
+  "Majesty|Opal": {
+    "desc": "A majestic landscape of opalescent hot springs and mineral terraces, the mineral-rich water creating iridescent pools of shifting blue, green, and pink on white travertine.",
+    "colors": "opal blue-green, mineral pink, travertine white"
+  },
+  "Majesty|Zeal": {
+    "desc": "A zealously dramatic mountain landscape with extreme vertical relief, towering peaks piercing storm clouds while deep valleys cut dramatic shadows in the wild terrain.",
+    "colors": "dramatic dark, storm grey, peak bright"
+  },
+  "Majesty|Fit": {
+    "desc": "A landscape of perfect natural proportion where mountains, forests, and water fit together in ideal harmony, the composition balanced and satisfying in golden afternoon light.",
+    "colors": "harmonious gold, balanced green, proportion blue"
+  },
+  "Majesty|Space": {
+    "desc": "A vast majestic landscape conveying immense open space, a grand valley stretching between mountain ranges with nothing to interrupt the magnificent scale of the scene.",
+    "colors": "grand blue, space gold, majestic purple"
+  },
+  "Astral|Bright": {
+    "desc": "Bright celestial objects dominating a clear night sky above a dark desert landscape, the planets and brightest stars casting perceptible light on the terrain below.",
+    "colors": "bright celestial, desert dark, astral glow"
+  },
+  "Astral|Emit": {
+    "desc": "An aurora-like emission of light across the night sky, waves of luminous color radiating from the magnetic pole and painting the heavens in shifting green and violet.",
+    "colors": "emission green, violet wave, night dark"
+  },
+  "Astral|Sol": {
+    "desc": "The sun as a brilliant astral body low on the horizon, its disk enlarged by atmospheric refraction and surrounded by bands of color in a spectacular solar display.",
+    "colors": "solar bright, atmospheric band, horizon glow"
+  },
+  "Astral|Arise": {
+    "desc": "Stars and planets arising over the eastern horizon as night deepens, each celestial body appearing in sequence against a sky transitioning from twilight to full dark.",
+    "colors": "arising star white, twilight fade, deepening navy"
+  },
+  "Astral|Gift": {
+    "desc": "A rare celestial event gracing the sky — a comet or meteor shower streaking across the stars, the ephemeral display a gift of light against the cosmic backdrop.",
+    "colors": "meteor streak, comet tail, star field"
+  },
+  "Stone|Bask": {
+    "desc": "Massive stones basking in warm sunlight on a rocky plateau, their surfaces heated and glowing warm, lichen and moss growing in the crevices between ancient boulders.",
+    "colors": "warm stone, basking gold, lichen green"
+  },
+  "Stone|Wall": {
+    "desc": "A towering natural stone wall rising from the landscape, the sheer face of layered rock casting a long shadow across the valley floor in late afternoon light.",
+    "colors": "wall grey, shadow purple, layer tan"
+  },
+  "Stone|Chisel": {
+    "desc": "Wind-chiseled rock formations displaying the precise work of erosion, the stone carved into sharp edges, deep grooves, and intricate textures by millennia of sculpting wind.",
+    "colors": "chiseled grey, wind-worn tan, erosion rust"
+  },
+  "Stone|Tower": {
+    "desc": "Natural stone towers rising from the desert floor, the tall columnar formations standing like silent guardians over the barren landscape in the warm amber light of late day.",
+    "colors": "tower amber, desert floor, guardian grey"
+  },
+  "Stone|Wisp": {
+    "desc": "Thin wisps of cloud drifting past weathered stone monoliths on a mountain ridge, the delicate mist contrasting with the solid enduring mass of ancient rock.",
+    "colors": "wisp white, monolith grey, mountain blue"
+  },
+  "Green|Fern": {
+    "desc": "A lush gully filled with enormous ferns unfurling their fronds in every shade of green, the primeval plants creating a canopy of emerald in the sheltered hollow.",
+    "colors": "fern emerald, frond bright, gully dark"
+  },
+  "Green|Leaf": {
+    "desc": "A forest canopy at the height of summer green, countless leaves in overlapping layers creating an unbroken ceiling of chlorophyll-rich vegetation absorbing the warm sunlight.",
+    "colors": "leaf bright green, summer deep green, canopy shadow"
+  },
+  "Green|Aerial": {
+    "desc": "An aerial view of unbroken green landscape stretching to the horizon, the lush vegetation seen from above like a textured emerald carpet draped over rolling terrain.",
+    "colors": "aerial green, texture emerald, rolling dark"
+  },
+  "Green|Bank": {
+    "desc": "Verdant river banks thick with green vegetation, the lush growth fed by the water's edge creating walls of green on both sides of a meandering stream.",
+    "colors": "bank green, stream blue, verdant bright"
+  },
+  "Green|Roll": {
+    "desc": "Rolling green hills stretching endlessly under a spring sky, the fresh grass so vivid it almost glows, dotted with the occasional white of flowering hawthorn.",
+    "colors": "rolling green, spring vivid, hawthorn white"
+  },
+  "West|Heat": {
+    "desc": "Intense western heat shimmering over a sun-scorched desert landscape, the air distorting distant mesas and buttes into wavering mirages above the baked earth.",
+    "colors": "heat shimmer, scorched tan, mirage blue"
+  },
+  "West|Erode": {
+    "desc": "Deeply eroded western badlands sculpted by wind and water into dramatic formations, the exposed layers of colorful sediment creating a painterly landscape of stripes and curves.",
+    "colors": "badlands stripes, eroded red, sediment cream"
+  },
+  "West|Bare": {
+    "desc": "Bare western terrain stripped of vegetation, exposing the raw geological skeleton of the land in ridges, washes, and exposed rock formations under a wide empty sky.",
+    "colors": "bare rock, raw earth, empty sky"
+  },
+  "West|Set": {
+    "desc": "The sun setting in the American West, silhouetting iconic mesa formations against a sky of impossible oranges, reds, and purples stretching across the vast horizon.",
+    "colors": "western orange, mesa silhouette, sunset purple"
+  },
+  "West|Fuchsia": {
+    "desc": "A rare fuchsia-tinged western sunset painting the desert in shocking pink and magenta, the unusual color transforming familiar rock formations into an otherworldly landscape.",
+    "colors": "fuchsia pink, magenta, desert gold"
+  },
+  "Wind|Breeze": {
+    "desc": "A gentle breeze rippling across a meadow of tall grass, the subtle waves of movement spreading outward like invisible fingers combing through the green and gold blades.",
+    "colors": "breeze green, gold tips, gentle sky"
+  },
+  "Wind|Gust": {
+    "desc": "A sudden gust whipping across an open landscape, bending trees and sending leaves and debris flying through the air in a momentary burst of atmospheric energy.",
+    "colors": "gust grey, flying leaf, bent green"
+  },
+  "Wind|Air": {
+    "desc": "Clean fresh air sweeping across a mountain plateau, the windswept terrain showing the direction of prevailing winds in the lean of stunted trees and shaped rock.",
+    "colors": "clean blue, windswept grey, plateau green"
+  },
+  "Wind|Gale": {
+    "desc": "A fierce gale driving rain and spray horizontally across a rugged coastal landscape, the powerful wind bending everything in its path and whipping the sea into chaos.",
+    "colors": "gale dark, spray white, chaos grey"
+  },
+  "Wind|Whisk": {
+    "desc": "Sand being whisked across dune crests by steady desert wind, thin streamers of grains flying from each peak creating a hazy layer just above the sand surface.",
+    "colors": "sand whisp, dune gold, wind haze"
+  },
+  "Shore|Sand": {
+    "desc": "A sandy shore where the land meets a calm lake or sea, the wet sand firm and smooth where waves have recently washed, grading to soft dry sand above.",
+    "colors": "wet sand, dry sand gold, shore water"
+  },
+  "Shore|Brim": {
+    "desc": "A shoreline brimming with the highest tide, water reaching the very edge of the vegetation line and lapping at dune grasses and coastal shrubs.",
+    "colors": "high water, brim edge green, dune sand"
+  },
+  "Shore|Bank": {
+    "desc": "A grassy river bank serving as a natural shore, the earthen edge dropping a few feet to the water below, wildflowers growing along the rim above the current.",
+    "colors": "bank earth, flower color, water blue"
+  },
+  "Shore|Tide": {
+    "desc": "A tidal shore at the moment between incoming and outgoing water, the pause creating a still moment where every shell, stone, and sand ripple is reflected clearly.",
+    "colors": "tidal still, shell scatter, reflection clear"
+  },
+  "Shore|Sea": {
+    "desc": "Where the shore meets the open sea, the transition from land to deep water marked by breaking waves, a strip of foam, and the endless blue beyond.",
+    "colors": "sea blue, foam line, shore warm"
+  },
+  "Ravine|Gully": {
+    "desc": "A narrow gully cut deep into soft earth by seasonal rains, the steep eroded sides showing layers of soil and rock with hardy plants clinging to the edges.",
+    "colors": "gully brown, erosion red, plant green"
+  },
+  "Ravine|Chasm": {
+    "desc": "A deep chasm splitting the earth apart, the narrow crack descending into darkness between sheer rock walls with only a thin strip of sky visible above.",
+    "colors": "chasm dark, rock wall grey, sky strip blue"
+  },
+  "Ravine|Flume": {
+    "desc": "A natural water flume carved through solid rock by centuries of flowing water, the narrow channel polished smooth with water rushing through its sculpted curves.",
+    "colors": "flume polished, rushing blue, carved rock"
+  },
+  "Ravine|Pass": {
+    "desc": "A ravine that serves as a natural mountain pass, the narrow gap between ridges providing a route through otherwise impassable terrain under dramatic towering walls of stone.",
+    "colors": "pass narrow, wall stone, route dirt"
+  },
+  "Ravine|Depth": {
+    "desc": "An extremely deep ravine viewed from above, the bottom hidden in shadow and mist with the sheer walls descending into unknowable depth far below the rim.",
+    "colors": "rim light, depth shadow, mist dark"
+  },
+  "Botanical|Grass": {
+    "desc": "A meticulously kept botanical landscape of ornamental grasses in varied heights and textures, their feathery seed heads catching afternoon light in waves of silver and gold.",
+    "colors": "grass silver, seed head gold, garden green"
+  },
+  "Botanical|Vine": {
+    "desc": "Climbing vines covering a stone wall in a formal garden setting, the trained plants creating living tapestries of green leaves and seasonal flowers against weathered stone.",
+    "colors": "vine green, stone grey, bloom accent"
+  },
+  "Botanical|Shrub": {
+    "desc": "Sculpted shrubs in a formal botanical garden, their shapes ranging from geometric hedges to flowing natural forms, creating a structured landscape of varied green textures.",
+    "colors": "hedge deep green, trim bright, path gravel"
+  },
+  "Botanical|Flower": {
+    "desc": "A magnificent botanical flower garden in full display, organized beds overflowing with roses, dahlias, and delphiniums in a curated explosion of coordinated color.",
+    "colors": "rose pink, delphinium blue, dahlia deep"
+  },
+  "Botanical|Tree": {
+    "desc": "Specimen trees in a botanical arboretum, each carefully placed to display its unique form and foliage, from weeping cedars to spreading magnolias in a parklike landscape.",
+    "colors": "cedar deep, magnolia cream, arboretum green"
+  },
+  "Arctic|Glacial": {
+    "desc": "A massive glacier grinding slowly through an arctic valley, the ancient blue ice cracked into crevasses and seracs, its leading edge calving into a frigid meltwater lake.",
+    "colors": "glacial blue, ancient ice white, meltwater grey"
+  },
+  "Arctic|Frigid": {
+    "desc": "A frigid arctic landscape of windswept ice and snow stretching to the horizon, the temperature suggested by the blue-white palette and the utter absence of exposed earth.",
+    "colors": "frigid blue-white, wind-scoured, arctic grey"
+  },
+  "Arctic|Polar": {
+    "desc": "A polar landscape at the edge of the ice cap, pressure ridges and ice floes extending across a frozen sea under a sky glowing with low-angle arctic light.",
+    "colors": "polar white, ice floe blue, arctic light gold"
+  },
+  "Arctic|Glaze": {
+    "desc": "Everything coated in a glaze of clear ice after an arctic ice storm, the frozen coating transforming the landscape into a crystal wonderland that sparkles under cold sun.",
+    "colors": "glaze clear, crystal sparkle, frozen blue"
+  },
+  "Arctic|Ice": {
+    "desc": "Towering arctic ice formations — icebergs and ice shelves of monumental scale, their sculpted surfaces showing layers of compressed snow turned to brilliant blue ice over centuries.",
+    "colors": "iceberg blue, compressed white, arctic sea dark"
+  },
+  "Galaxy|Celest": {
+    "desc": "A celestial panorama of spiral galaxy arms stretching across the night sky above a dark mountain ridge, the cosmic structure visible in extraordinary atmospheric clarity.",
+    "colors": "galaxy arm white, celestial blue, ridge silhouette"
+  },
+  "Galaxy|Sky": {
+    "desc": "The night sky as a window to the galaxy, countless stars forming the cloudy band of the Milky Way across a moonless sky over silent dark terrain.",
+    "colors": "Milky Way band, sky deep, terrain dark"
+  },
+  "Galaxy|Sol": {
+    "desc": "The sun appearing as one star among billions in a conceptual landscape where the solar scale meets the galactic, warm sunlight mingling with cold starlight overhead.",
+    "colors": "solar warm, starfield cold, cosmic contrast"
+  },
+  "Galaxy|Depth": {
+    "desc": "The profound depth of the galaxy visible in a night sky photograph, layers of stars at different distances creating a three-dimensional effect over a flat dark landscape.",
+    "colors": "stellar depth, layer white, space black"
+  },
+  "Galaxy|Moon": {
+    "desc": "A crescent moon hanging in a galaxy-rich sky, the lunar surface softly lit while the surrounding cosmos sparkles with thousands of visible stars and deep-sky objects.",
+    "colors": "moon silver, galaxy glow, cosmic deep blue"
+  },
+  "Tower|Crag": {
+    "desc": "A towering crag of rock jutting skyward from a mountainside, its rugged pinnacle standing alone above the surrounding terrain like a natural stone citadel.",
+    "colors": "crag dark grey, sky pale, mountain slope green"
+  },
+  "Tower|Geode": {
+    "desc": "Towering rock formations with exposed crystal-lined cavities like giant geodes, the mineral surfaces sparkling with amethyst and quartz in the sunlight against raw stone.",
+    "colors": "amethyst purple, quartz sparkle, raw stone grey"
+  },
+  "Tower|Grand": {
+    "desc": "A grand tower of natural sandstone rising from the desert floor with impressive vertical scale, its layered walls catching the light and glowing warm red and gold.",
+    "colors": "grand sandstone, warm red, gold light"
+  },
+  "Tower|Crest": {
+    "desc": "The crested top of a natural rock tower catching the first light of day, the pinnacle glowing bright while the column below remains in deep blue morning shadow.",
+    "colors": "crest bright, column shadow blue, dawn warm"
+  },
+  "Tower|Top": {
+    "desc": "The flat summit of a mesa-like rock tower rising above everything around it, the isolated tabletop providing a 360-degree panorama of the surrounding landscape from its height.",
+    "colors": "summit flat tan, panorama blue, surrounding green"
+  },
+  "Placid|Still": {
+    "desc": "An utterly still and placid lake surface under a grey overcast sky, the water so calm it appears solid, not the slightest movement disturbing its glass-like surface.",
+    "colors": "placid grey, still water silver, overcast soft"
+  },
+  "Placid|Calm": {
+    "desc": "A calm pastoral landscape of gentle meadows and quiet ponds, everything at rest under a warm benign sky with soft light and no wind to stir the grasses.",
+    "colors": "calm green, warm sky, quiet gold"
+  },
+  "Placid|Quell": {
+    "desc": "A landscape where all energy seems quelled and at peace, a sheltered valley where even the trees stand perfectly still and the air hangs motionless and warm.",
+    "colors": "quelled green, motionless air, warm still"
+  },
+  "Placid|Flat": {
+    "desc": "A flat placid landscape of still water and level marshland stretching to a barely discernible horizon, the world reduced to simple horizontal bands of water, reeds, and sky.",
+    "colors": "flat water, reed band, horizontal sky"
+  },
+  "Placid|Bare": {
+    "desc": "A bare, placid desert playa — an ancient lakebed now dry and flat, its cracked surface stretching in perfect stillness under a hazy sky with no features in any direction.",
+    "colors": "playa white, crack pattern, hazy sky"
+  },
+  "Thrive|Bud": {
+    "desc": "New buds swelling on branches in early spring, the promise of abundant growth in every twig tip as warm air and longer days trigger the season of thriving.",
+    "colors": "bud green, branch brown, spring sky"
+  },
+  "Thrive|Seed": {
+    "desc": "Seeds germinating in rich dark soil, tiny green shoots breaking through the surface into warm sunlight, the beginning of a thriving new season of growth.",
+    "colors": "sprout green, soil dark, sunshine warm"
+  },
+  "Thrive|Jade": {
+    "desc": "A thriving landscape of jade-green vegetation covering every hillside and valley, the deep rich color of healthy plants at the peak of their growing season.",
+    "colors": "jade green, thrive deep, rich dark"
+  },
+  "Thrive|Fern": {
+    "desc": "Thriving ferns colonizing a forest floor in lush abundance, their green fronds unfurling in profusion from every crevice, log, and rock in the shaded understory.",
+    "colors": "fern lush, forest shade, colonize green"
+  },
+  "Thrive|Verde": {
+    "desc": "A verde landscape at its most alive and thriving, the intense green of healthy vegetation in a tropical setting where warmth and moisture fuel exuberant plant growth.",
+    "colors": "verde bright, tropical lush, alive emerald"
+  },
+  "Parched|Crag": {
+    "desc": "A dry parched crag rising from a waterless landscape, the rock bleached and cracked by sun exposure, every trace of moisture long since baked away.",
+    "colors": "bleached tan, cracked white, dry sky blue"
+  },
+  "Parched|Swept": {
+    "desc": "A windswept parched plain where dust devils swirl and the ground is swept clean of any loose material, leaving only hardpan and embedded stones under harsh sun.",
+    "colors": "swept hardpan, dust devil tan, harsh white"
+  },
+  "Parched|Plain": {
+    "desc": "An endless parched plain stretching flat and dry to every horizon, the grass burnt brown and the earth cracked in geometric patterns under a relentless sun.",
+    "colors": "burnt brown, cracked earth, plain blue sky"
+  },
+  "Parched|Dust": {
+    "desc": "A dusty parched landscape where the slightest movement raises clouds of fine particles, the air thick with suspended dust turning the sun into a dim orange disk.",
+    "colors": "dust brown, dim orange sun, haze tan"
+  },
+  "Parched|Warm": {
+    "desc": "A warm parched landscape baking under gentle but persistent heat, the dry terrain showing warm earth tones and the air above wavering with radiant heat.",
+    "colors": "warm earth, gentle tan, radiant amber"
+  },
+  "Frigid|Icicle": {
+    "desc": "Massive icicles hanging from frozen cliff overhangs, the translucent ice columns growing larger as meltwater refreezes layer by layer in the frigid mountain air.",
+    "colors": "icicle clear, cliff dark, frigid blue"
+  },
+  "Frigid|Sleet": {
+    "desc": "A frigid landscape pelted by driving sleet, the ice particles coating everything in a layer of frozen rain while the sky remains a uniform dark grey.",
+    "colors": "sleet grey, ice coating, dark uniform"
+  },
+  "Frigid|Chill": {
+    "desc": "A bitterly chill frigid morning where breath crystallizes instantly and every surface bears a coating of rime ice in a still, frozen landscape under a clear cold sky.",
+    "colors": "rime white, clear cold blue, frozen still"
+  },
+  "Frigid|Shiver": {
+    "desc": "A frigid windswept landscape that conveys the sense of shivering cold, bare trees trembling in icy wind and snow being driven sideways across a bleak frozen moor.",
+    "colors": "bleak white, frozen moor, wind grey"
+  },
+  "Frigid|Cube": {
+    "desc": "Angular ice formations and frozen geometric structures in a frigid landscape, the cold so intense that ice forms in sharp crystalline blocks and cubic structures on every surface.",
+    "colors": "ice cube clear, angular blue, crystal sharp"
+  },
+  "Flourish|Bulb": {
+    "desc": "Spring bulbs bursting into flower across a garden landscape, tulips, daffodils, and crocuses pushing through thawing soil in waves of color signaling the end of winter.",
+    "colors": "tulip red, daffodil yellow, crocus purple"
+  },
+  "Flourish|Float": {
+    "desc": "Floating water plants flourishing across the surface of a warm pond, their broad leaves and delicate flowers spreading in a natural mosaic of green and white.",
+    "colors": "float green, flower white, water dark"
+  },
+  "Flourish|Bud": {
+    "desc": "Tree buds flourishing into full leaf in a time-lapse of spring awakening, the canopy transforming from bare branches to lush green overhead in a burst of life.",
+    "colors": "bud fresh, leaf emerging, spring light"
+  },
+  "Flourish|Pollen": {
+    "desc": "A landscape awash in pollen during peak bloom, golden dust coating every surface and hanging visible in shafts of sunlight filtering through a canopy of flowering trees.",
+    "colors": "pollen gold, bloom white, sunshaft warm"
+  },
+  "Flourish|Bloom": {
+    "desc": "A garden in full flourishing bloom with every plant at peak flower, the landscape a celebration of color with roses climbing walls and borders overflowing with blossoms.",
+    "colors": "rose deep pink, blossom overflow, garden green"
+  },
+  "Aurora|Star": {
+    "desc": "Northern lights dancing beneath a star-filled sky, the aurora's green and purple curtains waving among the constellations above a snow-covered boreal landscape.",
+    "colors": "aurora green, star white, boreal dark"
+  },
+  "Aurora|Way": {
+    "desc": "The Milky Way visible beyond shimmering auroral displays, the cosmic band and the atmospheric light show combining to create a sky of unprecedented beauty over arctic tundra.",
+    "colors": "Milky Way cream, aurora shimmer, tundra dark"
+  },
+  "Aurora|Bask": {
+    "desc": "A frozen landscape basking in the glow of a vibrant aurora, the ice and snow reflecting the shifting green and pink lights from above in soft luminescence.",
+    "colors": "aurora pink, ice reflect, glow green"
+  },
+  "Aurora|Vast": {
+    "desc": "A vast auroral display stretching across the entire sky from horizon to horizon, the enormous scale of the phenomenon dwarfing the landscape below in waves of light.",
+    "colors": "vast green, horizon purple, scale immense"
+  },
+  "Aurora|Space": {
+    "desc": "Aurora borealis seen from such a clear location that space itself seems visible beyond the lights, the thin atmosphere a glowing boundary between earth and cosmos.",
+    "colors": "space black, aurora boundary green, atmosphere thin"
+  },
+  "Crest|Fault": {
+    "desc": "A geological fault line creating a dramatic crest of displaced rock, the two sides of the fault showing different strata where tectonic forces have pushed one side upward.",
+    "colors": "fault line dark, displaced strata, upthrust tan"
+  },
+  "Crest|Peak": {
+    "desc": "The crested peak of a mountain where snow meets exposed rock in a dramatic ridgeline, the highest point catching wind-driven ice crystals that sparkle in the clear air.",
+    "colors": "peak rock grey, snow bright, crystal sparkle"
+  },
+  "Crest|Crag": {
+    "desc": "A cragged mountain crest with dramatic rocky outcrops lining the ridge, each crag a different shape and angle creating a jagged skyline against the clouds beyond.",
+    "colors": "crag dark, ridge sharp, cloud beyond"
+  },
+  "Crest|High": {
+    "desc": "A high-altitude mountain crest where the world drops away on both sides to distant valleys below, the thin atmosphere making the sky deepen toward cobalt overhead.",
+    "colors": "high cobalt, crest stone, valley far"
+  },
+  "Crest|Climb": {
+    "desc": "The final climb to a mountain crest, the slope steepening as the ridge approaches and the view expanding with every step upward toward the knife-edge summit.",
+    "colors": "climb steep, crest approaching, expanding view blue"
+  },
+  "Foliage|Wood": {
+    "desc": "Dense woodland foliage creating a thick canopy of overlapping leaves, the layered greenery filtering all light into a soft emerald glow in the sheltered interior.",
+    "colors": "foliage emerald, filtered glow, wood interior"
+  },
+  "Foliage|Mist": {
+    "desc": "Misty foliage in a cloud forest where the leaves are perpetually damp, every branch draped in moss and the air thick with moisture among the dripping leaves.",
+    "colors": "damp green, moss drape, mist heavy"
+  },
+  "Foliage|Path": {
+    "desc": "A winding path through dense foliage, the trail tunneling through overarching branches and thick undergrowth with occasional glimpses of sky through gaps in the leaf canopy.",
+    "colors": "path brown, tunnel green, sky glimpse"
+  },
+  "Foliage|Lush": {
+    "desc": "The most lush foliage imaginable — a tropical hillside where every square inch supports vigorous plant growth in layered profusion of ferns, palms, and broadleaf trees.",
+    "colors": "lush tropical, layered green, profusion dark"
+  },
+  "Foliage|Grove": {
+    "desc": "A quiet grove where the foliage forms a natural ceiling overhead, the trees' intertwining branches and leaves creating a peaceful green room lit by filtered sunlight.",
+    "colors": "grove ceiling green, peaceful light, trunk column"
+  },
+  "Wildwood|Marsh": {
+    "desc": "A wild marshy woodland where standing water floods the forest floor, dark water reflecting the tangle of branches and roots in a primeval wetland forest landscape.",
+    "colors": "swamp dark, tangle brown, reflect green"
+  },
+  "Wildwood|Erode": {
+    "desc": "An eroding wildwood where exposed tree roots grip crumbling banks above a cutting stream, the forest slowly surrendering to the water's persistent sculpting of the terrain.",
+    "colors": "root exposed, bank erode, stream cut"
+  },
+  "Wildwood|Solice": {
+    "desc": "A solitary clearing in the wildwood where quiet solace can be found, sunlight pouring through the gap in the canopy onto a soft carpet of grass and moss.",
+    "colors": "solace light, clearing warm, surrounding deep green"
+  },
+  "Wildwood|Adrift": {
+    "desc": "Fallen leaves and branches adrift on a slow-moving stream winding through wildwood, the debris floating lazily past moss-covered banks in dappled forest light.",
+    "colors": "adrift leaf, stream slow, dappled light"
+  },
+  "Wildwood|Inlet": {
+    "desc": "A quiet inlet where a wildwood meets a lake, the dark forested shore curving around a small protected bay of still water reflecting the overhanging canopy.",
+    "colors": "inlet still, canopy reflect, shore dark"
+  },
+  "Bare|Tower": {
+    "desc": "A bare rock tower standing alone in a sparse landscape, completely devoid of vegetation, the naked stone exposed to wind and sun in stark sculptural beauty.",
+    "colors": "bare stone, stark sky, naked rock"
+  },
+  "Bare|Stone": {
+    "desc": "A landscape of bare stone extending in every direction, the rock scoured clean by glacial action or wind erosion leaving nothing but raw geological surfaces.",
+    "colors": "scoured grey, raw rock, bare sky"
+  },
+  "Bare|Desert": {
+    "desc": "The barest desert landscape devoid of any life or feature, a flat expanse of hard-packed earth and scattered gravel under an unforgiving sun and empty sky.",
+    "colors": "bare earth, gravel grey, empty pale"
+  },
+  "Bare|Knoll": {
+    "desc": "A bare grassy knoll rising from the surrounding terrain, its rounded top cleared of trees and exposed to the wind, offering unobstructed views in every direction.",
+    "colors": "knoll green, bare top, wind sky"
+  },
+  "Bare|Brink": {
+    "desc": "The bare brink of a cliff edge where vegetation gives way to nothing, the last few feet of ground stripped bare by wind and exposure before the vertical drop.",
+    "colors": "brink edge, bare ground, drop sky"
+  },
+  "High seas|Under": {
+    "desc": "The world beneath the surface of the high seas, dark blue water stretching downward with shafts of light penetrating from above and fading into oceanic darkness.",
+    "colors": "undersea blue, shaft light, fading dark"
+  },
+  "High seas|Crest": {
+    "desc": "The cresting waves of the open ocean, massive swells building and breaking in the deep water far from any shore under dramatic cloud-filled skies.",
+    "colors": "wave crest white, deep sea, storm sky"
+  },
+  "High seas|Squall": {
+    "desc": "A sudden squall on the high seas, dark clouds dropping curtains of rain onto the churning water while wind whips the wave tops into flying spray.",
+    "colors": "squall dark, rain curtain, spray white"
+  },
+  "High seas|Azure": {
+    "desc": "The high seas on a perfect calm day, the water a deep flawless azure stretching to the horizon with gentle swells rolling across the sun-drenched surface.",
+    "colors": "azure deep, swell gentle, sun-drenched gold"
+  },
+  "High seas|Brisk": {
+    "desc": "Brisk conditions on the open sea with a fresh wind driving whitecaps across dark blue water, the atmosphere crisp and clear with excellent visibility to the sharp horizon.",
+    "colors": "brisk blue, whitecap white, crisp clear"
+  },
+  "Meadow|Soar": {
+    "desc": "A high mountain meadow seen from a soaring vantage point, the green clearing in the forest visible like an emerald jewel set in a dark green crown of trees.",
+    "colors": "meadow emerald, forest surround, soaring blue"
+  },
+  "Meadow|Lane": {
+    "desc": "A narrow lane winding through a wildflower meadow, the path barely visible through the tall grasses and blooming flowers that press in from both sides in summer.",
+    "colors": "lane hidden, flower meadow, summer warm"
+  },
+  "Meadow|Fall": {
+    "desc": "An autumn meadow with golden dried grasses and scattered late-season wildflowers, the open field surrounded by trees in full fall color under a cool crisp sky.",
+    "colors": "meadow gold, fall surround, crisp blue"
+  },
+  "Meadow|Gale": {
+    "desc": "A meadow in a strong gale, the tall grasses flattened by powerful wind and wildflower heads bowing under the force while dark clouds race across the sky above.",
+    "colors": "gale grey, grass flatten, cloud race"
+  },
+  "Meadow|Gold": {
+    "desc": "A meadow turned solid gold in late summer, every grass blade and seed head catching the warm afternoon light and transforming the field into a sea of liquid amber.",
+    "colors": "liquid gold, amber field, warm afternoon"
+  },
+  "Tarn|Still": {
+    "desc": "A perfectly still mountain tarn nested in a rocky cirque, the dark water mirror-flat and reflecting the encircling cliffs and sky with photographic precision.",
+    "colors": "tarn dark, cirque grey, mirror sky"
+  },
+  "Tarn|Rock": {
+    "desc": "A small rocky tarn surrounded by broken granite boulders at high altitude, the crystal-clear water revealing its rocky bottom in the sharp clean mountain light.",
+    "colors": "granite grey, crystal clear, mountain bright"
+  },
+  "Tarn|Placid": {
+    "desc": "A placid mountain tarn in a peaceful alpine setting, the small lake surrounded by low heather and moss, its surface barely disturbed by the lightest of breezes.",
+    "colors": "placid blue, heather purple, moss green"
+  },
+  "Tarn|Still ": {
+    "desc": "An ancient tarn holding motionless water in the hollow of an old volcanic crater, the stillness absolute and the dark water seeming to hold centuries of quiet.",
+    "colors": "ancient dark, crater rim, absolute still"
+  },
+  "Tarn|Peace": {
+    "desc": "A peaceful tarn at dawn with the first light touching the water's surface, the complete silence and perfect calm of the mountain lake embodying deep natural peace.",
+    "colors": "peace dawn, first light gold, calm water"
+  },
+  "Summit|Rise": {
+    "desc": "The final rise to a grand summit, the terrain steepening dramatically as the peak draws near and the panoramic view expanding with every step toward the top.",
+    "colors": "summit stone, rising slope, expanding sky"
+  },
+  "Summit|Aloft": {
+    "desc": "A high mountain summit rising above a sea of clouds with blue sky stretching endlessly overhead, jagged rock and ice at the peak.",
+    "colors": "aloft blue, cloud floor white, summit rock"
+  },
+  "Summit|Free": {
+    "desc": "The liberating feeling of a summit where the view is free in every direction, unobstructed panoramas of mountain ranges and valleys spreading out to distant horizons.",
+    "colors": "free panorama, range blue, valley green"
+  },
+  "Summit|Flow": {
+    "desc": "Mountain streams flowing down from a summit, the meltwater beginning its long journey as tiny rivulets on the peak that will grow into rivers in the valleys below.",
+    "colors": "flow water, summit grey, melt bright"
+  },
+  "Summit|Reach": {
+    "desc": "The mountain summit just within reach, the final rocky scramble visible ahead as the peak rises against a clear sky promising the ultimate reward of the highest view.",
+    "colors": "reach near, rock scramble, promise blue"
+  },
+  "Bluff|Haze": {
+    "desc": "A sandy bluff overlooking a hazy coastline, the warm afternoon air creating a dreamy soft-focus effect over the beach and ocean stretching below.",
+    "colors": "haze warm, bluff sand, coast soft"
+  },
+  "Bluff|Join": {
+    "desc": "Where two bluffs join together forming a natural gateway or saddle between them, the connected headlands creating a dramatic frame for the landscape visible through the gap.",
+    "colors": "join gateway, bluff pair, framed view"
+  },
+  "Bluff|Blush": {
+    "desc": "A bluff face blushing pink in the sunset light, the iron-rich rock turning warm rose as the low sun illuminates its weathered surface above a darkening valley.",
+    "colors": "blush rose, sunset pink, valley darken"
+  },
+  "Bluff|Flock": {
+    "desc": "A windswept bluff overlooking vast open skies, the grassy top of the headland exposed to ocean winds with scattered clouds streaming overhead in a constant procession.",
+    "colors": "flock cloud, bluff grass, ocean wind blue"
+  },
+  "Bluff|Vista": {
+    "desc": "A commanding bluff providing a spectacular vista over river bends, forests, and distant mountains, the elevated viewpoint revealing the full sweep of the landscape below.",
+    "colors": "vista sweep, bluff crown, landscape panorama"
+  },
+  "Strand|Gleam": {
+    "desc": "A gleaming strand of beach at sunrise, the wet sand reflecting the morning sky in a brilliant mirror of gold and pink as waves deposit their thin glaze of water.",
+    "colors": "gleam gold, strand mirror, sunrise pink"
+  },
+  "Strand|Chase": {
+    "desc": "Waves chasing up a long sandy strand in rapid succession, each wave racing further than the last as the tide comes in across the gently sloping beach.",
+    "colors": "chase white, strand sand, wave blue"
+  },
+  "Strand|Bank": {
+    "desc": "A sandy strand banked up against dune grass and coastal vegetation, the wind-piled sand creating a natural seawall between the ocean and the protected shore beyond.",
+    "colors": "bank sand, dune grass, sea beyond blue"
+  },
+  "Strand|Tide": {
+    "desc": "A tidal strand revealed at low water, the exposed beach much wider than usual with tide pools and rippled sand patterns extending far out toward the retreating sea.",
+    "colors": "exposed sand, tide pool, distant sea"
+  },
+  "Strand|Soak": {
+    "desc": "A strand soaked by recent rain and high waves, every grain of sand saturated and dark, the wet beach reflecting the brooding sky above in muted mirror tones.",
+    "colors": "soak dark, wet mirror, brood sky"
+  },
+  "Cloud|Grove": {
+    "desc": "A quiet grove shrouded in low-hanging clouds, the trees emerging from the mist like pillars in a great hall with visibility limited to the nearest trunks and branches.",
+    "colors": "cloud wrap, grove trunk, limited green"
+  },
+  "Cloud|Vale": {
+    "desc": "A mountain vale filled with clouds as seen from above, the valley transformed into a river of white cotton flowing between the higher ridges and peaks.",
+    "colors": "vale cloud white, ridge green, flow cotton"
+  },
+  "Cloud|Pond": {
+    "desc": "Clouds reflected in a small pond creating a surreal double sky effect, the water surface becoming a portal to an inverted world of cloud formations and blue.",
+    "colors": "pond reflect, cloud double, sky portal"
+  },
+  "Cloud|Field": {
+    "desc": "Dramatic cloud shadows racing across an open field, the alternating bands of sun and shade creating a moving pattern of light and dark across the green landscape.",
+    "colors": "shadow band, sun stripe, field green"
+  },
+  "Cloud|Steam": {
+    "desc": "Steam rising from hot springs mingling with low clouds in a geothermal landscape, the boundary between earth-born and sky-born vapors blurring in the misty terrain.",
+    "colors": "steam white, thermal warm, cloud merge"
+  },
+  "Sublime|Mood": {
+    "desc": "A moody sublime landscape under dramatic storm-lit skies, shafts of light breaking through dark clouds to illuminate specific patches of a vast, emotionally charged terrain.",
+    "colors": "mood dark, shaft gold, sublime grey"
+  },
+  "Sublime|Moon": {
+    "desc": "A sublime moonlit landscape of extraordinary beauty, the full moon casting silver light over mountains and water in a scene of serene nocturnal magnificence.",
+    "colors": "moon silver, sublime blue, nocturnal deep"
+  },
+  "Sublime|Stars": {
+    "desc": "A sublime star-filled sky of overwhelming beauty over a dark pristine landscape, the cosmic display so intense it inspires a sense of awe and insignificance.",
+    "colors": "star intense, sublime dark, awe black"
+  },
+  "Sublime|Arctic": {
+    "desc": "A sublime arctic landscape of breathtaking frozen beauty, massive ice formations and snow-covered terrain under ethereal polar light creating a scene of frozen grandeur.",
+    "colors": "arctic sublime blue, frozen grandeur, polar light"
+  },
+  "Sublime|Sails": {
+    "desc": "A sublime seascape with dramatic clouds billowing like great sails across the sky, their forms reflected in vast calm waters below in a scene of oceanic majesty.",
+    "colors": "sail cloud white, ocean vast, sky sublime"
+  },
+  "Master|SAILS": {
+    "desc": "The ultimate landscape — a grand convergence of sea, sky, and light where golden hour illuminates towering cloud formations above an endless ocean, the scene radiating mastery over all natural elements.",
+    "colors": "master gold, oceanic deep, sky grand"
+  },
+  "Horizon|Dawn": {
+    "desc": "The horizon at dawn stretching in an unbroken line where the warming sky meets the dark land, bands of rose, amber, and pale blue stacking above the edge of the world.",
+    "colors": "horizon rose, dawn amber, pale blue"
+  },
+  "Horizon|Glow": {
+    "desc": "A warm afterglow along the horizon after sunset, the lingering light painting the skyline in deep amber and soft peach while the upper sky transitions to twilight blue.",
+    "colors": "afterglow amber, soft peach, twilight blue"
+  },
+  "Horizon|Crest": {
+    "desc": "A distant mountain crest visible on the far horizon, its silhouette barely discernible through atmospheric haze as a thin dark line between earth and sky.",
+    "colors": "distant crest, horizon haze, atmospheric blue"
+  },
+  "Horizon|Vista": {
+    "desc": "An unobstructed vista stretching to the farthest visible horizon, layers of terrain fading through progressively lighter shades of blue until land and sky become indistinguishable.",
+    "colors": "vista layers, fading blue, horizon merge"
+  },
+  "Horizon|Blaze": {
+    "desc": "The horizon ablaze with the most intense sunset colors, a firestorm of orange, crimson, and gold spreading across the entire skyline as the sun drops below the earth's edge.",
+    "colors": "blaze crimson, firestorm orange, horizon gold"
+  },
+  "Depths|Abyss": {
+    "desc": "The oceanic abyss where light fades to nothing, deep underwater canyons and trenches descending into absolute darkness with only bioluminescent hints of life in the void.",
+    "colors": "abyss black, bioluminescent blue, void deep"
+  },
+  "Depths|Coral": {
+    "desc": "Vibrant coral formations in the ocean depths, branching structures of pink, orange, and purple creating an underwater landscape of extraordinary color and complexity.",
+    "colors": "coral pink, reef orange, depth purple"
+  },
+  "Depths|Tide": {
+    "desc": "Deep tidal currents moving through underwater channels, the powerful flow visible in the swaying of sea plants and the patterns of suspended particles in the blue water.",
+    "colors": "tidal current blue, sea plant green, particle drift"
+  },
+  "Depths|Drift": {
+    "desc": "Drifting through deep blue water, weightless and surrounded by the immense volume of the ocean, sunlight filtering down from the distant surface in fading columns of light.",
+    "colors": "drift blue, column light, depth fade"
+  },
+  "Depths|Surge": {
+    "desc": "Powerful surges of water in the deep ocean, underwater currents creating visible walls of force that sweep through the depths moving everything in their path.",
+    "colors": "surge dark blue, force white, deep current"
+  },
+  "Summit|Ridge": {
+    "desc": "A narrow mountain ridge extending from a summit, the spine of rock running along the top of the mountain with precipitous drops on either side into misty valleys.",
+    "colors": "ridge sharp, summit stone, valley mist"
+  },
+  "Summit|Peak": {
+    "desc": "The ultimate mountain peak piercing through a cloud layer, the rocky summit emerging into brilliant sunshine above a sea of white clouds stretching to the horizon.",
+    "colors": "peak bright, cloud sea white, summit granite"
+  },
+  "Summit|Ascent": {
+    "desc": "The ascending slope toward a mountain summit growing steeper and more exposed with altitude, scree fields giving way to bare rock as the atmosphere thins overhead.",
+    "colors": "ascent steep, scree grey, thin atmosphere blue"
+  },
+  "Summit|Spire": {
+    "desc": "A dramatic rocky spire rising from a mountain summit like a natural cathedral tower, the pinnacle of stone reaching skyward as the highest point for miles around.",
+    "colors": "spire dark, sky pierce, summit crown"
+  },
+  "Summit|Apex": {
+    "desc": "The absolute apex of a mountain where there is nowhere higher to go, the topmost point of rock marking the culmination of the ascent with 360-degree views of the world below.",
+    "colors": "apex stone, world below, ultimate blue"
+  },
+  "Twilight|Dusk": {
+    "desc": "Deep twilight transitioning into dusk, the sky a rich gradient from deep blue overhead to warm amber at the western horizon as the last light slowly surrenders to night.",
+    "colors": "dusk deep blue, amber west, transition warm"
+  },
+  "Twilight|Ember": {
+    "desc": "The dying embers of daylight during twilight, the sky glowing with residual warmth like cooling coals as orange and red tones fade gradually to grey and deep blue.",
+    "colors": "ember orange, cooling red, fading grey"
+  },
+  "Twilight|Shade": {
+    "desc": "Deep shades gathering in a landscape at twilight, the valleys and forests going dark first while hilltops and open water still hold the last traces of fading light.",
+    "colors": "shade deep, fading hilltop, last light"
+  },
+  "Twilight|Haze": {
+    "desc": "A hazy twilight scene where the fading light softens everything into muted tones, the horizon barely visible through the warm atmospheric haze of a summer evening.",
+    "colors": "haze muted, twilight soft, summer warm"
+  },
+  "Twilight|Veil": {
+    "desc": "A veil of deep blue settling over the landscape at twilight, the subtle transition from day to night like a translucent curtain being drawn across the sky and terrain.",
+    "colors": "veil blue, curtain deep, terrain fade"
+  }
+}

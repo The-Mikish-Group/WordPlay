@@ -15,11 +15,18 @@ Properties/
 node_modules/
 package-lock.json
 
+## Environment secrets
+.env
+tools/.env
+
 ## Scraper
 scraper/
 
 ## Claude Code
 .claude/
+
+## Generated background images (~60MB, deployed separately)
+WordPlay/wwwroot/images/bg/*.webp
 
 ## OS
 Thumbs.db

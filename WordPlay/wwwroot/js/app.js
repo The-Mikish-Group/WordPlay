@@ -126,6 +126,7 @@ const state = {
     loading: false,
     pickMode: false,       // target-hint: user taps a cell to reveal it
     soundEnabled: true,    // sound effects on/off
+    bgImages: true,        // use scenic background images instead of gradients
 };
 
 // ---- MAP STATE ----
@@ -134,6 +135,29 @@ let _mapAutoExpanded = false;     // only auto-expand the active pack once per o
 let _mapHasScrolled = false;      // only auto-scroll to current level on first render
 let _mapScrollTarget = null;      // pack key to scroll to after toggle
 const PACK_MAX_EXPANDABLE = 100;  // giant packs won't expand to show nodes
+
+// ---- BACKGROUND IMAGE MANIFEST ----
+let _bgManifest = null; // Set of available background image keys (e.g. "sunrise-rise")
+
+async function loadBgManifest() {
+    try {
+        const resp = await fetch("images/bg/bg-manifest.json");
+        if (!resp.ok) return;
+        const list = await resp.json();
+        _bgManifest = new Set(list);
+    } catch (e) { /* no manifest = no bg images available */ }
+}
+
+function getBgImageKey(lvl) {
+    if (!lvl) return null;
+    return `${lvl.group}-${lvl.pack}`.toLowerCase().replace(/\s+/g, '-');
+}
+
+function preloadBgImage(key) {
+    if (!key || !_bgManifest || !_bgManifest.has(key)) return;
+    const img = new Image();
+    img.src = `images/bg/${key}.webp`;
+}
 
 // ---- COMPUTED ----
 let level, theme, crossword, placedWords, bonusPool, totalRequired, wheelLetters;
@@ -176,6 +200,10 @@ async function recompute() {
     rebuildWheelLetters();
     // Preload next chunk
     if (typeof preloadAround === "function") preloadAround(state.currentLevel);
+    // Preload current + next level's background image
+    if (state.bgImages && _bgManifest) {
+        preloadBgImage(getBgImageKey(level));
+    }
 }
 
 function rebuildWheelLetters() {
@@ -225,6 +253,7 @@ function loadProgress() {
             state.inProgress = d.ip || {};
             state.lastDailyClaim = d.ldc || null;
             state.soundEnabled = d.se !== undefined ? d.se : true;
+            state.bgImages = d.bi !== undefined ? d.bi : true;
         }
     } catch (e) { /* ignore */ }
 }
@@ -248,6 +277,7 @@ function saveProgress() {
             ip: state.inProgress,
             ldc: state.lastDailyClaim,
             se: state.soundEnabled,
+            bi: state.bgImages,
         }));
     } catch (e) { /* ignore */ }
 }
@@ -892,6 +922,20 @@ function renderAll() {
     const app = document.getElementById("app");
     app.style.background = theme.bg;
     app.style.color = theme.text;
+
+    // Background image overlay (if enabled and available)
+    if (state.bgImages && level && _bgManifest) {
+        const key = getBgImageKey(level);
+        if (_bgManifest.has(key)) {
+            app.style.backgroundImage = `url('images/bg/${key}.webp')`;
+            app.style.backgroundSize = 'cover';
+            app.style.backgroundPosition = 'center';
+        } else {
+            app.style.backgroundImage = 'none';
+        }
+    } else {
+        app.style.backgroundImage = 'none';
+    }
 
     renderHeader();
     renderGrid();
@@ -2070,6 +2114,14 @@ function renderMenu() {
         </div>
     `;
 
+    // Background Images toggle
+    html += `
+        <div class="menu-setting">
+            <label class="menu-setting-label">Background</label>
+            <button class="menu-setting-btn" id="bg-toggle-btn" style="background:${state.bgImages ? theme.accent : 'rgba(255,255,255,0.1)'};color:${state.bgImages ? '#000' : 'rgba(255,255,255,0.6)'};width:100%;padding:10px 0;font-size:14px">${state.bgImages ? '🖼️ Scenic Images' : '🎨 Gradients'}</button>
+        </div>
+    `;
+
     // Check for Updates
     html += `
         <div class="menu-setting">
@@ -2105,6 +2157,13 @@ function renderMenu() {
         state.soundEnabled = !state.soundEnabled;
         saveProgress();
         renderMenu();
+    };
+
+    document.getElementById("bg-toggle-btn").onclick = () => {
+        state.bgImages = !state.bgImages;
+        saveProgress();
+        renderMenu();
+        renderAll();
     };
 
     document.getElementById("menu-map-btn").onclick = () => {
@@ -2254,6 +2313,7 @@ function renderMenu() {
             state.inProgress = {};
             state.lastDailyClaim = null;
             state.soundEnabled = true;
+            state.bgImages = false;
             state.coins = 50;
             state.showMenu = false;
             saveProgress();
@@ -2458,10 +2518,11 @@ async function init() {
         <div style="text-align:center"><div style="font-size:48px;margin-bottom:16px">🎮</div>Loading levels...</div></div>`;
     app.style.background = "linear-gradient(170deg, #0f0520, #2d1b4e, #8b2252)";
 
-    // Initialize level loader
+    // Initialize level loader + background manifest
     if (typeof initLevelLoader === "function") {
         await initLevelLoader();
     }
+    loadBgManifest(); // fire and forget — non-blocking
 
     loadProgress();
     await recompute();
