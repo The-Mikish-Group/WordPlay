@@ -854,9 +854,15 @@ async function handleNextLevel() {
         delete state.inProgress[state.currentLevel];
     }
     const isReplay = state.currentLevel < state.highestLevel;
-    const next = isReplay
-        ? Math.min(state.highestLevel, maxLv)
-        : Math.min(state.currentLevel + 1, maxLv);
+    let next;
+    if (isReplay) {
+        // Find the first uncompleted level
+        next = state.currentLevel + 1;
+        while (next <= maxLv && state.levelHistory[next]) next++;
+        next = Math.min(next, maxLv);
+    } else {
+        next = Math.min(state.currentLevel + 1, maxLv);
+    }
     state.currentLevel = next;
     state.highestLevel = Math.max(state.highestLevel, next);
     state.foundWords = [];
