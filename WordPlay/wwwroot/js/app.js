@@ -1400,7 +1400,7 @@ function renderWheel() {
 
     // Render letter circles
     const lettersDiv = document.getElementById("wheel-letters");
-    const letterFS = Math.max(38, wheelR * 0.46);
+    const letterFS = Math.min(letterR * 1.6, Math.max(28, wheelR * 0.36));
     for (let i = 0; i < wheelLetters.length; i++) {
         const p = wheelPositions[i];
         const div = document.createElement("div");
