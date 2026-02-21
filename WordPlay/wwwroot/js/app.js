@@ -292,6 +292,11 @@ function restoreLevelState() {
     const lv = state.currentLevel;
     // Completed levels take priority
     if (state.levelHistory[lv]) {
+        const hist = state.levelHistory[lv];
+        // If history has no words (e.g. Set Progress), fill with all placed words
+        if (hist.length === 0) {
+            state.levelHistory[lv] = [...placedWords];
+        }
         state.foundWords = placedWords.filter(w => state.levelHistory[lv].includes(w));
         state.bonusFound = [];
         state.revealedCells = [];
