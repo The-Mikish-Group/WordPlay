@@ -1111,12 +1111,10 @@ function renderGrid() {
     for (const k of state.revealedCells) revealed.add(k);
 
     const gap = 4;
-    // Use the narrowest reliable width: area element, app element, or CSS max-width cap
-    const appMax = window.innerWidth >= 1024 ? 480 : 600;
-    const capW = Math.min(window.innerWidth, appMax) - 24; // CSS max-width minus grid-area padding
-    const areaEl = document.getElementById("grid-area");
-    const areaClientW = areaEl && areaEl.clientWidth > 0 ? areaEl.clientWidth - 24 : capW;
-    const availW = Math.min(areaClientW, capW);
+    // Measure actual rendered width via getBoundingClientRect (always accurate)
+    const appEl = document.getElementById("app");
+    const appW = appEl ? appEl.getBoundingClientRect().width : window.innerWidth;
+    const availW = appW - 24; // subtract grid-area horizontal padding (12px each side)
     const vw = availW - gap * (cols - 1);
     const vh = window.innerHeight * 0.34 - gap * (rows - 1);
     const cs = Math.min(Math.floor(vw / cols), Math.floor(vh / rows), 44);
