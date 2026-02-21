@@ -2270,7 +2270,10 @@ function renderMenu() {
             state.bonusFound = [];
             state.revealedCells = [];
             state.shuffleKey = 0;
-            // Clean up history/progress for levels at or above the new value
+            // Mark all levels below as completed, clear anything at or above
+            for (let lv = 1; lv < val; lv++) {
+                if (!state.levelHistory[lv]) state.levelHistory[lv] = [];
+            }
             for (const key of Object.keys(state.levelHistory)) {
                 if (parseInt(key) >= val) delete state.levelHistory[key];
             }
