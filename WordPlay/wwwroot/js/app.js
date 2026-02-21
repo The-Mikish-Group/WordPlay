@@ -936,10 +936,10 @@ function renderAll() {
     }
 
     renderHeader();
+    renderWheel(); // render wheel before grid so grid-area has correct height
     renderGrid();
 
     renderWordCount();
-    renderWheel();
     renderBonusStar();
     renderCompleteModal();
     renderMenu();
@@ -1322,8 +1322,13 @@ function renderWheel() {
     }
 
     const count = wheelLetters.length;
-    const wheelR = Math.min(125, (window.innerWidth - 100) / 2.4);
-    const letterR = Math.min(28, Math.max(20, wheelR * 0.23));
+    // Scale wheel down for large grids so everything fits vertically
+    const gridRows = crossword && crossword.rows ? crossword.rows : 8;
+    const maxByWidth = (window.innerWidth - 100) / 2.4;
+    // For grids with many rows, shrink the wheel to leave more vertical room
+    const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
+    const wheelR = Math.max(70, Math.min(125, maxByWidth, maxByViewport));
+    const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
     const pad = letterR + 16;
     const cx = wheelR + pad, cy = wheelR + pad;
     const cW = (wheelR + pad) * 2;
