@@ -1115,7 +1115,7 @@ function renderGrid() {
     const appW = appEl ? appEl.getBoundingClientRect().width : window.innerWidth;
     const areaRect = area.getBoundingClientRect();
     const availW = appW - 24; // subtract grid-area horizontal padding (12px each side)
-    const availH = areaRect.height > 0 ? areaRect.height - 20 : window.innerHeight * 0.38;
+    const availH = areaRect.height > 0 ? areaRect.height - 12 : window.innerHeight * 0.38;
     // Compute cell size first, then derive gap from it
     const rawCs = Math.min(Math.floor(availW / cols), Math.floor(availH / rows), 44);
     const gap = rawCs >= 30 ? 4 : 2;
