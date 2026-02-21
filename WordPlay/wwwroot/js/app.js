@@ -1110,10 +1110,12 @@ function renderGrid() {
     // Include individually hinted cells
     for (const k of state.revealedCells) revealed.add(k);
 
-    const vw = window.innerWidth - 28;
-    const vh = window.innerHeight * 0.34;
+    const gap = 4;
+    const areaEl = document.getElementById("grid-area");
+    const areaW = areaEl ? areaEl.clientWidth - 24 : window.innerWidth - 28;
+    const vw = areaW - gap * (cols - 1);
+    const vh = window.innerHeight * 0.34 - gap * (rows - 1);
     const cs = Math.min(Math.floor(vw / cols), Math.floor(vh / rows), 44);
-    const gap = Math.max(2, Math.min(4, cs > 30 ? 4 : 2));
     const fs = Math.max(cs * 0.55, 16);
     const br = cs >= 36 ? 6 : cs >= 26 ? 3 : 2;
 
