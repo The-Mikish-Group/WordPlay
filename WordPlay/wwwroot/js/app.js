@@ -7,97 +7,97 @@ const THEMES = {
     sunrise: {
         bg: "linear-gradient(170deg, #0f0520 0%, #2d1b4e 25%, #8b2252 50%, #d4622a 75%, #f4a535 100%)",
         accent: "#f4a535", accentDark: "#c47d1a",
-        wheelBg: "rgba(15,5,32,0.55)", cellBg: "rgba(255,255,255,0.1)",
+        wheelBg: "rgba(15,5,32,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#f4a535", text: "#fef3e0", dim: "rgba(254,243,224,0.5)",
     },
     forest: {
         bg: "linear-gradient(170deg, #040d04 0%, #0d2a0d 25%, #1a4a1a 50%, #2d6a2d 75%, #4a8a3f 100%)",
         accent: "#8ed87c", accentDark: "#5ba04a",
-        wheelBg: "rgba(4,13,4,0.55)", cellBg: "rgba(255,255,255,0.08)",
+        wheelBg: "rgba(4,13,4,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#8ed87c", text: "#d8f0c8", dim: "rgba(216,240,200,0.5)",
     },
     canyon: {
         bg: "linear-gradient(170deg, #1a0e05 0%, #3d1f0a 25%, #7a3d1a 50%, #a0622d 75%, #c99a60 100%)",
         accent: "#e8b44c", accentDark: "#b8862e",
-        wheelBg: "rgba(26,14,5,0.55)", cellBg: "rgba(255,255,255,0.08)",
+        wheelBg: "rgba(26,14,5,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#e8b44c", text: "#faebd7", dim: "rgba(250,235,215,0.5)",
     },
     sky: {
         bg: "linear-gradient(170deg, #060d2a 0%, #0f2055 25%, #2050a0 50%, #4a8ad0 75%, #85c5f0 100%)",
         accent: "#6ec6f5", accentDark: "#3a96c5",
-        wheelBg: "rgba(6,13,42,0.55)", cellBg: "rgba(255,255,255,0.1)",
+        wheelBg: "rgba(6,13,42,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#6ec6f5", text: "#d8eeff", dim: "rgba(216,238,255,0.5)",
     },
     ocean: {
         bg: "linear-gradient(180deg, #020c1b 0%, #0a2342 25%, #0d4f6e 50%, #1a8a8a 75%, #3ccfcf 100%)",
         accent: "#3ccfcf", accentDark: "#1a8a8a",
-        wheelBg: "rgba(2,12,27,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        wheelBg: "rgba(2,12,27,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#3ccfcf", text: "#d0f5f5", dim: "rgba(208,245,245,0.5)",
     },
     lavender: {
         bg: "linear-gradient(160deg, #120820 0%, #2a1545 25%, #5c3d8f 50%, #9a6cbf 75%, #d4a5e5 100%)",
         accent: "#d4a5e5", accentDark: "#9a6cbf",
-        wheelBg: "rgba(18,8,32,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        wheelBg: "rgba(18,8,32,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#d4a5e5", text: "#f0e0ff", dim: "rgba(240,224,255,0.5)",
     },
     autumn: {
         bg: "linear-gradient(170deg, #1a0800 0%, #3d1200 25%, #8b3a0f 50%, #c45e1a 75%, #e89040 100%)",
         accent: "#e89040", accentDark: "#c45e1a",
-        wheelBg: "rgba(26,8,0,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        wheelBg: "rgba(26,8,0,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#e89040", text: "#fde8cc", dim: "rgba(253,232,204,0.5)",
     },
     midnight: {
         bg: "linear-gradient(175deg, #03000a 0%, #0a0520 25%, #1a1040 50%, #2a1860 75%, #3d2080 100%)",
         accent: "#8878c8", accentDark: "#5e4e9e",
-        wheelBg: "rgba(3,0,10,0.55)", cellBg: "rgba(255,255,255,0.08)",
+        wheelBg: "rgba(3,0,10,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#8878c8", text: "#d8d0f0", dim: "rgba(216,208,240,0.5)",
     },
     arctic: {
         bg: "linear-gradient(165deg, #0a1520 0%, #152535 25%, #2a4a60 50%, #5a8aa0 75%, #a0d4e8 100%)",
         accent: "#a0d4e8", accentDark: "#5a8aa0",
-        wheelBg: "rgba(10,21,32,0.55)", cellBg: "rgba(255,255,255,0.1)",
+        wheelBg: "rgba(10,21,32,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#a0d4e8", text: "#e0f4ff", dim: "rgba(224,244,255,0.5)",
     },
     volcano: {
         bg: "linear-gradient(175deg, #0a0000 0%, #2a0505 25%, #6a1010 50%, #a02020 75%, #e04030 100%)",
         accent: "#f06848", accentDark: "#c03828",
-        wheelBg: "rgba(10,0,0,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        wheelBg: "rgba(10,0,0,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#f06848", text: "#ffe0d8", dim: "rgba(255,224,216,0.5)",
     },
     meadow: {
         bg: "linear-gradient(160deg, #080d02 0%, #1a2a08 25%, #3a5a10 50%, #6a9a20 75%, #a0d040 100%)",
         accent: "#a0d040", accentDark: "#6a9a20",
-        wheelBg: "rgba(8,13,2,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        wheelBg: "rgba(8,13,2,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#a0d040", text: "#e8f8c8", dim: "rgba(232,248,200,0.5)",
     },
     storm: {
         bg: "linear-gradient(180deg, #08080c 0%, #1a1a2a 25%, #2e3050 50%, #4a5070 75%, #7080a0 100%)",
         accent: "#90a8d0", accentDark: "#6078a0",
-        wheelBg: "rgba(8,8,12,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        wheelBg: "rgba(8,8,12,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#90a8d0", text: "#d8e0f0", dim: "rgba(216,224,240,0.5)",
     },
     coral: {
         bg: "linear-gradient(165deg, #1a0810 0%, #3d1025 25%, #8a2050 50%, #c84878 75%, #f08ca0 100%)",
         accent: "#f08ca0", accentDark: "#c84878",
-        wheelBg: "rgba(26,8,16,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        wheelBg: "rgba(26,8,16,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#f08ca0", text: "#ffe0e8", dim: "rgba(255,224,232,0.5)",
     },
     aurora: {
         bg: "linear-gradient(170deg, #020810 0%, #0a2030 25%, #105040 50%, #20a060 75%, #60e0a0 100%)",
         accent: "#60e0a0", accentDark: "#20a060",
-        wheelBg: "rgba(2,8,16,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        wheelBg: "rgba(2,8,16,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#60e0a0", text: "#d0ffe8", dim: "rgba(208,255,232,0.5)",
     },
     desert: {
         bg: "linear-gradient(160deg, #1a1408 0%, #3a2a10 25%, #6a5020 50%, #a08838 75%, #d0c060 100%)",
         accent: "#d0c060", accentDark: "#a08838",
-        wheelBg: "rgba(26,20,8,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        wheelBg: "rgba(26,20,8,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#d0c060", text: "#f8f0d0", dim: "rgba(248,240,208,0.5)",
     },
     twilight: {
         bg: "linear-gradient(175deg, #0a0515 0%, #1a1035 25%, #3a2060 50%, #6a3090 75%, #a050c0 100%)",
         accent: "#c080e0", accentDark: "#8850b0",
-        wheelBg: "rgba(10,5,21,0.55)", cellBg: "rgba(255,255,255,0.09)",
+        wheelBg: "rgba(10,5,21,0.55)", cellBg: "rgba(40,30,60,0.95)",
         cellFound: "#c080e0", text: "#f0e0ff", dim: "rgba(240,224,255,0.5)",
     },
 };
@@ -126,7 +126,6 @@ const state = {
     loading: false,
     pickMode: false,       // target-hint: user taps a cell to reveal it
     soundEnabled: true,    // sound effects on/off
-    bgImages: true,        // use scenic background images instead of gradients
 };
 
 // ---- MAP STATE ----
@@ -200,10 +199,8 @@ async function recompute() {
     rebuildWheelLetters();
     // Preload next chunk
     if (typeof preloadAround === "function") preloadAround(state.currentLevel);
-    // Preload current + next level's background image
-    if (state.bgImages && _bgManifest) {
-        preloadBgImage(getBgImageKey(level));
-    }
+    // Preload current level's background image
+    preloadBgImage(getBgImageKey(level));
 }
 
 function rebuildWheelLetters() {
@@ -253,7 +250,6 @@ function loadProgress() {
             state.inProgress = d.ip || {};
             state.lastDailyClaim = d.ldc || null;
             state.soundEnabled = d.se !== undefined ? d.se : true;
-            state.bgImages = d.bi !== undefined ? d.bi : true;
         }
     } catch (e) { /* ignore */ }
 }
@@ -277,7 +273,6 @@ function saveProgress() {
             ip: state.inProgress,
             ldc: state.lastDailyClaim,
             se: state.soundEnabled,
-            bi: state.bgImages,
         }));
     } catch (e) { /* ignore */ }
 }
@@ -787,7 +782,7 @@ function renderTargetBtn() {
     const btn = document.getElementById("target-btn");
     if (!btn) return;
     const canUse = state.freeTargets > 0 || state.coins >= 200;
-    btn.style.opacity = canUse ? "1" : "0.3";
+    btn.style.opacity = canUse ? "1" : "0.55";
     btn.classList.toggle("active-pick", state.pickMode);
     const badge = document.getElementById("target-badge");
     if (badge) badge.textContent = state.freeTargets > 0 ? state.freeTargets : "";
@@ -920,21 +915,18 @@ async function goToLevel(num) {
 
 function renderAll() {
     const app = document.getElementById("app");
-    app.style.background = theme.bg;
     app.style.color = theme.text;
 
-    // Background image overlay (if enabled and available)
-    if (state.bgImages && level && _bgManifest) {
+    // Background image (with dark fallback)
+    if (level && _bgManifest) {
         const key = getBgImageKey(level);
         if (_bgManifest.has(key)) {
-            app.style.backgroundImage = `url('images/bg/${key}.webp')`;
-            app.style.backgroundSize = 'cover';
-            app.style.backgroundPosition = 'center';
+            app.style.background = `linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0.35) 100%), url('images/bg/${key}.webp') center/cover no-repeat`;
         } else {
-            app.style.backgroundImage = 'none';
+            app.style.background = '#0a0312';
         }
     } else {
-        app.style.backgroundImage = 'none';
+        app.style.background = '#0a0312';
     }
 
     renderHeader();
@@ -959,7 +951,7 @@ function renderHeader() {
     }
     hdr.style.color = theme.text;
     hdr.innerHTML = `
-        <button id="menu-btn" style="background:none;border:none;padding:4px;cursor:pointer;font-size:28px;line-height:1">⚙️</button>
+        <button id="menu-btn" style="background:none;border:none;padding:4px 4px 4px 0;cursor:pointer;font-size:28px;line-height:1">⚙️</button>
         <div class="header-center">
             <div class="header-pack">${level.group} · ${level.pack}</div>
             <div class="header-level" style="color:${theme.accent}">Level ${getDisplayLevel()}</div>
@@ -1345,17 +1337,17 @@ function renderWheel() {
                 <line x1="4" y1="4" x2="9" y2="9" stroke="#fc6471"/>
             </svg>
         </button>
-        <button class="circle-btn" id="target-btn" title="Choose letter (200 coins)" style="left:12px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.3'}">
-            <span style="font-size:30px;line-height:1;padding-left:2px">🎯</span>
+        <button class="circle-btn" id="target-btn" title="Choose letter (200 coins)" style="left:12px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.55'}">
+            <span style="font-size:30px;line-height:1;padding-left:1px">🎯</span>
             <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
             <span class="circle-btn-price">200</span>
         </button>
-        <button class="circle-btn" id="hint-btn" title="Hint (100 coins)" style="right:12px;top:${upperBtnTop}px;opacity:${hintCanUse ? '1' : '0.3'}">
+        <button class="circle-btn" id="hint-btn" title="Hint (100 coins)" style="right:12px;top:${upperBtnTop}px;opacity:${hintCanUse ? '1' : '0.55'}">
             <span style="font-size:24px;line-height:1">💡</span>
             <span class="circle-btn-badge" id="hint-badge">${state.freeHints > 0 ? state.freeHints : ''}</span>
             <span class="circle-btn-price">100</span>
         </button>
-        <button class="circle-btn" id="rocket-btn" title="Rocket hint (300 coins)" style="right:12px;top:${lowerBtnTop}px;opacity:${rocketCanUse ? '1' : '0.3'}">
+        <button class="circle-btn" id="rocket-btn" title="Rocket hint (300 coins)" style="right:12px;top:${lowerBtnTop}px;opacity:${rocketCanUse ? '1' : '0.55'}">
             <span style="font-size:26px;line-height:1">🚀</span>
             <span class="circle-btn-badge" id="rocket-badge">${state.freeRockets > 0 ? state.freeRockets : ''}</span>
             <span class="circle-btn-price">300</span>
@@ -1462,7 +1454,7 @@ function renderHintBtn() {
     const btn = document.getElementById("hint-btn");
     if (!btn) return;
     const canUse = state.freeHints > 0 || state.coins >= 100;
-    btn.style.opacity = canUse ? "1" : "0.3";
+    btn.style.opacity = canUse ? "1" : "0.55";
     const badge = document.getElementById("hint-badge");
     if (badge) badge.textContent = state.freeHints > 0 ? state.freeHints : "";
 }
@@ -1507,7 +1499,7 @@ function renderRocketBtn() {
     const btn = document.getElementById("rocket-btn");
     if (!btn) return;
     const canUse = state.freeRockets > 0 || state.coins >= 300;
-    btn.style.opacity = canUse ? "1" : "0.3";
+    btn.style.opacity = canUse ? "1" : "0.55";
     const badge = document.getElementById("rocket-badge");
     if (badge) badge.textContent = state.freeRockets > 0 ? state.freeRockets : "";
 }
@@ -1925,7 +1917,22 @@ function onWheelEnd(e) {
 function updateWheelVisuals() {
     // Update current word display
     const cw = document.getElementById("current-word");
-    if (cw) cw.textContent = wheelState.word || "\u00A0";
+    if (cw) {
+        cw.textContent = wheelState.word || "\u00A0";
+        if (wheelState.word) {
+            cw.style.background = theme.accent + "90";
+            cw.style.border = "1px solid " + theme.accent;
+            cw.style.borderRadius = "999px";
+            cw.style.padding = "0 20px";
+            cw.style.color = "#fff";
+        } else {
+            cw.style.background = "";
+            cw.style.border = "";
+            cw.style.borderRadius = "";
+            cw.style.padding = "";
+            cw.style.color = theme.accent;
+        }
+    }
 
     // Update letter highlighting
     for (let i = 0; i < wheelLetters.length; i++) {
@@ -2114,14 +2121,6 @@ function renderMenu() {
         </div>
     `;
 
-    // Background Images toggle
-    html += `
-        <div class="menu-setting">
-            <label class="menu-setting-label">Background</label>
-            <button class="menu-setting-btn" id="bg-toggle-btn" style="background:${state.bgImages ? theme.accent : 'rgba(255,255,255,0.1)'};color:${state.bgImages ? '#000' : 'rgba(255,255,255,0.6)'};width:100%;padding:10px 0;font-size:14px">${state.bgImages ? '🖼️ Scenic Images' : '🎨 Gradients'}</button>
-        </div>
-    `;
-
     // Check for Updates
     html += `
         <div class="menu-setting">
@@ -2157,13 +2156,6 @@ function renderMenu() {
         state.soundEnabled = !state.soundEnabled;
         saveProgress();
         renderMenu();
-    };
-
-    document.getElementById("bg-toggle-btn").onclick = () => {
-        state.bgImages = !state.bgImages;
-        saveProgress();
-        renderMenu();
-        renderAll();
     };
 
     document.getElementById("menu-map-btn").onclick = () => {
@@ -2313,7 +2305,6 @@ function renderMenu() {
             state.inProgress = {};
             state.lastDailyClaim = null;
             state.soundEnabled = true;
-            state.bgImages = false;
             state.coins = 50;
             state.showMenu = false;
             saveProgress();
@@ -2522,7 +2513,7 @@ async function init() {
     if (typeof initLevelLoader === "function") {
         await initLevelLoader();
     }
-    loadBgManifest(); // fire and forget — non-blocking
+    await loadBgManifest();
 
     loadProgress();
     await recompute();
