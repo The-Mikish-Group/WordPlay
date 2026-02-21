@@ -1110,13 +1110,18 @@ function renderGrid() {
     // Include individually hinted cells
     for (const k of state.revealedCells) revealed.add(k);
 
-    const gap = 4;
-    // Measure actual rendered width via getBoundingClientRect (always accurate)
+    // Measure actual rendered dimensions via getBoundingClientRect
     const appEl = document.getElementById("app");
     const appW = appEl ? appEl.getBoundingClientRect().width : window.innerWidth;
+    const areaRect = area.getBoundingClientRect();
     const availW = appW - 24; // subtract grid-area horizontal padding (12px each side)
+    const availH = areaRect.height > 0 ? areaRect.height - 8 : window.innerHeight * 0.38;
+    // Compute cell size first, then derive gap from it
+    const rawCs = Math.min(Math.floor(availW / cols), Math.floor(availH / rows), 44);
+    const gap = rawCs >= 30 ? 4 : 2;
+    // Recompute with gap accounted for
     const vw = availW - gap * (cols - 1);
-    const vh = window.innerHeight * 0.34 - gap * (rows - 1);
+    const vh = availH - gap * (rows - 1);
     const cs = Math.min(Math.floor(vw / cols), Math.floor(vh / rows), 44);
     const fs = Math.max(cs * 0.55, 16);
     const br = cs >= 36 ? 6 : cs >= 26 ? 3 : 2;
