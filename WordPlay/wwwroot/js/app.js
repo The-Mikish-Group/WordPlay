@@ -2325,7 +2325,7 @@ function renderSnakeNodes(pack, accent) {
         const rowCount = Math.min(cols, total - r * cols);
         for (let c = 0; c < rowCount; c++) {
             const lvNum = pack.start + r * cols + c;
-            const isCompleted = lvNum < state.highestLevel;
+            const isCompleted = !!state.levelHistory[lvNum];
             const isCurrent = lvNum === state.currentLevel;
             const isAvailable = lvNum <= state.highestLevel;
             let cls = 'map-node';
@@ -2405,11 +2405,12 @@ function renderMap() {
         const isGiant = total > PACK_MAX_EXPANDABLE;
         const packTheme = typeof getThemeForGroup === "function" ? getThemeForGroup(p.group) : "sunrise";
         const accent = (THEMES[packTheme] || THEMES.sunrise).accent;
-        const completed = Math.max(0, Math.min(total, state.highestLevel - p.start));
+        let completed = 0;
+        for (let lv = p.start; lv <= p.end; lv++) { if (state.levelHistory[lv]) completed++; }
         const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
         const isActive = state.currentLevel >= p.start && state.currentLevel <= p.end;
         const isLocked = state.highestLevel < p.start;
-        const isDone = state.highestLevel > p.end;
+        const isDone = completed === total;
         const isExpanded = !isGiant && _mapExpandedPacks[key];
 
         // Group divider

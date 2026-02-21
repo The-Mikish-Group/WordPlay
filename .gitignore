@@ -32,3 +32,4 @@ WordPlay/wwwroot/images/bg/*.webp
 Thumbs.db
 .DS_Store
 nul
+/package.json
