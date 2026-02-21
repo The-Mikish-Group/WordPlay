@@ -143,6 +143,7 @@ html, body {
     cursor: pointer;
     animation: dailyPulse 2s ease-in-out infinite;
     background: none;
+    z-index: 5;
     border: none;
     display: flex;
     align-items: center;

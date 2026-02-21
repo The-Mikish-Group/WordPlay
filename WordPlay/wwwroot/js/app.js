@@ -1173,13 +1173,13 @@ function renderGrid() {
             div.style.fontSize = fs + "px";
 
             if (isR) {
-                div.style.background = theme.accent + "cc";
+                div.style.background = theme.accent;
                 div.style.border = "none";
                 div.style.color = "#fff";
                 div.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
                 div.textContent = cell;
             } else {
-                div.style.background = state.pickMode ? "rgba(255,255,200,0.85)" : "rgba(255,255,255,0.75)";
+                div.style.background = state.pickMode ? "rgba(255,255,200,1)" : "rgba(220,215,230,1)";
                 div.style.border = state.pickMode ? "2px solid " + theme.accent : "none";
                 div.style.color = "transparent";
                 div.textContent = "";
