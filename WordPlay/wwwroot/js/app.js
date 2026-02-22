@@ -126,6 +126,7 @@ const state = {
     loading: false,
     pickMode: false,       // target-hint: user taps a cell to reveal it
     soundEnabled: true,    // sound effects on/off
+    standaloneFound: false, // whether the standalone coin word has been solved
 };
 
 // ---- MAP STATE ----
@@ -160,6 +161,7 @@ function preloadBgImage(key) {
 
 // ---- COMPUTED ----
 let level, theme, crossword, placedWords, bonusPool, totalRequired, wheelLetters;
+let standaloneWord = null;
 
 function getDisplayLevel() {
     return state.currentLevel;
@@ -190,11 +192,18 @@ async function recompute() {
     // Determine grid words vs bonus words
     const gridWords = level.words;
 
-    crossword = generateCrosswordGrid(gridWords);
+    const extracted = extractStandaloneWord(gridWords, 12);
+    crossword = extracted.crossword;
+    standaloneWord = extracted.standalone;
+
     placedWords = crossword.placements.map(p => p.word);
+    // The standalone word counts as a required word for level completion
+    if (standaloneWord) placedWords.push(standaloneWord);
     // Words that couldn't be placed in the crossword become bonus
-    const overflow = gridWords.filter(w => !placedWords.includes(w));
+    const overflow = gridWords.filter(w => !placedWords.includes(w) && w !== standaloneWord);
     bonusPool = [...(level.bonus || []), ...overflow];
+    // Filter standalone from bonus pool so it doesn't appear there
+    if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
     totalRequired = placedWords.length;
     rebuildWheelLetters();
     // Preload next chunk
@@ -250,6 +259,7 @@ function loadProgress() {
             state.inProgress = d.ip || {};
             state.lastDailyClaim = d.ldc || null;
             state.soundEnabled = d.se !== undefined ? d.se : true;
+            state.standaloneFound = d.sf || false;
         }
     } catch (e) { /* ignore */ }
 }
@@ -273,17 +283,19 @@ function saveProgress() {
             ip: state.inProgress,
             ldc: state.lastDailyClaim,
             se: state.soundEnabled,
+            sf: state.standaloneFound,
         }));
     } catch (e) { /* ignore */ }
 }
 
 function saveInProgressState() {
     const lv = state.currentLevel;
-    if (state.foundWords.length > 0 || state.revealedCells.length > 0 || state.bonusFound.length > 0) {
+    if (state.foundWords.length > 0 || state.revealedCells.length > 0 || state.bonusFound.length > 0 || state.standaloneFound) {
         state.inProgress[lv] = {
             fw: [...state.foundWords],
             bf: [...state.bonusFound],
             rc: [...state.revealedCells],
+            sf: state.standaloneFound,
         };
     }
 }
@@ -300,6 +312,7 @@ function restoreLevelState() {
         state.foundWords = placedWords.filter(w => state.levelHistory[lv].includes(w));
         state.bonusFound = [];
         state.revealedCells = [];
+        state.standaloneFound = standaloneWord ? state.levelHistory[lv].includes(standaloneWord) : false;
         delete state.inProgress[lv];
         return;
     }
@@ -309,6 +322,11 @@ function restoreLevelState() {
         state.foundWords = (ip.fw || []).filter(w => placedWords.includes(w));
         state.bonusFound = ip.bf || [];
         state.revealedCells = ip.rc || [];
+        state.standaloneFound = ip.sf || false;
+        // If standalone was found, ensure it's in foundWords
+        if (state.standaloneFound && standaloneWord && !state.foundWords.includes(standaloneWord)) {
+            state.foundWords.push(standaloneWord);
+        }
         // Auto-complete any words whose cells are all now visible
         while (checkAutoCompleteWords()) {}
         return;
@@ -340,6 +358,31 @@ function showToast(msg, color, fast, bg) {
 // ---- WORD HANDLING ----
 function handleWord(word) {
     const w = word.toUpperCase();
+
+    // Standalone coin word check
+    if (standaloneWord && w === standaloneWord) {
+        if (state.standaloneFound) {
+            showToast("Already found", "rgba(255,255,255,0.5)", true);
+            return;
+        }
+        state.standaloneFound = true;
+        if (!state.foundWords.includes(w)) state.foundWords.push(w);
+        state.coins += 100;
+        saveProgress();
+        renderStandaloneRow();
+        renderCoins();
+        renderWordCount();
+        playSound("bonusChime");
+        showToast("🪙 Coin Word! +100 🪙", theme.accent);
+        setTimeout(() => animateCoinFlyFromStandalone(), 200);
+        if (state.foundWords.length === totalRequired) {
+            state.levelHistory[state.currentLevel] = [...state.foundWords];
+            delete state.inProgress[state.currentLevel];
+            saveProgress();
+            setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+        }
+        return;
+    }
 
     if (state.foundWords.includes(w) || state.bonusFound.includes(w)) {
         showToast("Already found", "rgba(255,255,255,0.5)", true);
@@ -873,6 +916,7 @@ async function handleNextLevel() {
     state.foundWords = [];
     state.bonusFound = [];
     state.revealedCells = [];
+    state.standaloneFound = false;
     state.showComplete = false;
     if (!isReplay) {
         state.coins += 1;
@@ -910,6 +954,7 @@ async function goToLevel(num) {
     state.foundWords = [];
     state.bonusFound = [];
     state.revealedCells = [];
+    state.standaloneFound = false;
     state.showMenu = false;
     state.showMap = false;
     state.shuffleKey = 0;
@@ -943,6 +988,7 @@ function renderAll() {
     renderHeader();
     renderWheel(); // render wheel before grid so grid-area has correct height
     renderGrid();
+    renderStandaloneRow();
 
     renderWordCount();
     renderBonusStar();
@@ -1192,6 +1238,121 @@ function renderGrid() {
                 }
             }
         }
+    }
+}
+
+// ---- STANDALONE COIN ROW ----
+function renderStandaloneRow() {
+    const area = document.getElementById("grid-area");
+    if (!area) return;
+    let row = document.getElementById("standalone-row");
+
+    if (!standaloneWord) {
+        if (row) row.remove();
+        return;
+    }
+
+    if (!row) {
+        row = document.createElement("div");
+        row.id = "standalone-row";
+        row.className = "standalone-row";
+        area.appendChild(row);
+    }
+
+    // Match cell size to grid cells
+    const gc = document.getElementById("grid-container");
+    let cs = 36; // default
+    if (gc && gc.children.length > 0) {
+        const firstCell = gc.querySelector(".grid-cell");
+        if (firstCell) cs = firstCell.offsetWidth || 36;
+    }
+    cs = Math.min(cs, 40);
+    const fs = Math.max(cs * 0.5, 14);
+    const br = cs >= 36 ? 6 : cs >= 26 ? 3 : 2;
+
+    row.innerHTML = "";
+    const solved = state.standaloneFound;
+
+    for (let i = 0; i < standaloneWord.length; i++) {
+        const cell = document.createElement("div");
+        cell.className = "standalone-cell" + (solved ? " solved" : "");
+        cell.style.width = cs + "px";
+        cell.style.height = cs + "px";
+        cell.style.borderRadius = br + "px";
+        cell.style.fontSize = fs + "px";
+
+        if (solved) {
+            cell.style.background = theme.accent;
+            cell.style.color = "#fff";
+            cell.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
+            cell.textContent = standaloneWord[i];
+        } else {
+            cell.style.background = "rgba(220,215,230,1)";
+            cell.innerHTML = '<span class="standalone-coin">🪙</span>';
+        }
+        row.appendChild(cell);
+    }
+}
+
+function animateCoinFlyFromStandalone() {
+    const row = document.getElementById("standalone-row");
+    const coinDisplay = document.getElementById("coin-display");
+    if (!row || !coinDisplay) return;
+
+    const rowRect = row.getBoundingClientRect();
+    const coinRect = coinDisplay.getBoundingClientRect();
+    const startX = rowRect.left + rowRect.width / 2;
+    const startY = rowRect.top + rowRect.height / 2;
+    const endX = coinRect.left + coinRect.width / 2;
+    const endY = coinRect.top + coinRect.height / 2;
+
+    // Floating gain text
+    const gainText = document.createElement("div");
+    gainText.className = "coin-gain-text";
+    gainText.textContent = "+100";
+    gainText.style.left = endX + "px";
+    gainText.style.top = endY + "px";
+    document.body.appendChild(gainText);
+    setTimeout(() => gainText.remove(), 900);
+
+    const count = 8;
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+            const p = document.createElement("div");
+            p.className = "coin-particle";
+            p.textContent = "\uD83E\uDE99";
+            const sx = startX + (Math.random() - 0.5) * 60;
+            const sy = startY + (Math.random() - 0.5) * 30;
+            p.style.left = sx + "px";
+            p.style.top = sy + "px";
+            document.body.appendChild(p);
+
+            const curveX = (Math.random() - 0.5) * 80;
+            const curveY = (Math.random() - 0.5) * 40 - 30;
+            const midX = (sx + endX) / 2 + curveX;
+            const midY = (sy + endY) / 2 + curveY;
+            const duration = 500 + Math.random() * 200;
+
+            let start = null;
+            function animate(ts) {
+                if (!start) start = ts;
+                const t = Math.min((ts - start) / duration, 1);
+                const u = 1 - t;
+                const x = u * u * sx + 2 * u * t * midX + t * t * endX;
+                const y = u * u * sy + 2 * u * t * midY + t * t * endY;
+                const scale = 0.6 + t * 0.4;
+                p.style.left = x + "px";
+                p.style.top = y + "px";
+                p.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                p.style.opacity = 0.4 + t * 0.6;
+                if (t < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    p.remove();
+                }
+            }
+            requestAnimationFrame(animate);
+        }, i * 60);
     }
 }
 
@@ -2583,6 +2744,7 @@ async function init() {
     // Handle resize
     window.addEventListener("resize", () => {
         renderGrid();
+        renderStandaloneRow();
         renderWheel();
     });
 }

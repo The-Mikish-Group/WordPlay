@@ -190,3 +190,58 @@ function _buildGrid(sortedWords, firstDir) {
 
     return { grid: trimmedGrid, placements: trimmedPlacements, rows, cols };
 }
+
+// ============================================================
+// Standalone Coin Word Extraction
+//
+// If a generated crossword exceeds maxDim rows or cols, try
+// removing a 4-5 letter edge word to shrink the grid. The
+// removed word becomes a standalone "coin word" displayed
+// separately.
+// ============================================================
+function extractStandaloneWord(words, maxDim) {
+    if (typeof maxDim !== "number") maxDim = 12;
+    const initial = generateCrosswordGrid(words);
+    if (initial.rows <= maxDim && initial.cols <= maxDim) {
+        return { crossword: initial, standalone: null };
+    }
+
+    // Find candidates: 4-5 letter placed words on a grid edge
+    const candidates = [];
+    for (const p of initial.placements) {
+        if (p.word.length < 4 || p.word.length > 5) continue;
+        const onEdge = p.cells.some(c =>
+            c.row === 0 || c.row === initial.rows - 1 ||
+            c.col === 0 || c.col === initial.cols - 1
+        );
+        if (onEdge) candidates.push(p.word);
+    }
+    if (!candidates.length) {
+        return { crossword: initial, standalone: null };
+    }
+
+    // Try removing each candidate and measure shrinkage
+    let bestResult = null;
+    let bestWord = null;
+    let bestShrink = 0;
+
+    for (const cand of candidates) {
+        const reduced = words.filter(w => w !== cand);
+        const result = generateCrosswordGrid(reduced);
+        // All remaining words must still be placed
+        if (result.placements.length < reduced.length) continue;
+        const oldMax = Math.max(initial.rows, initial.cols);
+        const newMax = Math.max(result.rows, result.cols);
+        const shrink = oldMax - newMax;
+        if (shrink > bestShrink) {
+            bestShrink = shrink;
+            bestResult = result;
+            bestWord = cand;
+        }
+    }
+
+    if (bestWord && bestShrink >= 2) {
+        return { crossword: bestResult, standalone: bestWord };
+    }
+    return { crossword: initial, standalone: null };
+}
