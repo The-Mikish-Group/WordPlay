@@ -1284,8 +1284,6 @@ function animateCoinFlyFromStandalone() {
     const coinRect = coinDisplay.getBoundingClientRect();
     const endX = coinRect.left + coinRect.width / 2;
     const endY = coinRect.top + coinRect.height / 2;
-    const endX = coinRect.left + coinRect.width / 2;
-    const endY = coinRect.top + coinRect.height / 2;
 
     // Floating gain text
     const gainText = document.createElement("div");
