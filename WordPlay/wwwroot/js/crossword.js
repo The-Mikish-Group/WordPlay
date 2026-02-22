@@ -250,38 +250,55 @@ function extractStandaloneWord(words, maxDim) {
 
 // Place the standalone word in contiguous empty cells of the
 // last row (preferred) or first row. Returns true on success.
+// Enforces adjacency: no occupied cell in the neighboring row
+// directly above/below any letter, and empty gaps before/after.
 function _injectStandalone(cw, word) {
     const { grid, placements, rows, cols } = cw;
     if (word.length > cols) return false;
 
     for (const targetRow of [rows - 1, 0]) {
-        // Find the longest contiguous empty block in this row
-        let bestStart = -1, bestLen = 0;
-        let start = -1, len = 0;
-        for (let c = 0; c <= cols; c++) {
-            if (c < cols && grid[targetRow][c] === null) {
-                if (start === -1) start = c;
-                len++;
-            } else {
-                if (len >= word.length && len > bestLen) {
-                    bestStart = start;
-                    bestLen = len;
-                }
-                start = -1;
-                len = 0;
-            }
-        }
-        if (bestStart < 0) continue;
+        // The adjacent row toward the grid interior
+        const adjRow = targetRow === 0 ? 1 : targetRow - 1;
 
-        // Center the word in the empty block
-        const col0 = bestStart + Math.floor((bestLen - word.length) / 2);
+        // Find all valid start positions in this row
+        // A position is valid if:
+        //  - all cells in [col0 .. col0+len-1] are empty in targetRow
+        //  - all cells in [col0 .. col0+len-1] are empty in adjRow
+        //  - cell before (col0-1) in targetRow is empty or OOB
+        //  - cell after (col0+len) in targetRow is empty or OOB
+        let bestCol0 = -1, bestScore = -Infinity;
+
+        for (let col0 = 0; col0 <= cols - word.length; col0++) {
+            // Gap before
+            if (col0 > 0 && grid[targetRow][col0 - 1] !== null) continue;
+            // Gap after
+            if (col0 + word.length < cols && grid[targetRow][col0 + word.length] !== null) continue;
+
+            let valid = true;
+            for (let i = 0; i < word.length; i++) {
+                const c = col0 + i;
+                // Must be empty in target row
+                if (grid[targetRow][c] !== null) { valid = false; break; }
+                // Must be empty in adjacent row (no fake 2-cell groups)
+                if (grid[adjRow][c] !== null) { valid = false; break; }
+            }
+            if (!valid) continue;
+
+            // Score: prefer centered placement
+            const mid = (col0 + col0 + word.length - 1) / 2;
+            const score = -Math.abs(mid - (cols - 1) / 2);
+            if (score > bestScore) { bestScore = score; bestCol0 = col0; }
+        }
+
+        if (bestCol0 < 0) continue;
+
         const cells = [];
         for (let i = 0; i < word.length; i++) {
-            grid[targetRow][col0 + i] = word[i];
-            cells.push({ row: targetRow, col: col0 + i, letter: word[i] });
+            grid[targetRow][bestCol0 + i] = word[i];
+            cells.push({ row: targetRow, col: bestCol0 + i, letter: word[i] });
         }
-        placements.push({ word, row: targetRow, col: col0, direction: "h", cells, standalone: true });
+        placements.push({ word, row: targetRow, col: bestCol0, direction: "h", cells, standalone: true });
         return true;
     }
-    return false; // no space — skip standalone
+    return false; // no valid space — skip standalone
 }
