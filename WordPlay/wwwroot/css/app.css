@@ -219,24 +219,8 @@ html, body {
     position: relative;
 }
 
-/* ---- STANDALONE COIN ROW ---- */
-.standalone-row {
-    display: flex;
-    justify-content: center;
-    gap: 4px;
-    padding: 4px 0;
-}
-
-.standalone-cell {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
-    transition: background 0.35s ease, color 0.35s ease;
-}
-
-.standalone-cell .standalone-coin {
+/* ---- STANDALONE COIN CELLS (in-grid) ---- */
+.standalone-coin {
     font-size: 20px;
     animation: coinBob 2s ease-in-out infinite;
 }

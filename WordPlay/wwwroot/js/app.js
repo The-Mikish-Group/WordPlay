@@ -197,10 +197,8 @@ async function recompute() {
     standaloneWord = extracted.standalone;
 
     placedWords = crossword.placements.map(p => p.word);
-    // The standalone word counts as a required word for level completion
-    if (standaloneWord) placedWords.push(standaloneWord);
     // Words that couldn't be placed in the crossword become bonus
-    const overflow = gridWords.filter(w => !placedWords.includes(w) && w !== standaloneWord);
+    const overflow = gridWords.filter(w => !placedWords.includes(w));
     bonusPool = [...(level.bonus || []), ...overflow];
     // Filter standalone from bonus pool so it doesn't appear there
     if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
@@ -310,9 +308,13 @@ function restoreLevelState() {
             state.levelHistory[lv] = [...placedWords];
         }
         state.foundWords = placedWords.filter(w => state.levelHistory[lv].includes(w));
+        // Auto-include standalone for levels completed before the feature existed
+        if (standaloneWord && !state.foundWords.includes(standaloneWord)) {
+            state.foundWords.push(standaloneWord);
+        }
         state.bonusFound = [];
         state.revealedCells = [];
-        state.standaloneFound = standaloneWord ? state.levelHistory[lv].includes(standaloneWord) : false;
+        state.standaloneFound = !!standaloneWord;
         delete state.inProgress[lv];
         return;
     }
@@ -369,7 +371,8 @@ function handleWord(word) {
         if (!state.foundWords.includes(w)) state.foundWords.push(w);
         state.coins += 100;
         saveProgress();
-        renderStandaloneRow();
+        renderGrid();
+        highlightWord(w);
         renderCoins();
         renderWordCount();
         playSound("bonusChime");
@@ -488,9 +491,10 @@ function pickRandomUnrevealedCell() {
     }
     for (const k of state.revealedCells) visible.add(k);
 
-    // Collect all valid cells that are not visible
+    // Collect all valid cells that are not visible (skip standalone coin cells)
     const candidates = [];
     for (const p of crossword.placements) {
+        if (p.standalone) continue;
         for (const c of p.cells) {
             const k = c.row + "," + c.col;
             if (!visible.has(k)) candidates.push(k);
@@ -515,6 +519,7 @@ function checkAutoCompleteWords() {
     let changed = false;
     for (const p of crossword.placements) {
         if (state.foundWords.includes(p.word)) continue;
+        if (p.standalone) continue; // standalone word must be spelled, not auto-completed
         const allRevealed = p.cells.every(c => visible.has(c.row + "," + c.col));
         if (allRevealed) {
             state.foundWords.push(p.word);
@@ -988,7 +993,6 @@ function renderAll() {
     renderHeader();
     renderWheel(); // render wheel before grid so grid-area has correct height
     renderGrid();
-    renderStandaloneRow();
 
     renderWordCount();
     renderBonusStar();
@@ -1152,10 +1156,14 @@ function renderGrid() {
 
     const revealed = new Set();
     const valid = new Set();
+    const standaloneCells = new Set();
     for (const p of placements) {
         for (const c of p.cells) valid.add(c.row + "," + c.col);
         if (state.foundWords.includes(p.word)) {
             for (const c of p.cells) revealed.add(c.row + "," + c.col);
+        }
+        if (p.standalone) {
+            for (const c of p.cells) standaloneCells.add(c.row + "," + c.col);
         }
     }
     // Include individually hinted cells
@@ -1167,15 +1175,13 @@ function renderGrid() {
     const areaRect = area.getBoundingClientRect();
     const availW = appW - 24; // subtract grid-area horizontal padding (12px each side)
     const availH = areaRect.height > 0 ? areaRect.height - 12 : window.innerHeight * 0.38;
-    // Account for standalone coin row taking one extra row of space
-    const effectiveRows = rows + (standaloneWord ? 1.5 : 0);
     // Compute cell size first, then derive gap from it
-    const rawCs = Math.min(Math.floor(availW / cols), Math.floor(availH / effectiveRows), 44);
+    const rawCs = Math.min(Math.floor(availW / cols), Math.floor(availH / rows), 44);
     const gap = rawCs >= 30 ? 4 : 2;
     // Recompute with gap accounted for
     const vw = availW - gap * (cols - 1);
-    const vh = availH - gap * (effectiveRows - 1);
-    const cs = Math.min(Math.floor(vw / cols), Math.floor(vh / effectiveRows), 44);
+    const vh = availH - gap * (rows - 1);
+    const cs = Math.min(Math.floor(vw / cols), Math.floor(vh / rows), 44);
     const fs = Math.max(cs * 0.55, 16);
     const br = cs >= 36 ? 6 : cs >= 26 ? 3 : 2;
 
@@ -1226,10 +1232,20 @@ function renderGrid() {
                 div.style.color = "#fff";
                 div.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
                 div.textContent = cell;
+            } else if (standaloneCells.has(k)) {
+                // Unsolved standalone coin cell
+                div.style.background = "rgba(220,215,230,1)";
+                div.style.border = "none";
+                div.style.color = "transparent";
+                div.style.textShadow = "";
+                div.innerHTML = '<span class="standalone-coin">\uD83E\uDE99</span>';
+                div.style.cursor = "";
+                div.onclick = null;
             } else {
                 div.style.background = state.pickMode ? "rgba(255,255,200,1)" : "rgba(220,215,230,1)";
                 div.style.border = state.pickMode ? "2px solid " + theme.accent : "none";
                 div.style.color = "transparent";
+                div.style.textShadow = "";
                 div.textContent = "";
                 if (state.pickMode) {
                     div.style.cursor = "pointer";
@@ -1243,68 +1259,31 @@ function renderGrid() {
     }
 }
 
-// ---- STANDALONE COIN ROW ----
-function renderStandaloneRow() {
-    const area = document.getElementById("grid-area");
-    if (!area) return;
-    let row = document.getElementById("standalone-row");
-
-    if (!standaloneWord) {
-        if (row) row.remove();
-        return;
-    }
-
-    if (!row) {
-        row = document.createElement("div");
-        row.id = "standalone-row";
-        row.className = "standalone-row";
-        area.appendChild(row);
-    }
-
-    // Match cell size to grid cells
-    const gc = document.getElementById("grid-container");
-    let cs = 36; // default
-    if (gc && gc.children.length > 0) {
-        const firstCell = gc.querySelector(".grid-cell");
-        if (firstCell) cs = firstCell.offsetWidth || 36;
-    }
-    cs = Math.min(cs, 40);
-    const fs = Math.max(cs * 0.5, 14);
-    const br = cs >= 36 ? 6 : cs >= 26 ? 3 : 2;
-
-    row.innerHTML = "";
-    const solved = state.standaloneFound;
-
-    for (let i = 0; i < standaloneWord.length; i++) {
-        const cell = document.createElement("div");
-        cell.className = "standalone-cell" + (solved ? " solved" : "");
-        cell.style.width = cs + "px";
-        cell.style.height = cs + "px";
-        cell.style.borderRadius = br + "px";
-        cell.style.fontSize = fs + "px";
-
-        if (solved) {
-            cell.style.background = theme.accent;
-            cell.style.color = "#fff";
-            cell.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
-            cell.textContent = standaloneWord[i];
-        } else {
-            cell.style.background = "rgba(220,215,230,1)";
-            cell.innerHTML = '<span class="standalone-coin">🪙</span>';
-        }
-        row.appendChild(cell);
-    }
-}
-
 function animateCoinFlyFromStandalone() {
-    const row = document.getElementById("standalone-row");
+    const gc = document.getElementById("grid-container");
     const coinDisplay = document.getElementById("coin-display");
-    if (!row || !coinDisplay) return;
+    if (!gc || !coinDisplay) return;
 
-    const rowRect = row.getBoundingClientRect();
+    // Find standalone cells in the grid to use as animation source
+    let startX = window.innerWidth / 2, startY = window.innerHeight / 2;
+    for (const p of crossword.placements) {
+        if (!p.standalone) continue;
+        const firstIdx = p.cells[0].row * crossword.cols + p.cells[0].col;
+        const lastIdx = p.cells[p.cells.length - 1].row * crossword.cols + p.cells[p.cells.length - 1].col;
+        const firstEl = gc.children[firstIdx];
+        const lastEl = gc.children[lastIdx];
+        if (firstEl && lastEl) {
+            const fr = firstEl.getBoundingClientRect();
+            const lr = lastEl.getBoundingClientRect();
+            startX = (fr.left + lr.right) / 2;
+            startY = (fr.top + lr.bottom) / 2;
+        }
+        break;
+    }
+
     const coinRect = coinDisplay.getBoundingClientRect();
-    const startX = rowRect.left + rowRect.width / 2;
-    const startY = rowRect.top + rowRect.height / 2;
+    const endX = coinRect.left + coinRect.width / 2;
+    const endY = coinRect.top + coinRect.height / 2;
     const endX = coinRect.left + coinRect.width / 2;
     const endY = coinRect.top + coinRect.height / 2;
 
@@ -2746,7 +2725,6 @@ async function init() {
     // Handle resize
     window.addEventListener("resize", () => {
         renderGrid();
-        renderStandaloneRow();
         renderWheel();
     });
 }

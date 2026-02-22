@@ -196,8 +196,8 @@ function _buildGrid(sortedWords, firstDir) {
 //
 // If a generated crossword exceeds maxDim rows or cols, try
 // removing a 4-5 letter edge word to shrink the grid. The
-// removed word becomes a standalone "coin word" displayed
-// separately.
+// removed word is then injected back into empty space in the
+// first or last row of the new grid (never adding rows/cols).
 // ============================================================
 function extractStandaloneWord(words, maxDim) {
     if (typeof maxDim !== "number") maxDim = 12;
@@ -228,7 +228,6 @@ function extractStandaloneWord(words, maxDim) {
     for (const cand of candidates) {
         const reduced = words.filter(w => w !== cand);
         const result = generateCrosswordGrid(reduced);
-        // All remaining words must still be placed
         if (result.placements.length < reduced.length) continue;
         const oldMax = Math.max(initial.rows, initial.cols);
         const newMax = Math.max(result.rows, result.cols);
@@ -241,7 +240,48 @@ function extractStandaloneWord(words, maxDim) {
     }
 
     if (bestWord && bestShrink >= 2) {
-        return { crossword: bestResult, standalone: bestWord };
+        // Inject the coin word into empty space on the first or last row
+        if (_injectStandalone(bestResult, bestWord)) {
+            return { crossword: bestResult, standalone: bestWord };
+        }
     }
     return { crossword: initial, standalone: null };
+}
+
+// Place the standalone word in contiguous empty cells of the
+// last row (preferred) or first row. Returns true on success.
+function _injectStandalone(cw, word) {
+    const { grid, placements, rows, cols } = cw;
+    if (word.length > cols) return false;
+
+    for (const targetRow of [rows - 1, 0]) {
+        // Find the longest contiguous empty block in this row
+        let bestStart = -1, bestLen = 0;
+        let start = -1, len = 0;
+        for (let c = 0; c <= cols; c++) {
+            if (c < cols && grid[targetRow][c] === null) {
+                if (start === -1) start = c;
+                len++;
+            } else {
+                if (len >= word.length && len > bestLen) {
+                    bestStart = start;
+                    bestLen = len;
+                }
+                start = -1;
+                len = 0;
+            }
+        }
+        if (bestStart < 0) continue;
+
+        // Center the word in the empty block
+        const col0 = bestStart + Math.floor((bestLen - word.length) / 2);
+        const cells = [];
+        for (let i = 0; i < word.length; i++) {
+            grid[targetRow][col0 + i] = word[i];
+            cells.push({ row: targetRow, col: col0 + i, letter: word[i] });
+        }
+        placements.push({ word, row: targetRow, col: col0, direction: "h", cells, standalone: true });
+        return true;
+    }
+    return false; // no space — skip standalone
 }
