@@ -222,12 +222,12 @@ html, body {
 /* ---- STANDALONE COIN CELLS (in-grid) ---- */
 .standalone-coin {
     font-size: 20px;
-    animation: coinBob 2s ease-in-out infinite;
+    animation: coinPulse 2s ease-in-out infinite;
 }
 
-@keyframes coinBob {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-3px); }
+@keyframes coinPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.8; }
 }
 
 /* ---- UNPLACED WORDS ---- */
