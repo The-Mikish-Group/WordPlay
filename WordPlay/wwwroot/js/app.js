@@ -1236,9 +1236,10 @@ function renderGrid() {
                 // Unsolved standalone coin cell
                 div.style.background = "rgba(220,215,230,1)";
                 div.style.border = "none";
-                div.style.color = "transparent";
+                div.style.color = "";
                 div.style.textShadow = "";
-                div.innerHTML = '<span class="standalone-coin">\uD83E\uDE99</span>';
+                const coinFs = Math.max(cs * 0.7, 10);
+                div.innerHTML = '<span class="standalone-coin" style="font-size:' + coinFs + 'px">\uD83E\uDE99</span>';
                 div.style.cursor = "";
                 div.onclick = null;
             } else {
