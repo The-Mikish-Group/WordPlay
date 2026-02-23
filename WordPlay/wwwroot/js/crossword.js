@@ -217,14 +217,14 @@ function extractStandaloneWord(words, maxDim) {
         if (onEdge) candidates.push(p.word);
     }
     if (!candidates.length) {
+        // Fallback: check for naturally-detached words in the original grid
+        const detached = _findDetachedWord(initial);
+        if (detached) return { crossword: initial, standalone: detached };
         return { crossword: initial, standalone: null };
     }
 
-    // Try removing each candidate and measure shrinkage
-    let bestResult = null;
-    let bestWord = null;
-    let bestShrink = 0;
-
+    // Try removing each candidate, measure shrinkage, collect all viable options
+    const viable = [];
     for (const cand of candidates) {
         const reduced = words.filter(w => w !== cand);
         const result = generateCrosswordGrid(reduced);
@@ -232,20 +232,54 @@ function extractStandaloneWord(words, maxDim) {
         const oldMax = Math.max(initial.rows, initial.cols);
         const newMax = Math.max(result.rows, result.cols);
         const shrink = oldMax - newMax;
-        if (shrink > bestShrink) {
-            bestShrink = shrink;
-            bestResult = result;
-            bestWord = cand;
+        if (shrink >= 2) viable.push({ word: cand, result, shrink });
+    }
+
+    // Try each viable candidate (best shrink first) through injection
+    viable.sort((a, b) => b.shrink - a.shrink);
+    for (const v of viable) {
+        if (_injectStandalone(v.result, v.word)) {
+            return { crossword: v.result, standalone: v.word };
         }
     }
 
-    if (bestWord && bestShrink >= 2) {
-        // Inject the coin word into empty space on the first or last row
-        if (_injectStandalone(bestResult, bestWord)) {
-            return { crossword: bestResult, standalone: bestWord };
-        }
-    }
+    // Fallback: check for naturally-detached words in the original grid
+    const detached = _findDetachedWord(initial);
+    if (detached) return { crossword: initial, standalone: detached };
+
     return { crossword: initial, standalone: null };
+}
+
+// Check if any 4-5 letter horizontal word in the first or last row
+// is already naturally detached (no vertical neighbors on any cell,
+// gap before/after). If found, mark its placement as standalone.
+function _findDetachedWord(cw) {
+    const { grid, placements, rows, cols } = cw;
+    for (const p of placements) {
+        if (p.word.length < 4 || p.word.length > 5) continue;
+        if (p.direction !== "h") continue;
+        if (p.row !== 0 && p.row !== rows - 1) continue;
+
+        const adjRow = p.row === 0 ? 1 : p.row - 1;
+        let detached = true;
+        for (const c of p.cells) {
+            // Check the adjacent row cell is empty
+            if (adjRow >= 0 && adjRow < rows && grid[adjRow][c.col] !== null) {
+                detached = false;
+                break;
+            }
+        }
+        if (!detached) continue;
+
+        // Verify gap before and after the word in its row
+        if (p.col > 0 && grid[p.row][p.col - 1] !== null) continue;
+        if (p.col + p.word.length < cols && grid[p.row][p.col + p.word.length] !== null) continue;
+
+        // This word is naturally detached — mark it as standalone
+        p.standalone = true;
+        return p.word;
+    }
+    return null;
 }
 
 // Place the standalone word in contiguous empty cells of the
