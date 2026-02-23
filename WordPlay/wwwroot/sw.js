@@ -1,12 +1,14 @@
-const CACHE_NAME = 'wordplay-v50';
+const CACHE_NAME = 'wordplay-v51';
 const ASSETS = [
     '/',
     '/index.html',
-    '/css/app.css?v=10',
-    '/js/app.js?v=10',
-    '/js/levels.js?v=10',
-    '/js/level-loader.js?v=10',
-    '/js/crossword.js?v=10',
+    '/css/app.css?v=11',
+    '/js/auth.js?v=11',
+    '/js/sync.js?v=11',
+    '/js/app.js?v=11',
+    '/js/levels.js?v=11',
+    '/js/level-loader.js?v=11',
+    '/js/crossword.js?v=11',
     '/manifest.json',
 ];
 
@@ -21,6 +23,19 @@ self.addEventListener('install', e => {
 
 self.addEventListener('fetch', e => {
     const url = new URL(e.request.url);
+
+    // API calls: network-only, never cache. Return 503 JSON if offline.
+    if (url.pathname.startsWith('/api/')) {
+        e.respondWith(
+            fetch(e.request).catch(() =>
+                new Response(JSON.stringify({ error: "offline" }), {
+                    status: 503,
+                    headers: { 'Content-Type': 'application/json' }
+                })
+            )
+        );
+        return;
+    }
 
     // Data files (level chunks): cache after first fetch, then serve from cache
     if (url.pathname.startsWith('/data/')) {

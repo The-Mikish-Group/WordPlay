@@ -18,6 +18,8 @@ package-lock.json
 ## Environment secrets
 .env
 tools/.env
+appsettings.json
+appsettings.*.json
 
 ## Scraper
 scraper/

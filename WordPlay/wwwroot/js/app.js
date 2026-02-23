@@ -127,7 +127,11 @@ const state = {
     pickMode: false,       // target-hint: user taps a cell to reveal it
     soundEnabled: true,    // sound effects on/off
     standaloneFound: false, // whether the standalone coin word has been solved
+    showLeaderboard: false,
 };
+
+// ---- MENU SECRET ----
+let _menuSecretTaps = 0;
 
 // ---- MAP STATE ----
 let _mapExpandedPacks = {};       // { "group/pack": true }
@@ -283,6 +287,7 @@ function saveProgress() {
             se: state.soundEnabled,
             sf: state.standaloneFound,
         }));
+        if (typeof scheduleSyncPush === "function") scheduleSyncPush();
     } catch (e) { /* ignore */ }
 }
 
@@ -1003,6 +1008,7 @@ function renderAll() {
     renderCompleteModal();
     renderMenu();
     renderMap();
+    renderLeaderboard();
 }
 
 // ---- HEADER ----
@@ -1026,7 +1032,7 @@ function renderHeader() {
             <button class="daily-btn" id="daily-btn"><span class="daily-text">FREE</span><svg class="daily-coins" width="16" height="22" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg></button>
         </div>
     `;
-    document.getElementById("menu-btn").onclick = () => { state.showMenu = true; renderMenu(); };
+    document.getElementById("menu-btn").onclick = () => { _menuSecretTaps = 0; state.showMenu = true; renderMenu(); };
     document.getElementById("daily-btn").onclick = () => renderDailyModal(true);
     renderDailyBtn();
 }
@@ -1428,6 +1434,7 @@ function highlightWord(word) {
     for (const c of placement.cells) {
         const el = document.querySelector(`.grid-cell[data-key="${c.row},${c.col}"]`);
         if (el) {
+            el.style.setProperty("--cell-found", theme.accent);
             el.classList.add("word-flash");
             setTimeout(() => el.classList.remove("word-flash"), 1400);
         }
@@ -2226,7 +2233,7 @@ function renderMenu() {
                 <div class="menu-stat">Coins: <span style="color:${theme.accent}">🪙 ${state.coins}</span></div>
                 <div class="menu-stat">Levels Available: <span style="color:${theme.accent}">${maxLv.toLocaleString()}</span></div>
             </div>
-            <div class="menu-top-col">
+            <div class="menu-top-col" id="menu-current-level-card" style="cursor:default">
                 <div class="menu-current-label">Current Level</div>
                 <div class="menu-current-num" style="color:${theme.accent}">${state.currentLevel.toLocaleString()}</div>
                 <div class="menu-current-info">${level ? level.group + " \u00b7 " + level.pack : ""}</div>
@@ -2234,6 +2241,39 @@ function renderMenu() {
             </div>
         </div>
     `;
+
+    // Account section
+    if (typeof isSignedIn === "function" && isSignedIn()) {
+        const user = getUser();
+        html += `
+            <div class="menu-setting" style="text-align:center">
+                <div style="font-size:15px;margin-bottom:2px">${user.displayName || user.email || "Player"}</div>
+                ${user.email ? `<div style="font-size:12px;opacity:0.5">${user.email}</div>` : ""}
+                <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
+                    <button class="menu-setting-btn" id="menu-leaderboard-btn" style="background:${theme.accent};color:#000;flex:1;padding:8px 0;font-size:13px">Leaderboard</button>
+                    <button class="menu-setting-btn" id="menu-signout-btn" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);flex:1;padding:8px 0;font-size:13px">Sign Out</button>
+                </div>
+                ${!user.displayName ? `<button class="menu-setting-btn" id="menu-setname-btn" style="background:rgba(255,255,255,0.1);color:${theme.text};width:100%;margin-top:8px;padding:8px 0;font-size:13px">Set Display Name</button>` : ""}
+                <button class="menu-setting-btn" id="menu-lb-toggle" style="background:rgba(255,255,255,0.1);color:${theme.text};width:100%;margin-top:8px;padding:8px 0;font-size:13px">${user.showOnLeaderboard !== false ? "Shown on Leaderboard \u2713" : "Hidden from Leaderboard"}</button>
+            </div>
+        `;
+    } else if (typeof isSignedIn === "function") {
+        html += `
+            <div class="menu-setting" style="text-align:center">
+                <div style="font-size:13px;opacity:0.6;margin-bottom:10px">Sign in to sync across devices</div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    <button class="auth-btn auth-btn-google" id="menu-google-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:8px"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                        Sign in with Google
+                    </button>
+                    <button class="auth-btn auth-btn-microsoft" id="menu-microsoft-btn">
+                        <svg width="18" height="18" viewBox="0 0 21 21" style="vertical-align:middle;margin-right:8px"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+                        Sign in with Microsoft
+                    </button>
+                </div>
+            </div>
+        `;
+    }
 
     // Quick navigation
     html += `
@@ -2263,7 +2303,9 @@ function renderMenu() {
         </div>
     `;
 
-    // Set progress (seeding for migrating from another app)
+    // Set progress + Reset (hidden until easter egg)
+    html += `<div id="menu-secret-section" style="display:${_menuSecretTaps >= 7 ? 'block' : 'none'}">`;
+
     html += `
         <div class="menu-setting">
             <label class="menu-setting-label">Set Your Progress:</label>
@@ -2275,7 +2317,6 @@ function renderMenu() {
         </div>
     `;
 
-    // Reset option
     html += `
         <div class="menu-setting">
             <label class="menu-setting-label">Reset</label>
@@ -2283,11 +2324,13 @@ function renderMenu() {
         </div>
     `;
 
+    html += `</div>`;
+
     // Sound toggle
     html += `
         <div class="menu-setting">
             <label class="menu-setting-label">Sound</label>
-            <button class="menu-setting-btn" id="sound-toggle-btn" style="background:${state.soundEnabled ? theme.accent : 'rgba(255,255,255,0.1)'};color:${state.soundEnabled ? '#000' : 'rgba(255,255,255,0.6)'};width:100%;padding:10px 0;font-size:14px">${state.soundEnabled ? '🔊 On' : '🔇 Off'}</button>
+            <button class="menu-setting-btn" id="sound-toggle-btn" style="background:${state.soundEnabled ? theme.accent : 'rgba(255,255,255,0.1)'};color:${state.soundEnabled ? '#000' : 'rgba(255,255,255,0.6)'};width:100%;padding:10px 0;font-size:14px">${state.soundEnabled ? '<span style="font-size:24px;vertical-align:middle">🔊</span> On' : '<span style="font-size:24px;vertical-align:middle">🔇</span> Off'}</button>
         </div>
     `;
 
@@ -2295,7 +2338,7 @@ function renderMenu() {
     html += `
         <div class="menu-setting">
             <label class="menu-setting-label">App</label>
-            <button class="menu-setting-btn" id="check-update-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M21 12a9 9 0 0 1-15.36 6.36"/><path d="M3 12a9 9 0 0 1 15.36-6.36"/><polyline points="21 3 21 9 15 9"/><polyline points="3 21 3 15 9 15"/></svg>Check for Updates</button>
+            <button class="menu-setting-btn" id="check-update-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px"><span style="font-size:24px;vertical-align:middle;margin-right:6px">🔄</span>Check for Updates</button>
         </div>
     `;
 
@@ -2320,7 +2363,93 @@ function renderMenu() {
     overlay.innerHTML = html;
 
     // Wire up event handlers
-    document.getElementById("menu-close-btn").onclick = () => { state.showMenu = false; renderAll(); };
+    document.getElementById("menu-close-btn").onclick = () => { _menuSecretTaps = 0; state.showMenu = false; renderAll(); };
+
+    // Easter egg: tap current level card 7 times to reveal hidden options
+    document.getElementById("menu-current-level-card").onclick = () => {
+        _menuSecretTaps++;
+        if (_menuSecretTaps === 7) {
+            const sec = document.getElementById("menu-secret-section");
+            if (sec) sec.style.display = "block";
+        }
+    };
+
+    // Auth button handlers
+    const googleBtn = document.getElementById("menu-google-btn");
+    if (googleBtn) {
+        googleBtn.onclick = async () => {
+            try {
+                googleBtn.disabled = true;
+                googleBtn.textContent = "Signing in\u2026";
+                await signInWithGoogle();
+                if (!getUser().displayName) renderDisplayNamePrompt();
+                if (typeof syncPull === "function") {
+                    await syncPull();
+                    loadProgress();
+                    await recompute();
+                }
+                renderMenu();
+            } catch (e) {
+                showToast("Sign-in failed", "#ff8888");
+                renderMenu();
+            }
+        };
+    }
+    const msBtn = document.getElementById("menu-microsoft-btn");
+    if (msBtn) {
+        msBtn.onclick = async () => {
+            try {
+                msBtn.disabled = true;
+                msBtn.textContent = "Signing in\u2026";
+                await signInWithMicrosoft();
+                if (!getUser().displayName) renderDisplayNamePrompt();
+                if (typeof syncPull === "function") {
+                    await syncPull();
+                    loadProgress();
+                    await recompute();
+                }
+                renderMenu();
+            } catch (e) {
+                showToast("Sign-in failed", "#ff8888");
+                renderMenu();
+            }
+        };
+    }
+    const signOutBtn = document.getElementById("menu-signout-btn");
+    if (signOutBtn) {
+        signOutBtn.onclick = () => {
+            signOut();
+            showToast("Signed out");
+            renderMenu();
+        };
+    }
+    const leaderboardBtn = document.getElementById("menu-leaderboard-btn");
+    if (leaderboardBtn) {
+        leaderboardBtn.onclick = () => {
+            state.showMenu = false;
+            state.showLeaderboard = true;
+            renderMenu();
+            renderLeaderboard();
+        };
+    }
+    const setNameBtn = document.getElementById("menu-setname-btn");
+    if (setNameBtn) {
+        setNameBtn.onclick = () => renderDisplayNamePrompt();
+    }
+    const lbToggle = document.getElementById("menu-lb-toggle");
+    if (lbToggle) {
+        lbToggle.onclick = async () => {
+            const user = getUser();
+            const newVal = user.showOnLeaderboard === false;
+            try {
+                await setLeaderboardVisibility(newVal);
+                showToast(newVal ? "Shown on leaderboard" : "Hidden from leaderboard");
+                renderMenu();
+            } catch (e) {
+                showToast("Failed to update", "#ff8888");
+            }
+        };
+    }
 
     document.getElementById("sound-toggle-btn").onclick = () => {
         state.soundEnabled = !state.soundEnabled;
@@ -2382,9 +2511,8 @@ function renderMenu() {
     document.getElementById("goto-level-btn").onclick = async () => {
         const input = document.getElementById("goto-level-input");
         const val = parseInt(input.value);
-        if (val >= 1 && val <= maxLv && !isNaN(val)) {
+        if (val >= 1 && val <= state.highestLevel && !isNaN(val)) {
             saveInProgressState();
-            state.highestLevel = Math.max(state.highestLevel, val);
             state.currentLevel = val;
             state.foundWords = [];
             state.bonusFound = [];
@@ -2393,7 +2521,8 @@ function renderMenu() {
             await recompute();
             restoreLevelState();
             saveProgress();
-            renderMenu();
+            state.showMenu = false;
+            renderAll();
         } else {
             showToast("Level " + val + " not available", "#ff8888");
         }
@@ -2673,6 +2802,163 @@ function renderMap() {
     }, 100);
 }
 
+// ---- LEADERBOARD OVERLAY ----
+let _lbTab = "month"; // "month" or "all"
+
+function renderLeaderboard() {
+    let overlay = document.getElementById("leaderboard-overlay");
+    if (!state.showLeaderboard) {
+        if (overlay) overlay.style.display = "none";
+        return;
+    }
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "leaderboard-overlay";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "leaderboard-overlay";
+    overlay.style.display = "flex";
+
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const now = new Date();
+    const monthLabel = monthNames[now.getMonth()] + " " + now.getFullYear();
+
+    overlay.innerHTML = `
+        <div class="lb-header">
+            <button class="menu-close" id="lb-close-btn">\u2715</button>
+            <div class="lb-trophy">\uD83C\uDFC6</div>
+            <h2 class="lb-title" style="color:${theme.accent}">Leaderboard</h2>
+            <div class="lb-subtitle">Top Word Masters</div>
+            <div class="lb-tabs">
+                <button class="lb-tab${_lbTab === "month" ? " lb-tab-active" : ""}" id="lb-tab-month" style="--tab-accent:${theme.accent}">This Month</button>
+                <button class="lb-tab${_lbTab === "all" ? " lb-tab-active" : ""}" id="lb-tab-all" style="--tab-accent:${theme.accent}">All Time</button>
+            </div>
+        </div>
+        <div class="menu-scroll" id="lb-list" style="text-align:center;padding:20px">
+            <div class="lb-loading"><div class="lb-loading-dot"></div><div class="lb-loading-dot"></div><div class="lb-loading-dot"></div></div>
+        </div>
+    `;
+
+    document.getElementById("lb-close-btn").onclick = () => {
+        state.showLeaderboard = false;
+        renderAll();
+    };
+    document.getElementById("lb-tab-month").onclick = () => { _lbTab = "month"; renderLeaderboard(); };
+    document.getElementById("lb-tab-all").onclick = () => { _lbTab = "all"; renderLeaderboard(); };
+
+    const currentUser = typeof getUser === "function" ? getUser() : null;
+    const currentUserId = currentUser ? currentUser.id : null;
+    const medals = ["\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49"];
+    const isMonthly = _lbTab === "month";
+    const url = isMonthly ? "/api/leaderboard?top=50&period=month" : "/api/leaderboard?top=50";
+
+    fetch(url)
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(leaders => {
+            const list = document.getElementById("lb-list");
+            if (!list) return;
+            if (leaders.length === 0) {
+                list.innerHTML = `<div style="opacity:0.5;padding:40px 0;font-size:15px">${isMonthly ? "No progress this month yet \u2014 start climbing!" : "No players yet \u2014 be the first!"}</div>`;
+                return;
+            }
+            let html = "";
+            if (isMonthly) {
+                html += `<div class="lb-period-label">${monthLabel}</div>`;
+            }
+            leaders.forEach((entry, i) => {
+                const isMe = entry.userId === currentUserId;
+                const medal = i < 3 ? medals[i] : "";
+                const isTop3 = i < 3;
+                const scoreText = isMonthly
+                    ? "+" + entry.monthlyGain.toLocaleString() + " levels"
+                    : "Lv " + entry.highestLevel.toLocaleString();
+                html += `
+                    <div class="lb-row${isMe ? " lb-me" : ""}${isTop3 ? " lb-top3" : ""}" style="animation-delay:${i * 40}ms">
+                        <span class="lb-rank${isTop3 ? " lb-rank-top" : ""}">${medal || (i + 1)}</span>
+                        <span class="lb-name">${escapeHtml(entry.name || "???")}</span>
+                        <span class="lb-level-badge" style="background:${isTop3 ? theme.accent : "rgba(255,255,255,0.08)"};color:${isTop3 ? "#000" : theme.accent}">${scoreText}</span>
+                    </div>
+                `;
+            });
+
+            if (currentUserId && !leaders.some(l => l.userId === currentUserId)) {
+                html += `<div class="lb-you-hint">Keep climbing to join the leaderboard!</div>`;
+            }
+
+            list.style.textAlign = "left";
+            list.innerHTML = html;
+        })
+        .catch(() => {
+            const list = document.getElementById("lb-list");
+            if (list) list.innerHTML = `<div style="opacity:0.5;padding:40px 0;font-size:15px">Unavailable offline</div>`;
+        });
+}
+
+function escapeHtml(str) {
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+// ---- DISPLAY NAME PROMPT ----
+function renderDisplayNamePrompt() {
+    let overlay = document.getElementById("name-prompt-overlay");
+    if (overlay) overlay.remove();
+
+    overlay = document.createElement("div");
+    overlay.id = "name-prompt-overlay";
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+    document.getElementById("app").appendChild(overlay);
+
+    overlay.innerHTML = `
+        <div class="modal-box" style="max-width:320px">
+            <h3 style="color:${theme.accent};margin-bottom:12px">Choose a Display Name</h3>
+            <p style="font-size:13px;opacity:0.6;margin-bottom:16px">This will appear on the leaderboard (3-20 chars, letters/numbers/spaces)</p>
+            <input type="text" id="name-prompt-input" maxlength="20" placeholder="Your name" style="width:100%;padding:10px;border-radius:8px;border:1px solid ${theme.accent}40;background:rgba(255,255,255,0.1);color:${theme.text};font-size:16px;outline:none;box-sizing:border-box">
+            <div style="display:flex;gap:8px;margin-top:12px">
+                <button id="name-prompt-cancel" class="menu-setting-btn" style="flex:1;background:rgba(255,255,255,0.1);color:${theme.text};padding:10px 0">Skip</button>
+                <button id="name-prompt-save" class="menu-setting-btn" style="flex:1;background:${theme.accent};color:#000;padding:10px 0">Save</button>
+            </div>
+            <div id="name-prompt-error" style="color:#ff8888;font-size:12px;margin-top:8px;display:none"></div>
+        </div>
+    `;
+
+    const input = document.getElementById("name-prompt-input");
+    const errorEl = document.getElementById("name-prompt-error");
+
+    document.getElementById("name-prompt-cancel").onclick = () => overlay.remove();
+
+    document.getElementById("name-prompt-save").onclick = async () => {
+        const name = input.value.trim();
+        if (name.length < 3 || name.length > 20) {
+            errorEl.textContent = "Name must be 3-20 characters";
+            errorEl.style.display = "block";
+            return;
+        }
+        if (!/^[a-zA-Z0-9 ]+$/.test(name)) {
+            errorEl.textContent = "Letters, numbers, and spaces only";
+            errorEl.style.display = "block";
+            return;
+        }
+        try {
+            await setDisplayName(name);
+            overlay.remove();
+            showToast("Name saved!");
+            renderMenu();
+        } catch (e) {
+            errorEl.textContent = e.message || "Failed to save";
+            errorEl.style.display = "block";
+        }
+    };
+
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") document.getElementById("name-prompt-save").click();
+    });
+
+    input.focus();
+}
+
 // ============================================================
 // INITIALIZE
 // ============================================================
@@ -2690,6 +2976,14 @@ async function init() {
     await loadBgManifest();
 
     loadProgress();
+
+    // Auth init + sync pull
+    if (typeof initAuth === "function") initAuth();
+    if (typeof syncPull === "function" && typeof isSignedIn === "function" && isSignedIn()) {
+        await syncPull();
+        loadProgress(); // re-load after merge
+    }
+
     await recompute();
 
     // Auto-complete any words whose cells are all already visible (fixes stuck levels)
@@ -2720,8 +3014,18 @@ async function init() {
         };
     }
 
-    // Warm up AudioContext on first user gesture
-    const _warmAudio = () => { getAudioCtx(); document.removeEventListener("touchstart", _warmAudio); document.removeEventListener("mousedown", _warmAudio); };
+    // Warm up AudioContext on first user gesture (silent)
+    const _warmAudio = () => {
+        const ctx = getAudioCtx();
+        // Play a silent buffer to unlock audio without an audible pop
+        const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.start();
+        document.removeEventListener("touchstart", _warmAudio);
+        document.removeEventListener("mousedown", _warmAudio);
+    };
     document.addEventListener("touchstart", _warmAudio, { once: true });
     document.addEventListener("mousedown", _warmAudio, { once: true });
 
