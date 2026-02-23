@@ -850,8 +850,12 @@ function handleShuffle() {
     // Try to animate in-place if letter divs exist
     const lettersDiv = document.getElementById("wheel-letters");
     if (lettersDiv && lettersDiv.children.length === wheelLetters.length) {
-        const wheelR = Math.min(110, (window.innerWidth - 100) / 2.6);
-        const letterR = Math.min(28, Math.max(20, wheelR * 0.23));
+        // Reuse the same sizing math as renderWheel()
+        const gridRows = crossword && crossword.rows ? crossword.rows : 8;
+        const maxByWidth = (window.innerWidth - 100) / 2.4;
+        const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
+        const wheelR = Math.max(70, Math.min(125, maxByWidth, maxByViewport));
+        const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
         const pad = letterR + 16;
         const cx = wheelR + pad, cy = wheelR + pad;
         const count = wheelLetters.length;
