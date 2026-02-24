@@ -564,8 +564,12 @@ html, body {
 .menu-scroll {
     flex: 1;
     overflow: auto;
-    padding: 12px 16px;
+    padding: 4px 16px;
     -webkit-overflow-scrolling: touch;
+}
+
+.menu-scroll > :first-child {
+    margin-top: 0;
 }
 
 .menu-pack-label {
