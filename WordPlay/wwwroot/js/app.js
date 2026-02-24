@@ -2231,7 +2231,7 @@ function renderMenu() {
         const user = getUser();
         html += `
             <div class="menu-setting" style="text-align:center">
-                <div id="menu-display-name" style="font-size:15px;margin-bottom:2px;cursor:pointer">${escapeHtml(user.displayName || "Player")} <span style="font-size:11px;opacity:0.4">✏️</span></div>
+                <div id="menu-display-name" style="font-size:15px;margin-bottom:2px;cursor:pointer">${escapeHtml(user.displayName || "Player")} <span style="font-size:11px">✏️</span></div>
                 <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
                     <button class="menu-setting-btn" id="menu-signout-btn" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);flex:1;padding:8px 0;font-size:13px">Sign Out</button>
                 </div>
