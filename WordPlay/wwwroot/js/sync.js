@@ -20,6 +20,7 @@ async function syncPullAndReload() {
         await syncPull();
         if (typeof loadProgress === "function") loadProgress();
         if (typeof recompute === "function") await recompute();
+        if (typeof restoreLevelState === "function") restoreLevelState();
         if (typeof renderAll === "function") renderAll();
     } catch (e) { /* ignore */ }
     _syncPulling = false;

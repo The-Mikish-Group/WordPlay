@@ -3067,6 +3067,7 @@ async function init() {
     }
 
     await recompute();
+    restoreLevelState();
 
     // Auto-complete any words whose cells are all already visible (fixes stuck levels)
     while (checkAutoCompleteWords()) {}
