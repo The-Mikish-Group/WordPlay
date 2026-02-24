@@ -3,7 +3,27 @@
 // ============================================================
 
 let _syncPushTimer = null;
+let _syncPulling = false;
 const SYNC_DEBOUNCE_MS = 3000;
+
+// Auto-pull when the app regains focus (tab switch, phone resume, PWA reopen)
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && typeof isSignedIn === "function" && isSignedIn()) {
+        syncPullAndReload();
+    }
+});
+
+async function syncPullAndReload() {
+    if (_syncPulling) return;
+    _syncPulling = true;
+    try {
+        await syncPull();
+        if (typeof loadProgress === "function") loadProgress();
+        if (typeof recompute === "function") await recompute();
+        if (typeof renderAll === "function") renderAll();
+    } catch (e) { /* ignore */ }
+    _syncPulling = false;
+}
 
 function scheduleSyncPush() {
     if (!isSignedIn()) return;

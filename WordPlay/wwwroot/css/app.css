@@ -474,7 +474,7 @@ html, body {
     max-width: 600px;
     margin: 0 auto;
     justify-content: center;
-    z-index: 200;
+    z-index: 400;
     padding: 20px;
     animation: fadeIn 0.3s ease;
 }

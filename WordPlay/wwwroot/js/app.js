@@ -496,18 +496,23 @@ function pickRandomUnrevealedCell() {
     }
     for (const k of state.revealedCells) visible.add(k);
 
-    // Collect all valid cells that are not visible (skip standalone coin cells)
+    // Collect all valid cells that are not visible (prefer non-standalone first)
     const candidates = [];
+    const standaloneCandidates = [];
     for (const p of crossword.placements) {
-        if (p.standalone) continue;
         for (const c of p.cells) {
             const k = c.row + "," + c.col;
-            if (!visible.has(k)) candidates.push(k);
+            if (!visible.has(k)) {
+                if (p.standalone) standaloneCandidates.push(k);
+                else candidates.push(k);
+            }
         }
     }
-    if (!candidates.length) return null;
+    // Fall back to standalone cells if no regular cells remain
+    const pool = candidates.length ? candidates : standaloneCandidates;
+    if (!pool.length) return null;
     // Deduplicate (cells shared by multiple words)
-    const unique = [...new Set(candidates)];
+    const unique = [...new Set(pool)];
     return unique[Math.floor(Math.random() * unique.length)];
 }
 
@@ -1022,7 +1027,10 @@ function renderHeader() {
     }
     hdr.style.color = theme.text;
     hdr.innerHTML = `
-        <button id="menu-btn" style="background:none;border:none;padding:4px 4px 4px 0;cursor:pointer;font-size:28px;line-height:1">⚙️</button>
+        <div style="display:flex;align-items:center;gap:2px">
+            <button id="menu-btn" style="background:none;border:none;padding:4px 4px 4px 0;cursor:pointer;font-size:28px;line-height:1">⚙️</button>
+            <button id="lb-btn" style="background:none;border:none;padding:4px;cursor:pointer;font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(255,200,0,0.3))">🏆</button>
+        </div>
         <div class="header-center">
             <div class="header-pack">${level.group} · ${level.pack}</div>
             <div class="header-level" style="color:${theme.accent}">Level ${getDisplayLevel()}</div>
@@ -1033,6 +1041,7 @@ function renderHeader() {
         </div>
     `;
     document.getElementById("menu-btn").onclick = () => { _menuSecretTaps = 0; state.showMenu = true; renderMenu(); };
+    document.getElementById("lb-btn").onclick = () => { state.showLeaderboard = true; renderLeaderboard(); };
     document.getElementById("daily-btn").onclick = () => renderDailyModal(true);
     renderDailyBtn();
 }
@@ -2224,37 +2233,19 @@ function renderMenu() {
         <div class="menu-scroll">
     `;
 
-    // Stats + Current Level side by side
-    html += `
-        <div class="menu-top-row">
-            <div class="menu-top-col">
-                <div class="menu-current-label">Stats</div>
-                <div class="menu-stat">Highest Level: <span style="color:${theme.accent}">${state.highestLevel.toLocaleString()}</span></div>
-                <div class="menu-stat">Coins: <span style="color:${theme.accent}">🪙 ${state.coins}</span></div>
-                <div class="menu-stat">Levels Available: <span style="color:${theme.accent}">${maxLv.toLocaleString()}</span></div>
-            </div>
-            <div class="menu-top-col" id="menu-current-level-card" style="cursor:default">
-                <div class="menu-current-label">Current Level</div>
-                <div class="menu-current-num" style="color:${theme.accent}">${state.currentLevel.toLocaleString()}</div>
-                <div class="menu-current-info">${level ? level.group + " \u00b7 " + level.pack : ""}</div>
-                <div class="menu-current-progress">${state.foundWords.length} of ${totalRequired} words found</div>
-            </div>
-        </div>
-    `;
-
     // Account section
     if (typeof isSignedIn === "function" && isSignedIn()) {
         const user = getUser();
         html += `
             <div class="menu-setting" style="text-align:center">
-                <div style="font-size:15px;margin-bottom:2px">${user.displayName || user.email || "Player"}</div>
-                ${user.email ? `<div style="font-size:12px;opacity:0.5">${user.email}</div>` : ""}
+                <div id="menu-display-name" style="font-size:15px;margin-bottom:2px;cursor:pointer">${escapeHtml(user.displayName || "Player")} <span style="font-size:11px;opacity:0.4">✏️</span></div>
                 <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
-                    <button class="menu-setting-btn" id="menu-leaderboard-btn" style="background:${theme.accent};color:#000;flex:1;padding:8px 0;font-size:13px">Leaderboard</button>
                     <button class="menu-setting-btn" id="menu-signout-btn" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);flex:1;padding:8px 0;font-size:13px">Sign Out</button>
                 </div>
-                ${!user.displayName ? `<button class="menu-setting-btn" id="menu-setname-btn" style="background:rgba(255,255,255,0.1);color:${theme.text};width:100%;margin-top:8px;padding:8px 0;font-size:13px">Set Display Name</button>` : ""}
-                <button class="menu-setting-btn" id="menu-lb-toggle" style="background:rgba(255,255,255,0.1);color:${theme.text};width:100%;margin-top:8px;padding:8px 0;font-size:13px">${user.showOnLeaderboard !== false ? "Shown on Leaderboard \u2713" : "Hidden from Leaderboard"}</button>
+                <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer;opacity:0.7">
+                    <input type="checkbox" id="menu-lb-checkbox" ${user.showOnLeaderboard !== false ? "checked" : ""} style="width:18px;height:18px;accent-color:${theme.accent};cursor:pointer">
+                    Show me on leaderboard
+                </label>
             </div>
         `;
     } else if (typeof isSignedIn === "function") {
@@ -2275,6 +2266,24 @@ function renderMenu() {
         `;
     }
 
+    // Stats + Current Level side by side
+    html += `
+        <div class="menu-top-row">
+            <div class="menu-top-col">
+                <div class="menu-current-label">Stats</div>
+                <div class="menu-stat">Highest Level: <span style="color:${theme.accent}">${state.highestLevel.toLocaleString()}</span></div>
+                <div class="menu-stat">Coins: <span style="color:${theme.accent}">🪙 ${state.coins}</span></div>
+                <div class="menu-stat">Levels Available: <span style="color:${theme.accent}">${maxLv.toLocaleString()}</span></div>
+            </div>
+            <div class="menu-top-col" id="menu-current-level-card" style="cursor:default">
+                <div class="menu-current-label">Current Level</div>
+                <div class="menu-current-num" style="color:${theme.accent}">${state.currentLevel.toLocaleString()}</div>
+                <div class="menu-current-info">${level ? level.group + " \u00b7 " + level.pack : ""}</div>
+                <div class="menu-current-progress">${state.foundWords.length} of ${totalRequired} words found</div>
+            </div>
+        </div>
+    `;
+    
     // Quick navigation
     html += `
         <div class="menu-nav-row">
@@ -2423,29 +2432,22 @@ function renderMenu() {
             renderMenu();
         };
     }
-    const leaderboardBtn = document.getElementById("menu-leaderboard-btn");
-    if (leaderboardBtn) {
-        leaderboardBtn.onclick = () => {
+    const displayNameEl = document.getElementById("menu-display-name");
+    if (displayNameEl) {
+        displayNameEl.onclick = () => {
             state.showMenu = false;
-            state.showLeaderboard = true;
             renderMenu();
-            renderLeaderboard();
+            renderDisplayNamePrompt();
         };
     }
-    const setNameBtn = document.getElementById("menu-setname-btn");
-    if (setNameBtn) {
-        setNameBtn.onclick = () => renderDisplayNamePrompt();
-    }
-    const lbToggle = document.getElementById("menu-lb-toggle");
-    if (lbToggle) {
-        lbToggle.onclick = async () => {
-            const user = getUser();
-            const newVal = user.showOnLeaderboard === false;
+    const lbCheckbox = document.getElementById("menu-lb-checkbox");
+    if (lbCheckbox) {
+        lbCheckbox.onchange = async () => {
             try {
-                await setLeaderboardVisibility(newVal);
-                showToast(newVal ? "Shown on leaderboard" : "Hidden from leaderboard");
-                renderMenu();
+                await setLeaderboardVisibility(lbCheckbox.checked);
+                showToast(lbCheckbox.checked ? "Shown on leaderboard" : "Hidden from leaderboard");
             } catch (e) {
+                lbCheckbox.checked = !lbCheckbox.checked;
                 showToast("Failed to update", "#ff8888");
             }
         };
@@ -2905,6 +2907,9 @@ function renderDisplayNamePrompt() {
     let overlay = document.getElementById("name-prompt-overlay");
     if (overlay) overlay.remove();
 
+    const currentUser = typeof getUser === "function" ? getUser() : null;
+    const hasName = currentUser && currentUser.displayName;
+
     overlay = document.createElement("div");
     overlay.id = "name-prompt-overlay";
     overlay.className = "modal-overlay";
@@ -2913,11 +2918,11 @@ function renderDisplayNamePrompt() {
 
     overlay.innerHTML = `
         <div class="modal-box" style="max-width:320px">
-            <h3 style="color:${theme.accent};margin-bottom:12px">Choose a Display Name</h3>
-            <p style="font-size:13px;opacity:0.6;margin-bottom:16px">This will appear on the leaderboard (3-20 chars, letters/numbers/spaces)</p>
-            <input type="text" id="name-prompt-input" maxlength="20" placeholder="Your name" style="width:100%;padding:10px;border-radius:8px;border:1px solid ${theme.accent}40;background:rgba(255,255,255,0.1);color:${theme.text};font-size:16px;outline:none;box-sizing:border-box">
+            <h3 style="color:${theme.accent};margin-bottom:12px">${hasName ? "Change Display Name" : "Choose a Display Name"}</h3>
+            <p style="font-size:13px;opacity:0.6;margin-bottom:16px">${hasName ? "Update your name on the leaderboard" : "Pick a name to identify yourself (3-20 chars, letters/numbers/spaces)"}</p>
+            <input type="text" id="name-prompt-input" maxlength="20" placeholder="Your name" value="${hasName ? escapeHtml(currentUser.displayName) : ""}" style="width:100%;padding:10px;border-radius:8px;border:1px solid ${theme.accent}40;background:rgba(255,255,255,0.1);color:${theme.text};font-size:16px;outline:none;box-sizing:border-box">
             <div style="display:flex;gap:8px;margin-top:12px">
-                <button id="name-prompt-cancel" class="menu-setting-btn" style="flex:1;background:rgba(255,255,255,0.1);color:${theme.text};padding:10px 0">Skip</button>
+                ${hasName ? `<button id="name-prompt-cancel" class="menu-setting-btn" style="flex:1;background:rgba(255,255,255,0.1);color:${theme.text};padding:10px 0">Cancel</button>` : ""}
                 <button id="name-prompt-save" class="menu-setting-btn" style="flex:1;background:${theme.accent};color:#000;padding:10px 0">Save</button>
             </div>
             <div id="name-prompt-error" style="color:#ff8888;font-size:12px;margin-top:8px;display:none"></div>
@@ -2927,7 +2932,8 @@ function renderDisplayNamePrompt() {
     const input = document.getElementById("name-prompt-input");
     const errorEl = document.getElementById("name-prompt-error");
 
-    document.getElementById("name-prompt-cancel").onclick = () => overlay.remove();
+    const cancelBtn = document.getElementById("name-prompt-cancel");
+    if (cancelBtn) cancelBtn.onclick = () => overlay.remove();
 
     document.getElementById("name-prompt-save").onclick = async () => {
         const name = input.value.trim();
