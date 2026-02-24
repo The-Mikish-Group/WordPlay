@@ -128,6 +128,7 @@ const state = {
     soundEnabled: true,    // sound effects on/off
     standaloneFound: false, // whether the standalone coin word has been solved
     showLeaderboard: false,
+    showGuide: false,
 };
 
 // ---- MENU SECRET ----
@@ -268,6 +269,7 @@ function loadProgress() {
 
 function saveProgress() {
     try {
+        saveInProgressState();
         localStorage.setItem("wordplay-save", JSON.stringify({
             v: 3,  // format version
             cl: state.currentLevel,
@@ -864,7 +866,7 @@ function handleShuffle() {
         const gridRows = crossword && crossword.rows ? crossword.rows : 8;
         const maxByWidth = (window.innerWidth - 100) / 2.4;
         const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
-        const wheelR = Math.max(70, Math.min(125, maxByWidth, maxByViewport));
+        const wheelR = Math.max(70, Math.min(122, maxByWidth, maxByViewport));
         const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
         const pad = letterR + 16;
         const cx = wheelR + pad, cy = wheelR + pad;
@@ -1008,12 +1010,12 @@ function renderAll() {
     renderWheel(); // render wheel before grid so grid-area has correct height
     renderGrid();
 
-    renderWordCount();
     renderBonusStar();
     renderCompleteModal();
     renderMenu();
     renderMap();
     renderLeaderboard();
+    renderGuide();
 }
 
 // ---- HEADER ----
@@ -1027,7 +1029,7 @@ function renderHeader() {
     }
     hdr.style.color = theme.text;
     hdr.innerHTML = `
-        <div style="display:flex;align-items:center;gap:2px">
+        <div style="display:flex;align-items:center;gap:0">
             <button id="menu-btn" style="background:none;border:none;padding:4px 4px 4px 0;cursor:pointer;font-size:28px;line-height:1">⚙️</button>
             <button id="lb-btn" style="background:none;border:none;padding:4px;cursor:pointer;font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(255,200,0,0.3))">🏆</button>
         </div>
@@ -1193,7 +1195,7 @@ function renderGrid() {
     const appW = appEl ? appEl.getBoundingClientRect().width : window.innerWidth;
     const areaRect = area.getBoundingClientRect();
     const availW = appW - 24; // subtract grid-area horizontal padding (12px each side)
-    const availH = areaRect.height > 0 ? areaRect.height - 12 : window.innerHeight * 0.38;
+    const availH = areaRect.height > 0 ? areaRect.height - 16 : window.innerHeight * 0.38;
     // Compute cell size first, then derive gap from it
     const rawCs = Math.min(Math.floor(availW / cols), Math.floor(availH / rows), 44);
     const gap = rawCs >= 30 ? 4 : 2;
@@ -1459,20 +1461,7 @@ function flashHintCell(key) {
     setTimeout(() => el.classList.remove("hint-flash"), 2500);
 }
 
-// ---- WORD COUNT ----
-function renderWordCount() {
-    let wc = document.getElementById("word-count");
-    if (!wc) {
-        wc = document.createElement("div");
-        wc.id = "word-count";
-        wc.className = "word-count";
-        const app = document.getElementById("app");
-        const area = document.getElementById("grid-area");
-        if (area && area.nextSibling) app.insertBefore(wc, area.nextSibling);
-        else app.appendChild(wc);
-    }
-    wc.innerHTML = "&nbsp;";
-}
+function renderWordCount() {} // removed — kept as no-op for callers
 
 // ---- LETTER WHEEL ----
 let wheelState = { sel: [], word: "", dragging: false, ptr: null };
@@ -1493,7 +1482,7 @@ function renderWheel() {
     const maxByWidth = (window.innerWidth - 100) / 2.4;
     // For grids with many rows, shrink the wheel to leave more vertical room
     const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
-    const wheelR = Math.max(70, Math.min(125, maxByWidth, maxByViewport));
+    const wheelR = Math.max(70, Math.min(122, maxByWidth, maxByViewport));
     const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
     const pad = letterR + 16;
     const cx = wheelR + pad, cy = wheelR + pad;
@@ -1512,8 +1501,8 @@ function renderWheel() {
     const targetCanUse = state.freeTargets > 0 || state.coins >= 200;
     const rocketCanUse = state.freeRockets > 0 || state.coins >= 300;
     // Button positions: upper pair flanks the current-word, lower pair below
-    const upperBtnTop = -5; // centered on 42px current-word line
-    const lowerBtnTop = 57; // 52px button + 10px gap below upper
+    const upperBtnTop = 0;
+    const lowerBtnTop = 62; // 52px button + 10px gap below upper
     section.innerHTML = `
         <div class="current-word" id="current-word" style="color:${theme.accent};text-shadow:0 1px 0 rgba(255,255,255,0.3),0 2px 0 rgba(0,0,0,0.3),0 3px 0 rgba(0,0,0,0.15),0 0 4px ${theme.accent}80">&nbsp;</div>
         <button class="circle-btn" id="shuffle-btn" title="Shuffle" style="left:12px;top:${upperBtnTop}px">
@@ -1550,13 +1539,14 @@ function renderWheel() {
                     <polygon id="bonus-star-fill" points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
                         style="fill:${(state.bonusCounter > 0 || state.bonusFound.length > 0) ? 'rgba(244,208,63,0.15)' : 'none'};stroke:${(state.bonusCounter > 0 || state.bonusFound.length > 0) ? '#f4d03f' : 'rgba(255,255,255,0.35)'};stroke-width:1.5"/>
                     <text id="bonus-star-counter" x="12" y="14.5" text-anchor="middle"
-                        style="font-size:7px;font-weight:700;font-family:system-ui,sans-serif;fill:rgba(255,255,255,0.85)">${state.bonusCounter || ''}</text>
+                        style="font-size:7px;font-weight:700;font-family:Nunito,system-ui,sans-serif;fill:rgba(255,255,255,0.85)">${state.bonusCounter || ''}</text>
                 </svg>
             </button>
         </div>
         <div class="spin-btn-area" id="spin-btn-area" style="display:none">
             <button class="spin-badge-btn" id="spin-btn" style="--accent:${theme.accent};--accent-dark:${theme.accentDark}"><span class="spin-gift">🎁</span><span class="spin-text">Spin</span></button>
         </div>
+        <button class="guide-btn" id="guide-btn"><i>i</i></button>
     `;
 
     // Render letter circles
@@ -1605,6 +1595,7 @@ function renderWheel() {
     document.getElementById("rocket-btn").onclick = handleRocketHint;
     document.getElementById("bonus-star-btn").onclick = () => renderBonusModal(true);
     document.getElementById("spin-btn").onclick = () => openSpinModal();
+    document.getElementById("guide-btn").onclick = () => { state.showGuide = true; renderGuide(); };
     renderSpinBtn();
 
     // Show "Next Level" overlay on wheel when level is already complete
@@ -1623,7 +1614,7 @@ function renderWheel() {
         overlay.addEventListener("mouseup", stopWheel);
         const btn = document.createElement("button");
         btn.innerHTML = isLast ? "All Done!" : `Next Level <svg width="18" height="18" viewBox="0 0 24 24" style="vertical-align:middle;margin-left:4px"><path d="M5 12h14M13 5l7 7-7 7" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-        btn.style.cssText = `background:linear-gradient(180deg,${theme.accent},${theme.accentDark});color:#000;border:1px solid rgba(255,255,255,0.3);border-bottom-color:rgba(0,0,0,0.15);padding:10px 20px;border-radius:24px;font-size:15px;font-weight:700;font-family:system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 12px ${theme.accent}40,inset 0 1px 0 rgba(255,255,255,0.3);display:flex;align-items:center`;
+        btn.style.cssText = `background:linear-gradient(180deg,${theme.accent},${theme.accentDark});color:#000;border:1px solid rgba(255,255,255,0.3);border-bottom-color:rgba(0,0,0,0.15);padding:10px 20px;border-radius:24px;font-size:15px;font-weight:700;font-family:Nunito,system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 12px ${theme.accent}40,inset 0 1px 0 rgba(255,255,255,0.3);display:flex;align-items:center`;
         btn.onclick = () => { playSound("wordFound"); handleNextLevel(); };
         overlay.appendChild(btn);
         document.getElementById("wheel-area").appendChild(overlay);
@@ -1692,10 +1683,12 @@ function renderRocketBtn() {
 
 function renderSpinBtn() {
     const el = document.getElementById("spin-btn-area");
+    const guideEl = document.getElementById("guide-btn");
     if (!el) return;
     const dailyAvailable = state.lastDailyClaim !== getTodayStr();
     const stuck = state.freeHints === 0 && state.freeTargets === 0 && state.freeRockets === 0 && state.coins < 100 && !dailyAvailable;
     el.style.display = stuck ? "" : "none";
+    if (guideEl) guideEl.style.display = stuck ? "none" : "";
 }
 
 // ---- RESCUE SPIN WHEEL ----
@@ -1822,7 +1815,7 @@ function drawSpinWheel(canvas, angle) {
         ctx.translate(tx, ty);
         ctx.rotate(mid + Math.PI / 2);
         // Label on top
-        ctx.font = "bold 13px system-ui, sans-serif";
+        ctx.font = "bold 13px Nunito, system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "rgba(0,0,0,0.4)";
@@ -1869,7 +1862,7 @@ function drawSpinWheel(canvas, angle) {
     ctx.arc(cx, cy, 14, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(0,0,0,0.25)";
     ctx.fill();
-    ctx.font = "bold 11px system-ui, sans-serif";
+    ctx.font = "bold 11px Nunito, system-ui, sans-serif";
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -2227,8 +2220,8 @@ function renderMenu() {
 
     let html = `
         <div class="menu-header">
-            <h2 class="menu-title" style="color:${theme.accent}">Settings</h2>
-            <button class="menu-close" id="menu-close-btn">✕</button>
+            <h2 class="menu-title" style="color:${theme.accent}">⚙️ Settings</h2>
+            <button class="menu-close" id="menu-close-btn">\u2715</button>
         </div>
         <div class="menu-scroll">
     `;
@@ -2251,7 +2244,7 @@ function renderMenu() {
     } else if (typeof isSignedIn === "function") {
         html += `
             <div class="menu-setting" style="text-align:center">
-                <div style="font-size:13px;opacity:0.6;margin-bottom:10px">Sign in to sync across devices</div>
+                <div style="font-size:13px;opacity:0.6;margin-bottom:10px">🔒 Sign in to sync across devices</div>
                 <div style="display:flex;flex-direction:column;gap:8px">
                     <button class="auth-btn auth-btn-google" id="menu-google-btn">
                         <svg width="18" height="18" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:8px"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
@@ -2804,6 +2797,89 @@ function renderMap() {
     }, 100);
 }
 
+// ---- GUIDE OVERLAY ----
+const GUIDE_SECTIONS = [
+    { icon: "\uD83D\uDC46", title: "Swipe & Spell", body: "Drag your finger across the letter wheel to spell words. Letters connect as you swipe \u2014 lift your finger to submit. Find all the words to fill the crossword and move on!" },
+    { icon: "\uD83E\uDE99", title: "Earning Coins", body: "Every word you find earns coins! Grid words = 1 coin. Bonus words = 5 coins. The special coin word = 100 coins! Grab your daily bonus for 100 free coins too." },
+    { icon: "\uD83D\uDCA1", title: "Hints", body: "Stuck? Use hints! <b>Hint</b> (\uD83D\uDCA1 100 coins) reveals a random letter. <b>Target</b> (\uD83C\uDFAF 200 coins) lets you tap any cell. <b>Rocket</b> (\uD83D\uDE80 300 coins) blasts up to 5 letters at once! You also earn free hints every 10 levels." },
+    { icon: "\u2B50", title: "Bonus Words", body: "Found a real word that\u2019s not on the grid? That\u2019s a bonus word! Worth 5 coins each, and every 10 bonus words earns you a free letter reveal. Watch the star counter fill up!" },
+    { icon: "\uD83D\uDCB0", title: "The Coin Word", body: "See a pulsing coin on the grid? That\u2019s a special standalone word worth 100 coins! It\u2019s a short word (4\u20135 letters) tucked away for you to discover." },
+    { icon: "\uD83C\uDFB0", title: "Rescue Spin", body: "Completely stuck with no coins and no hints? A prize wheel appears! Spin to win free hints, targets, rockets, or coins. It\u2019s your lifeline!" },
+    { icon: "\uD83C\uDF81", title: "Daily Bonus", body: "Tap the FREE button at the top of the screen once a day to claim 100 free coins. Come back every day \u2014 it resets at midnight!" },
+    { icon: "\uD83D\uDD00", title: "Shuffle", body: "Tap the shuffle button to rearrange the letters on the wheel. Same letters, fresh perspective \u2014 sometimes that\u2019s all you need to spot a hidden word!" },
+    { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the Level Map from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },
+    { icon: "\uD83C\uDFA8", title: "Themes", body: "The game features 16 beautiful color themes \u2014 Sunrise, Forest, Ocean, Aurora, and more. Themes change as you progress through different level groups." },
+    { icon: "\uD83D\uDD04", title: "Sync Across Devices", body: "Sign in with Google or Microsoft in Settings to save your progress to the cloud. Switch phones, play on your tablet \u2014 your progress follows you automatically!" },
+    { icon: "\uD83C\uDFC6", title: "Leaderboard", body: "Tap the trophy in the game header to see the leaderboard! Compete for monthly and all-time rankings. You can opt in or out in Settings." },
+    { icon: "\uD83D\uDCF1", title: "Play Anywhere", body: "WordPlay works offline! Install it to your home screen for a full app experience \u2014 no app store needed. Your progress is always saved locally." },
+];
+
+function renderGuide() {
+    let overlay = document.getElementById("guide-overlay");
+    if (!state.showGuide) {
+        if (overlay) overlay.style.display = "none";
+        return;
+    }
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "guide-overlay";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "guide-overlay";
+    overlay.style.display = "flex";
+
+    let sectionsHtml = "";
+    GUIDE_SECTIONS.forEach((s, i) => {
+        sectionsHtml += `
+            <div class="guide-section" data-guide-idx="${i}">
+                <div class="guide-q" data-guide-idx="${i}">
+                    <span class="guide-emoji">${s.icon}</span>
+                    <span class="guide-q-title">${s.title}</span>
+                    <span class="guide-chevron">\u25B8</span>
+                </div>
+                <div class="guide-a">${s.body}</div>
+            </div>`;
+    });
+
+    overlay.innerHTML = `
+        <div class="guide-header">
+            <button class="menu-close" id="guide-close-btn">\u2715</button>
+            <div class="guide-icon">\uD83D\uDCD6</div>
+            <h2 class="guide-title" style="color:${theme.accent}">How to Play</h2>
+            <div class="guide-subtitle">Everything you need to become a Word Master</div>
+        </div>
+        <div class="menu-scroll" id="guide-scroll">
+            ${sectionsHtml}
+        </div>
+    `;
+
+    document.getElementById("guide-close-btn").onclick = () => {
+        state.showGuide = false;
+        renderGuide();
+    };
+
+    // Accordion toggle
+    overlay.querySelectorAll(".guide-q").forEach(q => {
+        q.onclick = () => {
+            const section = q.parentElement;
+            const answer = section.querySelector(".guide-a");
+            const chevron = q.querySelector(".guide-chevron");
+            const isOpen = section.classList.contains("guide-open");
+            if (isOpen) {
+                section.classList.remove("guide-open");
+                answer.style.maxHeight = "0";
+                answer.style.padding = "0 16px 0 52px";
+                chevron.textContent = "\u25B8";
+            } else {
+                section.classList.add("guide-open");
+                answer.style.maxHeight = answer.scrollHeight + 16 + "px";
+                answer.style.padding = "0 16px 16px 52px";
+                chevron.textContent = "\u25BE";
+            }
+        };
+    });
+}
+
 // ---- LEADERBOARD OVERLAY ----
 let _lbTab = "month"; // "month" or "all"
 
@@ -2971,7 +3047,7 @@ function renderDisplayNamePrompt() {
 async function init() {
     // Show loading state
     const app = document.getElementById("app");
-    app.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#fef3e0;font-family:system-ui;font-size:18px">
+    app.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#fef3e0;font-family:Nunito,system-ui,sans-serif;font-size:18px">
         <div style="text-align:center"><div style="font-size:48px;margin-bottom:16px">🎮</div>Loading levels...</div></div>`;
     app.style.background = "linear-gradient(170deg, #0f0520, #2d1b4e, #8b2252)";
 
