@@ -58,45 +58,40 @@ function signInWithGoogle() {
             reject(new Error("Google Identity Services not loaded"));
             return;
         }
-        let overlay = null;
+
+        async function handleAuth(body) {
+            const res = await fetch("/api/auth/google", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error("Auth failed");
+            const data = await res.json();
+            _saveAuth(data.token, data.user);
+            resolve(data.user);
+        }
 
         google.accounts.id.initialize({
             client_id: _googleClientId,
             callback: async (response) => {
-                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-                try {
-                    const res = await fetch("/api/auth/google", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ idToken: response.credential }),
-                    });
-                    if (!res.ok) throw new Error("Auth failed");
-                    const data = await res.json();
-                    _saveAuth(data.token, data.user);
-                    resolve(data.user);
-                } catch (e) {
-                    reject(e);
-                }
+                try { await handleAuth({ idToken: response.credential }); }
+                catch (e) { reject(e); }
             },
         });
         google.accounts.id.prompt((notification) => {
             if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                // One Tap unavailable — show a visible Google button overlay
-                overlay = document.createElement("div");
-                overlay.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6)";
-                var box = document.createElement("div");
-                box.style.cssText = "background:#1a1a2e;border-radius:16px;padding:32px 28px;text-align:center;max-width:320px";
-                box.innerHTML = '<div style="color:#fef3e0;font-family:Nunito,system-ui,sans-serif;font-size:16px;margin-bottom:20px">Choose a Google account to sign in</div><div id="_g_signin_btn" style="display:flex;justify-content:center"></div><div style="margin-top:16px"><button id="_g_signin_cancel" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:14px;cursor:pointer;font-family:Nunito,system-ui,sans-serif">Cancel</button></div>';
-                overlay.appendChild(box);
-                document.body.appendChild(overlay);
-                google.accounts.id.renderButton(
-                    document.getElementById("_g_signin_btn"),
-                    { type: "standard", size: "large", theme: "filled_blue", text: "signin_with", width: 260 }
-                );
-                document.getElementById("_g_signin_cancel").onclick = function() {
-                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-                    reject(new Error("Sign-in cancelled"));
-                };
+                // One Tap unavailable — open account picker popup directly
+                var tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: _googleClientId,
+                    scope: "openid email profile",
+                    callback: async (tokenResponse) => {
+                        if (tokenResponse.error) { reject(new Error(tokenResponse.error)); return; }
+                        try { await handleAuth({ accessToken: tokenResponse.access_token }); }
+                        catch (e) { reject(e); }
+                    },
+                    error_callback: (err) => { reject(new Error(err.message || "Google sign-in cancelled")); },
+                });
+                tokenClient.requestAccessToken({ prompt: "select_account" });
             }
         });
     });

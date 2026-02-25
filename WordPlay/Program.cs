@@ -149,15 +149,36 @@ async Task<User> UpsertUser(WordPlayDb db, string provider, string sub, string? 
     return user;
 }
 
-app.MapPost("/api/auth/google", async (HttpRequest request, WordPlayDb db, AuthService auth) =>
+app.MapPost("/api/auth/google", async (HttpRequest request, WordPlayDb db, AuthService auth, IHttpClientFactory factory) =>
 {
     var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
-    if (!body.TryGetProperty("idToken", out var tokenEl))
-        return Results.BadRequest(new { error = "idToken required" });
 
     try
     {
-        var (sub, email) = await auth.ValidateGoogleToken(tokenEl.GetString()!);
+        string sub, email;
+
+        if (body.TryGetProperty("idToken", out var tokenEl))
+        {
+            (sub, email) = await auth.ValidateGoogleToken(tokenEl.GetString()!);
+        }
+        else if (body.TryGetProperty("accessToken", out var atEl))
+        {
+            // Verify access token via Google's userinfo endpoint
+            var client = factory.CreateClient();
+            var req = new HttpRequestMessage(HttpMethod.Get, "https://www.googleapis.com/oauth2/v3/userinfo");
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", atEl.GetString()!);
+            var res = await client.SendAsync(req);
+            if (!res.IsSuccessStatusCode)
+                return Results.BadRequest(new { error = "Invalid Google access token" });
+            var info = await JsonSerializer.DeserializeAsync<JsonElement>(await res.Content.ReadAsStreamAsync());
+            sub = info.GetProperty("sub").GetString()!;
+            email = info.TryGetProperty("email", out var emailEl) ? emailEl.GetString() : null;
+        }
+        else
+        {
+            return Results.BadRequest(new { error = "idToken or accessToken required" });
+        }
+
         var user = await UpsertUser(db, "google", sub, email);
         await db.SaveChangesAsync();
 
