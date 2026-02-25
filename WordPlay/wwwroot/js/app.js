@@ -2311,11 +2311,28 @@ function renderMenu() {
     html += `
         <div class="menu-setting">
             <label class="menu-setting-label">Set Your Progress:</label>
-            <div class="menu-setting-row">
+            <div class="menu-setting-row" style="margin-bottom:8px">
+                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">Level</span>
                 <input type="number" id="seed-level-input" value="${state.highestLevel}" min="1" max="${maxLv}" class="menu-setting-input">
-                <button class="menu-setting-btn" id="seed-level-btn" style="background:${theme.accent};color:#000">Set</button>
             </div>
-            <div class="menu-setting-hint">Mark all levels through this number as completed</div>
+            <div class="menu-setting-row" style="margin-bottom:8px">
+                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">🪙 Coins</span>
+                <input type="number" id="seed-coins-input" value="${state.coins}" min="0" class="menu-setting-input">
+            </div>
+            <div class="menu-setting-row" style="margin-bottom:8px">
+                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">💡 Hints</span>
+                <input type="number" id="seed-hints-input" value="${state.freeHints}" min="0" class="menu-setting-input">
+            </div>
+            <div class="menu-setting-row" style="margin-bottom:8px">
+                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">🎯 Target</span>
+                <input type="number" id="seed-targets-input" value="${state.freeTargets}" min="0" class="menu-setting-input">
+            </div>
+            <div class="menu-setting-row" style="margin-bottom:8px">
+                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">🚀 Rocket</span>
+                <input type="number" id="seed-rockets-input" value="${state.freeRockets}" min="0" class="menu-setting-input">
+            </div>
+            <button class="menu-setting-btn" id="seed-level-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;margin-top:4px">Set Progress</button>
+            <div class="menu-setting-hint">Set level to mark all prior levels as completed</div>
         </div>
     `;
 
@@ -2376,7 +2393,27 @@ function renderMenu() {
         }
     };
 
-    // Auth button handlers
+    // Auth button handlers — shared post-sign-in logic
+    async function handlePostSignIn() {
+        const newUid = getUser()?.id;
+        const lastUid = localStorage.getItem("wordplay-last-uid");
+        // If switching to a different user, clear local save so we don't
+        // merge the previous user's progress into the new account
+        if (lastUid && String(lastUid) !== String(newUid)) {
+            localStorage.removeItem("wordplay-save");
+        }
+        if (newUid) localStorage.setItem("wordplay-last-uid", String(newUid));
+
+        if (!getUser().displayName) renderDisplayNamePrompt();
+        if (typeof syncPull === "function") {
+            await syncPull();
+            loadProgress();
+            await recompute();
+            if (typeof restoreLevelState === "function") restoreLevelState();
+        }
+        renderMenu();
+    }
+
     const googleBtn = document.getElementById("menu-google-btn");
     if (googleBtn) {
         googleBtn.onclick = async () => {
@@ -2384,13 +2421,7 @@ function renderMenu() {
                 googleBtn.disabled = true;
                 googleBtn.textContent = "Signing in\u2026";
                 await signInWithGoogle();
-                if (!getUser().displayName) renderDisplayNamePrompt();
-                if (typeof syncPull === "function") {
-                    await syncPull();
-                    loadProgress();
-                    await recompute();
-                }
-                renderMenu();
+                await handlePostSignIn();
             } catch (e) {
                 showToast("Sign-in failed", "#ff8888");
                 renderMenu();
@@ -2404,13 +2435,7 @@ function renderMenu() {
                 msBtn.disabled = true;
                 msBtn.textContent = "Signing in\u2026";
                 await signInWithMicrosoft();
-                if (!getUser().displayName) renderDisplayNamePrompt();
-                if (typeof syncPull === "function") {
-                    await syncPull();
-                    loadProgress();
-                    await recompute();
-                }
-                renderMenu();
+                await handlePostSignIn();
             } catch (e) {
                 showToast("Sign-in failed", "#ff8888");
                 renderMenu();
@@ -2421,6 +2446,7 @@ function renderMenu() {
     if (signOutBtn) {
         signOutBtn.onclick = () => {
             signOut();
+            localStorage.removeItem("wordplay-last-uid");
             showToast("Signed out");
             renderMenu();
         };
@@ -2557,6 +2583,10 @@ function renderMenu() {
     document.getElementById("seed-level-btn").onclick = () => {
         const input = document.getElementById("seed-level-input");
         const val = parseInt(input.value);
+        const coins = parseInt(document.getElementById("seed-coins-input").value);
+        const hints = parseInt(document.getElementById("seed-hints-input").value);
+        const targets = parseInt(document.getElementById("seed-targets-input").value);
+        const rockets = parseInt(document.getElementById("seed-rockets-input").value);
         if (val >= 1 && val <= maxLv && !isNaN(val)) {
             state.highestLevel = val;
             state.currentLevel = val;
@@ -2564,6 +2594,10 @@ function renderMenu() {
             state.bonusFound = [];
             state.revealedCells = [];
             state.shuffleKey = 0;
+            if (!isNaN(coins) && coins >= 0) state.coins = coins;
+            if (!isNaN(hints) && hints >= 0) state.freeHints = hints;
+            if (!isNaN(targets) && targets >= 0) state.freeTargets = targets;
+            if (!isNaN(rockets) && rockets >= 0) state.freeRockets = rockets;
             // Mark all levels below as completed, clear anything at or above
             for (let lv = 1; lv < val; lv++) {
                 if (!state.levelHistory[lv]) state.levelHistory[lv] = [];
@@ -3061,9 +3095,16 @@ async function init() {
 
     // Auth init + sync pull
     if (typeof initAuth === "function") initAuth();
-    if (typeof syncPull === "function" && typeof isSignedIn === "function" && isSignedIn()) {
-        await syncPull();
-        loadProgress(); // re-load after merge
+    if (typeof isSignedIn === "function" && isSignedIn()) {
+        // Seed last-uid so post-update sign-in doesn't falsely detect a user switch
+        const uid = getUser()?.id;
+        if (uid && !localStorage.getItem("wordplay-last-uid")) {
+            localStorage.setItem("wordplay-last-uid", String(uid));
+        }
+        if (typeof syncPull === "function") {
+            await syncPull();
+            loadProgress(); // re-load after merge
+        }
     }
 
     await recompute();

@@ -702,6 +702,7 @@ html, body {
 
 .menu-setting-input {
     flex: 1;
+    min-width: 0;
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 10px;
@@ -755,6 +756,7 @@ html, body {
 
 .menu-setting-input {
     flex: 1;
+    min-width: 0;
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 10px;
