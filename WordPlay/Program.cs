@@ -292,9 +292,10 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         progress.CurrentMonth = nowMonth;
     }
 
-    // Large level jump (e.g. Set Progress): reset monthly baseline so it doesn't
+    // Large level change (e.g. Set Progress): reset monthly baseline so it doesn't
     // inflate the leaderboard — their monthly count starts fresh from here
-    if (highestLevel - progress.HighestLevel > 50)
+    var levelDelta = highestLevel - progress.HighestLevel;
+    if (levelDelta > 50 || levelDelta < -10)
     {
         progress.MonthlyStart = highestLevel;
     }
