@@ -2331,6 +2331,10 @@ function renderMenu() {
                 <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">🚀 Rocket</span>
                 <input type="number" id="seed-rockets-input" value="${state.freeRockets}" min="0" class="menu-setting-input">
             </div>
+            <div class="menu-setting-row" style="margin-bottom:8px">
+                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">📅 Mo.Start</span>
+                <input type="number" id="seed-monthly-start-input" value="" min="0" placeholder="auto" class="menu-setting-input">
+            </div>
             <button class="menu-setting-btn" id="seed-level-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;margin-top:4px">Set Progress</button>
             <div class="menu-setting-hint">Set level to mark all prior levels as completed</div>
         </div>
@@ -2633,13 +2637,15 @@ function renderMenu() {
         };
     }
 
-    document.getElementById("seed-level-btn").onclick = () => {
+    document.getElementById("seed-level-btn").onclick = async () => {
         const input = document.getElementById("seed-level-input");
         const val = parseInt(input.value);
         const coins = parseInt(document.getElementById("seed-coins-input").value);
         const hints = parseInt(document.getElementById("seed-hints-input").value);
         const targets = parseInt(document.getElementById("seed-targets-input").value);
         const rockets = parseInt(document.getElementById("seed-rockets-input").value);
+        const monthlyStartRaw = document.getElementById("seed-monthly-start-input").value;
+        const monthlyStart = monthlyStartRaw !== "" ? parseInt(monthlyStartRaw) : null;
         if (val >= 1 && val <= maxLv && !isNaN(val)) {
             state.highestLevel = val;
             state.currentLevel = val;
@@ -2662,11 +2668,24 @@ function renderMenu() {
                 if (parseInt(key) >= val) delete state.inProgress[key];
             }
             saveProgress();
-            recompute().then(() => {
-                state.showMenu = false;
-                renderAll();
-                showToast("Progress set to level " + val.toLocaleString());
-            });
+            // If monthlyStart was specified, push immediately with the override
+            if (monthlyStart !== null && !isNaN(monthlyStart) && isSignedIn()) {
+                clearTimeout(_syncPushTimer);
+                try {
+                    const raw = localStorage.getItem("wordplay-save");
+                    if (raw) {
+                        await fetch("/api/progress", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                            body: JSON.stringify({ progress: JSON.parse(raw), monthlyStart }),
+                        });
+                    }
+                } catch (e) { /* best effort */ }
+            }
+            await recompute();
+            state.showMenu = false;
+            renderAll();
+            showToast("Progress set to level " + val.toLocaleString());
         } else {
             showToast("Invalid level number", "#ff8888");
         }
