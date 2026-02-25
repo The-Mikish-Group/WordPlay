@@ -2382,7 +2382,7 @@ function renderMenu() {
     overlay.innerHTML = html;
 
     // Wire up event handlers
-    document.getElementById("menu-close-btn").onclick = () => { _menuSecretTaps = 0; state.showMenu = false; renderAll(); };
+    document.querySelector(".menu-header").onclick = () => { _menuSecretTaps = 0; state.showMenu = false; renderAll(); };
 
     // Easter egg: tap current level card 7 times to reveal hidden options
     document.getElementById("menu-current-level-card").onclick = () => {
