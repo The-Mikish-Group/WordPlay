@@ -2397,6 +2397,20 @@ function renderMenu() {
     async function handlePostSignIn() {
         const newUid = getUser()?.id;
         const lastUid = localStorage.getItem("wordplay-last-uid");
+
+        // Flush any in-game partial progress to localStorage before we read it
+        saveInProgressState();
+        // Write current state so localStorage is fully up-to-date
+        try {
+            const save = localStorage.getItem("wordplay-save");
+            if (save) {
+                const obj = JSON.parse(save);
+                // Patch in-progress into the saved blob
+                obj.ip = state.inProgress;
+                localStorage.setItem("wordplay-save", JSON.stringify(obj));
+            }
+        } catch (e) { /* ignore */ }
+
         // Switching users: push anonymous progress to old user first, then clear
         if (lastUid && String(lastUid) !== String(newUid)) {
             const stashedJwt = localStorage.getItem("wordplay-last-jwt");
@@ -2422,6 +2436,9 @@ function renderMenu() {
             await recompute();
             if (typeof restoreLevelState === "function") restoreLevelState();
         }
+        // Push current state to server — covers first-time sign-in where
+        // syncPull found no server data, and same-user re-sign-in
+        saveProgress();
         renderMenu();
     }
 
