@@ -2397,10 +2397,21 @@ function renderMenu() {
     async function handlePostSignIn() {
         const newUid = getUser()?.id;
         const lastUid = localStorage.getItem("wordplay-last-uid");
-        // If switching to a different user, clear local save so we don't
-        // merge the previous user's progress into the new account
+        // Switching users: push anonymous progress to old user first, then clear
         if (lastUid && String(lastUid) !== String(newUid)) {
+            const stashedJwt = localStorage.getItem("wordplay-last-jwt");
+            const localRaw = localStorage.getItem("wordplay-save");
+            if (stashedJwt && localRaw) {
+                try {
+                    await fetch("/api/progress", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: "Bearer " + stashedJwt },
+                        body: JSON.stringify({ progress: JSON.parse(localRaw) }),
+                    });
+                } catch (e) { /* best effort */ }
+            }
             localStorage.removeItem("wordplay-save");
+            localStorage.removeItem("wordplay-last-jwt");
         }
         if (newUid) localStorage.setItem("wordplay-last-uid", String(newUid));
 
@@ -2450,6 +2461,9 @@ function renderMenu() {
                 clearTimeout(_syncPushTimer);
                 await syncPush();
             }
+            // Stash JWT so anonymous play can be pushed to this user later
+            const authRaw = localStorage.getItem("wordplay-auth");
+            if (authRaw) localStorage.setItem("wordplay-last-jwt", JSON.parse(authRaw).jwt);
             signOut();
             showToast("Signed out");
             renderMenu();
