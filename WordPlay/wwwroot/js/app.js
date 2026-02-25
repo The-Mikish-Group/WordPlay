@@ -2444,7 +2444,12 @@ function renderMenu() {
     }
     const signOutBtn = document.getElementById("menu-signout-btn");
     if (signOutBtn) {
-        signOutBtn.onclick = () => {
+        signOutBtn.onclick = async () => {
+            // Flush progress to server while we still have the JWT
+            if (typeof syncPush === "function") {
+                clearTimeout(_syncPushTimer);
+                await syncPush();
+            }
             signOut();
             showToast("Signed out");
             renderMenu();
