@@ -2446,7 +2446,6 @@ function renderMenu() {
     if (signOutBtn) {
         signOutBtn.onclick = () => {
             signOut();
-            localStorage.removeItem("wordplay-last-uid");
             showToast("Signed out");
             renderMenu();
         };
