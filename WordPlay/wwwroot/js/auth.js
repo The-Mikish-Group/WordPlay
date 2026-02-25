@@ -58,9 +58,12 @@ function signInWithGoogle() {
             reject(new Error("Google Identity Services not loaded"));
             return;
         }
+        let overlay = null;
+
         google.accounts.id.initialize({
             client_id: _googleClientId,
             callback: async (response) => {
+                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
                 try {
                     const res = await fetch("/api/auth/google", {
                         method: "POST",
@@ -77,20 +80,23 @@ function signInWithGoogle() {
             },
         });
         google.accounts.id.prompt((notification) => {
-            // If One Tap is dismissed or skipped, fall back to button-initiated popup
             if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                // Try popup flow
+                // One Tap unavailable — show a visible Google button overlay
+                overlay = document.createElement("div");
+                overlay.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6)";
+                var box = document.createElement("div");
+                box.style.cssText = "background:#1a1a2e;border-radius:16px;padding:32px 28px;text-align:center;max-width:320px";
+                box.innerHTML = '<div style="color:#fef3e0;font-family:Nunito,system-ui,sans-serif;font-size:16px;margin-bottom:20px">Choose a Google account to sign in</div><div id="_g_signin_btn" style="display:flex;justify-content:center"></div><div style="margin-top:16px"><button id="_g_signin_cancel" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:14px;cursor:pointer;font-family:Nunito,system-ui,sans-serif">Cancel</button></div>';
+                overlay.appendChild(box);
+                document.body.appendChild(overlay);
                 google.accounts.id.renderButton(
-                    document.createElement("div"),
-                    { type: "icon", size: "large" }
+                    document.getElementById("_g_signin_btn"),
+                    { type: "standard", size: "large", theme: "filled_blue", text: "signin_with", width: 260 }
                 );
-                // Use the credential select flow
-                google.accounts.oauth2.initCodeClient({
-                    client_id: _googleClientId,
-                    scope: "openid email profile",
-                    ux_mode: "popup",
-                    callback: () => {},
-                });
+                document.getElementById("_g_signin_cancel").onclick = function() {
+                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                    reject(new Error("Sign-in cancelled"));
+                };
             }
         });
     });
