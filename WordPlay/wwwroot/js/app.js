@@ -2426,6 +2426,24 @@ function renderMenu() {
             }
             localStorage.removeItem("wordplay-save");
             localStorage.removeItem("wordplay-last-jwt");
+
+            // Reset in-memory state to defaults so stale data from the previous
+            // user can't bleed through if syncPull fails or returns empty
+            state.currentLevel = 1;
+            state.highestLevel = 1;
+            state.foundWords = [];
+            state.bonusFound = [];
+            state.coins = 50;
+            state.bonusCounter = 0;
+            state.revealedCells = [];
+            state.freeHints = 0;
+            state.freeTargets = 0;
+            state.freeRockets = 0;
+            state.levelsCompleted = 0;
+            state.levelHistory = {};
+            state.inProgress = {};
+            state.lastDailyClaim = null;
+            state.standaloneFound = false;
         }
         if (newUid) localStorage.setItem("wordplay-last-uid", String(newUid));
 
@@ -3131,9 +3149,34 @@ async function init() {
     // Auth init + sync pull
     if (typeof initAuth === "function") initAuth();
     if (typeof isSignedIn === "function" && isSignedIn()) {
-        // Seed last-uid so post-update sign-in doesn't falsely detect a user switch
         const uid = getUser()?.id;
-        if (uid && !localStorage.getItem("wordplay-last-uid")) {
+        const lastUid = localStorage.getItem("wordplay-last-uid");
+
+        // Safety net: if the signed-in user doesn't match the last-known user,
+        // clear local save to prevent cross-user data contamination (can happen
+        // if handlePostSignIn didn't complete, e.g. app closed during sign-in)
+        if (lastUid && uid && String(lastUid) !== String(uid)) {
+            localStorage.removeItem("wordplay-save");
+            state.currentLevel = 1;
+            state.highestLevel = 1;
+            state.foundWords = [];
+            state.bonusFound = [];
+            state.coins = 50;
+            state.bonusCounter = 0;
+            state.revealedCells = [];
+            state.freeHints = 0;
+            state.freeTargets = 0;
+            state.freeRockets = 0;
+            state.levelsCompleted = 0;
+            state.levelHistory = {};
+            state.inProgress = {};
+            state.lastDailyClaim = null;
+            state.standaloneFound = false;
+            localStorage.setItem("wordplay-last-uid", String(uid));
+        }
+
+        // Seed last-uid so post-update sign-in doesn't falsely detect a user switch
+        if (uid && !lastUid) {
             localStorage.setItem("wordplay-last-uid", String(uid));
         }
         if (typeof syncPull === "function") {
