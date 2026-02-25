@@ -531,10 +531,10 @@ function checkAutoCompleteWords() {
     let changed = false;
     for (const p of crossword.placements) {
         if (state.foundWords.includes(p.word)) continue;
-        if (p.standalone) continue; // standalone word must be spelled, not auto-completed
         const allRevealed = p.cells.every(c => visible.has(c.row + "," + c.col));
         if (allRevealed) {
             state.foundWords.push(p.word);
+            if (p.standalone) state.standaloneFound = true;
             changed = true;
         }
     }
@@ -2340,7 +2340,7 @@ function renderMenu() {
     html += `
         <div class="menu-setting">
             <label class="menu-setting-label">App</label>
-            <button class="menu-setting-btn" id="check-update-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px"><span style="font-size:24px;vertical-align:middle;margin-right:6px">🔄</span>Check for Updates</button>
+            <button class="menu-setting-btn" id="check-update-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px"><span style="font-size:24px;vertical-align:middle;margin-right:6px">✨</span>Check for Updates</button>
         </div>
     `;
 
