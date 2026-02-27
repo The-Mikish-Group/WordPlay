@@ -320,12 +320,19 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         progress.CurrentMonth = nowMonth;
     }
 
-    // Allow explicit monthlyStart override (e.g. admin fix for corrupted data)
+    // Allow explicit monthlyStart / monthlyCoinsStart override (e.g. admin fix)
+    var hasExplicitOverride = false;
     if (body.TryGetProperty("monthlyStart", out var msEl))
     {
         progress.MonthlyStart = msEl.GetInt32();
+        hasExplicitOverride = true;
     }
-    else
+    if (body.TryGetProperty("monthlyCoinsStart", out var mcsEl))
+    {
+        progress.MonthlyCoinsStart = mcsEl.GetInt32();
+        hasExplicitOverride = true;
+    }
+    if (!hasExplicitOverride)
     {
         // Large level change (e.g. Set Progress): reset monthly baseline so it doesn't
         // inflate the leaderboard — their monthly count starts fresh from here

@@ -177,14 +177,22 @@ function assignDailyCoinWord() {
 
     const cwf = state.dailyPuzzle ? (state.dailyPuzzle.coinWordsFound || 0) : 0;
     const seed = hashStr(getTodayStr() + ":" + cwf);
+    // Loop through unfound words to find one with an unrevealed cell for the coin
+    for (let i = 0; i < unfound.length; i++) {
+        const pick = unfound[(seed + i) % unfound.length];
+        const unrevealed = pick.cells.filter(c => !revealed.has(c.row + "," + c.col));
+        if (unrevealed.length === 0) continue;
+        _dailyCoinWord = pick.word;
+        const cellSeed = hashStr(getTodayStr() + ":cell:" + cwf);
+        const c = unrevealed[cellSeed % unrevealed.length];
+        _dailyCoinCellKey = c.row + "," + c.col;
+        return;
+    }
+    // All unfound words have fully revealed cells — place coin on a revealed cell
     const pick = unfound[seed % unfound.length];
     _dailyCoinWord = pick.word;
-    // Only place coin on an unrevealed cell so it's visible
-    const unrevealed = pick.cells.filter(c => !revealed.has(c.row + "," + c.col));
-    if (unrevealed.length === 0) return;
     const cellSeed = hashStr(getTodayStr() + ":cell:" + cwf);
-    const cellIdx = cellSeed % unrevealed.length;
-    const c = unrevealed[cellIdx];
+    const c = pick.cells[cellSeed % pick.cells.length];
     _dailyCoinCellKey = c.row + "," + c.col;
 }
 
@@ -478,6 +486,8 @@ function exitDailyMode() {
     _dailyCoinCellKey = null;
     _dailyCoinsEarned = 0;
     _savedRegularState = null;
+    // Save restored regular state to localStorage so sync/reload doesn't revert to daily level
+    saveProgress();
     recompute().then(() => {
         restoreLevelState();
         state.showHome = true;
@@ -508,13 +518,14 @@ function showToast(msg, color, fast, bg) {
 function checkDailyCoinWord() {
     if (!state.isDailyMode || !_dailyCoinWord) return;
     if (state.foundWords.includes(_dailyCoinWord)) {
+        const oldCellKey = _dailyCoinCellKey;
         state.coins += 25;
         state.totalCoinsEarned += 25;
         _dailyCoinsEarned += 25;
         if (state.dailyPuzzle) state.dailyPuzzle.coinWordsFound = (state.dailyPuzzle.coinWordsFound || 0) + 1;
         showToast("🪙 Coin Word! +25 🪙", "#22a866");
-        setTimeout(() => animateCoinFlyFromDailyCoin(), 200);
         assignDailyCoinWord();
+        setTimeout(() => animateCoinFlyFromDailyCoin(oldCellKey), 200);
         setTimeout(() => renderGrid(), 350);
     }
 }
@@ -1147,6 +1158,7 @@ async function advanceToNextLevel() {
 }
 
 async function handleNextLevel() {
+    if (state.isDailyMode) { exitDailyMode(); return; }
     const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
     // Store completed level answers before advancing
     if (state.foundWords.length === totalRequired) {
@@ -1632,7 +1644,30 @@ function renderGrid() {
             div.style.borderRadius = br + "px";
             div.style.fontSize = fs + "px";
 
-            if (isR) {
+            if (state.isDailyMode && _dailyCoinCellKey === k && !state.foundWords.includes(_dailyCoinWord)) {
+                // Daily coin cell — shown on unrevealed OR revealed cells
+                div.className = "grid-cell daily-coin-cell";
+                div.style.border = "2px solid rgba(34,168,102,0.6)";
+                if (isR) {
+                    div.style.background = theme.accent;
+                    div.style.color = "#fff";
+                    div.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
+                } else {
+                    div.style.background = "rgba(220,215,230,1)";
+                    div.style.color = "";
+                    div.style.textShadow = "";
+                }
+                if (state.pickMode) {
+                    div.textContent = "";
+                    div.style.cursor = "pointer";
+                    div.onclick = () => handlePickCell(k);
+                } else {
+                    const coinFs = Math.max(cs * 0.65, 10);
+                    div.innerHTML = '<span class="daily-coin-icon" style="font-size:' + coinFs + 'px">\uD83E\uDE99</span>';
+                    div.style.cursor = "";
+                    div.onclick = null;
+                }
+            } else if (isR) {
                 div.style.background = theme.accent;
                 div.style.border = "none";
                 div.style.color = "#fff";
@@ -1651,23 +1686,6 @@ function renderGrid() {
                 } else {
                     const coinFs = Math.max(cs * 0.7, 10);
                     div.innerHTML = '<span class="standalone-coin" style="font-size:' + coinFs + 'px">\uD83E\uDE99</span>';
-                    div.style.cursor = "";
-                    div.onclick = null;
-                }
-            } else if (state.isDailyMode && _dailyCoinCellKey === k) {
-                // Daily coin cell
-                div.className = "grid-cell daily-coin-cell";
-                div.style.background = "rgba(220,215,230,1)";
-                div.style.border = "2px solid rgba(34,168,102,0.6)";
-                div.style.color = "";
-                div.style.textShadow = "";
-                if (state.pickMode) {
-                    div.textContent = "";
-                    div.style.cursor = "pointer";
-                    div.onclick = () => handlePickCell(k);
-                } else {
-                    const coinFs = Math.max(cs * 0.65, 10);
-                    div.innerHTML = '<span class="daily-coin-icon" style="font-size:' + coinFs + 'px">\uD83E\uDE99</span>';
                     div.style.cursor = "";
                     div.onclick = null;
                 }
@@ -1765,11 +1783,12 @@ function animateCoinFlyFromStandalone() {
     }
 }
 
-function animateCoinFlyFromDailyCoin() {
+function animateCoinFlyFromDailyCoin(cellKey) {
+    const key = cellKey || _dailyCoinCellKey;
     const gc = document.getElementById("grid-container");
     const coinDisplay = document.getElementById("coin-display");
-    if (!gc || !coinDisplay || !_dailyCoinCellKey) return;
-    const [cr, cc] = _dailyCoinCellKey.split(",").map(Number);
+    if (!gc || !coinDisplay || !key) return;
+    const [cr, cc] = key.split(",").map(Number);
     const cellIdx = cr * crossword.cols + cc;
     const cellEl = gc.children[cellIdx];
     let startX = window.innerWidth / 2, startY = window.innerHeight / 2;
@@ -2808,8 +2827,12 @@ function renderMenu() {
                 <input type="number" id="seed-rockets-input" value="${state.freeRockets}" min="0" class="menu-setting-input">
             </div>
             <div class="menu-setting-row" style="margin-bottom:8px">
-                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">📅 Mo.Start</span>
+                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">📅 Mo.Lv</span>
                 <input type="number" id="seed-monthly-start-input" value="" min="0" placeholder="auto" class="menu-setting-input">
+            </div>
+            <div class="menu-setting-row" style="margin-bottom:8px">
+                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">📅 Mo.Coins</span>
+                <input type="number" id="seed-monthly-coins-start-input" value="" min="0" placeholder="auto" class="menu-setting-input">
             </div>
             <button class="menu-setting-btn" id="seed-level-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;margin-top:4px">Set Progress</button>
             <div class="menu-setting-hint">Set level to mark all prior levels as completed</div>
@@ -2820,6 +2843,7 @@ function renderMenu() {
         <div class="menu-setting">
             <label class="menu-setting-label">Reset</label>
             <button class="menu-setting-btn" id="reset-progress-btn" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3)">Reset All Progress</button>
+            <button class="menu-setting-btn" id="reset-daily-btn" style="background:rgba(80,200,120,0.2);color:#66dd99;border:1px solid rgba(80,200,120,0.3);margin-top:8px">Reset Daily Puzzle</button>
         </div>
     `;
 
@@ -3144,6 +3168,8 @@ function renderMenu() {
         const rockets = parseInt(document.getElementById("seed-rockets-input").value);
         const monthlyStartRaw = document.getElementById("seed-monthly-start-input").value;
         const monthlyStart = monthlyStartRaw !== "" ? parseInt(monthlyStartRaw) : null;
+        const monthlyCoinsStartRaw = document.getElementById("seed-monthly-coins-start-input").value;
+        const monthlyCoinsStart = monthlyCoinsStartRaw !== "" ? parseInt(monthlyCoinsStartRaw) : null;
         if (val >= 1 && val <= maxLv && !isNaN(val)) {
             state.highestLevel = val;
             state.currentLevel = val;
@@ -3166,61 +3192,73 @@ function renderMenu() {
                 if (parseInt(key) >= val) delete state.inProgress[key];
             }
             saveProgress();
-            // If monthlyStart was specified, push immediately with the override
-            if (monthlyStart !== null && !isNaN(monthlyStart) && isSignedIn()) {
+            // If monthly overrides specified, push immediately with overrides
+            const hasOverride = (monthlyStart !== null && !isNaN(monthlyStart)) ||
+                                (monthlyCoinsStart !== null && !isNaN(monthlyCoinsStart));
+            if (hasOverride && isSignedIn()) {
                 clearTimeout(_syncPushTimer);
                 try {
                     const raw = localStorage.getItem("wordplay-save");
                     if (raw) {
+                        const payload = { progress: JSON.parse(raw) };
+                        if (monthlyStart !== null && !isNaN(monthlyStart)) payload.monthlyStart = monthlyStart;
+                        if (monthlyCoinsStart !== null && !isNaN(monthlyCoinsStart)) payload.monthlyCoinsStart = monthlyCoinsStart;
                         await fetch("/api/progress", {
                             method: "POST",
                             headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                            body: JSON.stringify({ progress: JSON.parse(raw), monthlyStart }),
+                            body: JSON.stringify(payload),
                         });
                     }
                 } catch (e) { /* best effort */ }
             }
-            await recompute();
+            _menuSecretTaps = 0;
             state.showMenu = false;
-            state.showHome = false;
-            const app = document.getElementById("app");
-            app.innerHTML = "";
-            renderAll();
+            state.showHome = true;
+            renderMenu();
+            renderHome();
             showToast("Progress set to level " + val.toLocaleString());
         } else {
             showToast("Invalid level number", "#ff8888");
         }
     };
 
+    document.getElementById("reset-daily-btn").onclick = () => {
+        if (!confirm("Reset today's Daily Puzzle?")) return;
+        state.dailyPuzzle = null;
+        saveProgress();
+        state.showMenu = false;
+        state.showHome = true;
+        renderMenu();
+        renderHome();
+    };
+
     document.getElementById("reset-progress-btn").onclick = () => {
-        if (confirm("Reset all progress? This cannot be undone.")) {
-            localStorage.removeItem("wordplay-save");
-            state.currentLevel = 1;
-            state.highestLevel = 1;
-            state.foundWords = [];
-            state.bonusFound = [];
-            state.revealedCells = [];
-            state.bonusCounter = 0;
-            state.freeHints = 0;
-            state.freeTargets = 0;
-            state.freeRockets = 0;
-            state.levelsCompleted = 0;
-            state.totalCoinsEarned = 0;
-            state.levelHistory = {};
-            state.inProgress = {};
-            state.lastDailyClaim = null;
-            state.dailyPuzzle = null;
-            state.soundEnabled = true;
-            state.coins = 50;
-            state.showMenu = false;
-            state.showHome = true;
-            saveProgress();
-            recompute().then(() => {
-                const app = document.getElementById("app");
-                app.innerHTML = "";
-                renderHome();
-            });
-        }
+        if (!confirm("Reset all progress? This cannot be undone.")) return;
+        localStorage.removeItem("wordplay-save");
+        state.currentLevel = 1;
+        state.highestLevel = 1;
+        state.foundWords = [];
+        state.bonusFound = [];
+        state.revealedCells = [];
+        state.bonusCounter = 0;
+        state.freeHints = 0;
+        state.freeTargets = 0;
+        state.freeRockets = 0;
+        state.levelsCompleted = 0;
+        state.totalCoinsEarned = 0;
+        state.levelHistory = {};
+        state.inProgress = {};
+        state.lastDailyClaim = null;
+        state.dailyPuzzle = null;
+        state.soundEnabled = true;
+        state.coins = 50;
+        state.showMenu = false;
+        state.showHome = true;
+        saveProgress();
+        recompute().then(() => {
+            renderMenu();
+            renderHome();
+        });
     };
 }
 
