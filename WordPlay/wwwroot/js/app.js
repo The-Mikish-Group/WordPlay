@@ -116,10 +116,12 @@ const state = {
     freeTargets: 0,        // accumulated free targeted hints (persists)
     freeRockets: 0,        // accumulated free rocket hints (persists)
     levelsCompleted: 0,    // total levels completed (persists, for 10-level target reward)
+    totalCoinsEarned: 0,   // lifetime coins earned (never decreases, for expertise/leaderboard)
     levelHistory: {},      // { levelNum: [foundWords] } — answers for completed levels
     inProgress: {},        // { levelNum: { fw, bf, rc } } — partial progress for incomplete levels
     lastDailyClaim: null,  // date string of last daily coin claim
     // Transient
+    showHome: true,        // home/opening screen shown (default entry point)
     showMenu: false,
     showComplete: false,
     showMap: false,
@@ -129,10 +131,62 @@ const state = {
     standaloneFound: false, // whether the standalone coin word has been solved
     showLeaderboard: false,
     showGuide: false,
+    dailyPuzzle: null,     // { date, levelNum, fw, bf, rc, sf, coinWordsFound, completed }
+    isDailyMode: false,
 };
 
 // ---- MENU SECRET ----
 let _menuSecretTaps = 0;
+
+// ---- DAILY PUZZLE ----
+let _dailyCoinWord = null;      // current word with coin (string)
+let _dailyCoinCellKey = null;   // "row,col" of the visible coin cell
+let _dailyCoinsEarned = 0;     // session accumulator for completion modal
+let _savedRegularState = null;  // snapshot of regular game state while in daily mode
+
+function hashStr(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+        h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h);
+}
+
+function getDailyLevelNum() {
+    const maxLv = (typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : 6001;
+    const cap = Math.min(maxLv, 6001);
+    return (hashStr(getTodayStr()) % cap) + 1;
+}
+
+function assignDailyCoinWord() {
+    _dailyCoinWord = null;
+    _dailyCoinCellKey = null;
+    if (!crossword || !crossword.placements) return;
+    const unfound = crossword.placements.filter(p =>
+        !p.standalone && !state.foundWords.includes(p.word)
+    );
+    if (unfound.length === 0) return;
+    // Build set of currently revealed cells (from found words + hints)
+    const revealed = new Set();
+    for (const p of crossword.placements) {
+        if (state.foundWords.includes(p.word)) {
+            for (const c of p.cells) revealed.add(c.row + "," + c.col);
+        }
+    }
+    for (const k of state.revealedCells) revealed.add(k);
+
+    const cwf = state.dailyPuzzle ? (state.dailyPuzzle.coinWordsFound || 0) : 0;
+    const seed = hashStr(getTodayStr() + ":" + cwf);
+    const pick = unfound[seed % unfound.length];
+    _dailyCoinWord = pick.word;
+    // Only place coin on an unrevealed cell so it's visible
+    const unrevealed = pick.cells.filter(c => !revealed.has(c.row + "," + c.col));
+    if (unrevealed.length === 0) return;
+    const cellSeed = hashStr(getTodayStr() + ":cell:" + cwf);
+    const cellIdx = cellSeed % unrevealed.length;
+    const c = unrevealed[cellIdx];
+    _dailyCoinCellKey = c.row + "," + c.col;
+}
 
 // ---- MAP STATE ----
 let _mapExpandedPacks = {};       // { "group/pack": true }
@@ -263,6 +317,16 @@ function loadProgress() {
             state.lastDailyClaim = d.ldc || null;
             state.soundEnabled = d.se !== undefined ? d.se : true;
             state.standaloneFound = d.sf || false;
+            state.totalCoinsEarned = d.tce || 0;
+            // Retroactive seed for existing players who don't have tce yet
+            if (!d.tce && (state.levelsCompleted > 0 || state.coins > 50)) {
+                state.totalCoinsEarned = Math.max(state.coins, state.highestLevel * 100 + 50);
+            }
+            state.dailyPuzzle = d.dp || null;
+            // Clear stale daily data
+            if (state.dailyPuzzle && state.dailyPuzzle.date !== getTodayStr()) {
+                state.dailyPuzzle = null;
+            }
         }
     } catch (e) { /* ignore */ }
 }
@@ -288,12 +352,15 @@ function saveProgress() {
             ldc: state.lastDailyClaim,
             se: state.soundEnabled,
             sf: state.standaloneFound,
+            tce: state.totalCoinsEarned,
+            dp: state.dailyPuzzle,
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
     } catch (e) { /* ignore */ }
 }
 
 function saveInProgressState() {
+    if (state.isDailyMode) return;
     const lv = state.currentLevel;
     if (state.foundWords.length > 0 || state.revealedCells.length > 0 || state.bonusFound.length > 0 || state.standaloneFound) {
         state.inProgress[lv] = {
@@ -303,6 +370,15 @@ function saveInProgressState() {
             sf: state.standaloneFound,
         };
     }
+}
+
+function saveDailyState() {
+    if (!state.dailyPuzzle) return;
+    state.dailyPuzzle.fw = [...state.foundWords];
+    state.dailyPuzzle.bf = [...state.bonusFound];
+    state.dailyPuzzle.rc = [...state.revealedCells];
+    state.dailyPuzzle.sf = state.standaloneFound;
+    saveProgress();
 }
 
 function restoreLevelState() {
@@ -347,6 +423,70 @@ function restoreLevelState() {
     }
 }
 
+// ---- DAILY MODE ENTRY/EXIT ----
+async function enterDailyMode() {
+    saveInProgressState();
+    _savedRegularState = {
+        currentLevel: state.currentLevel,
+        foundWords: [...state.foundWords],
+        bonusFound: [...state.bonusFound],
+        revealedCells: [...state.revealedCells],
+        standaloneFound: state.standaloneFound,
+    };
+    state.isDailyMode = true;
+    const today = getTodayStr();
+    if (!state.dailyPuzzle || state.dailyPuzzle.date !== today) {
+        state.dailyPuzzle = {
+            date: today,
+            levelNum: getDailyLevelNum(),
+            fw: [], bf: [], rc: [], sf: false,
+            coinWordsFound: 0,
+            completed: false,
+        };
+    }
+    state.currentLevel = state.dailyPuzzle.levelNum;
+    await recompute();
+    state.foundWords = (state.dailyPuzzle.fw || []).filter(w => placedWords.includes(w));
+    state.bonusFound = state.dailyPuzzle.bf || [];
+    state.revealedCells = state.dailyPuzzle.rc || [];
+    state.standaloneFound = state.dailyPuzzle.sf || false;
+    if (state.standaloneFound && standaloneWord && !state.foundWords.includes(standaloneWord)) {
+        state.foundWords.push(standaloneWord);
+    }
+    while (checkAutoCompleteWords()) {}
+    _dailyCoinsEarned = 0;
+    assignDailyCoinWord();
+    state.showHome = false;
+    const app = document.getElementById("app");
+    app.innerHTML = "";
+    renderAll();
+    animateGridEntrance();
+}
+
+function exitDailyMode() {
+    saveDailyState();
+    state.isDailyMode = false;
+    state.showComplete = false;
+    if (_savedRegularState) {
+        state.currentLevel = _savedRegularState.currentLevel;
+        state.foundWords = _savedRegularState.foundWords;
+        state.bonusFound = _savedRegularState.bonusFound;
+        state.revealedCells = _savedRegularState.revealedCells;
+        state.standaloneFound = _savedRegularState.standaloneFound;
+    }
+    _dailyCoinWord = null;
+    _dailyCoinCellKey = null;
+    _dailyCoinsEarned = 0;
+    _savedRegularState = null;
+    recompute().then(() => {
+        restoreLevelState();
+        state.showHome = true;
+        const app = document.getElementById("app");
+        app.innerHTML = "";
+        renderHome();
+    });
+}
+
 // ---- TOAST ----
 let toastTimer = null;
 function showToast(msg, color, fast, bg) {
@@ -365,6 +505,29 @@ function showToast(msg, color, fast, bg) {
 }
 
 // ---- WORD HANDLING ----
+function checkDailyCoinWord() {
+    if (!state.isDailyMode || !_dailyCoinWord) return;
+    if (state.foundWords.includes(_dailyCoinWord)) {
+        state.coins += 25;
+        state.totalCoinsEarned += 25;
+        _dailyCoinsEarned += 25;
+        if (state.dailyPuzzle) state.dailyPuzzle.coinWordsFound = (state.dailyPuzzle.coinWordsFound || 0) + 1;
+        showToast("🪙 Coin Word! +25 🪙", "#22a866");
+        setTimeout(() => animateCoinFlyFromDailyCoin(), 200);
+        assignDailyCoinWord();
+        setTimeout(() => renderGrid(), 350);
+    }
+}
+
+function handleDailyCompletion() {
+    state.coins += 100;
+    state.totalCoinsEarned += 100;
+    _dailyCoinsEarned += 100;
+    state.dailyPuzzle.completed = true;
+    saveDailyState();
+    setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+}
+
 function handleWord(word) {
     const w = word.toUpperCase();
 
@@ -377,7 +540,8 @@ function handleWord(word) {
         state.standaloneFound = true;
         if (!state.foundWords.includes(w)) state.foundWords.push(w);
         state.coins += 100;
-        saveProgress();
+        state.totalCoinsEarned += 100;
+        if (state.isDailyMode) { _dailyCoinsEarned += 100; saveDailyState(); } else saveProgress();
         renderGrid();
         highlightWord(w);
         renderCoins();
@@ -386,10 +550,14 @@ function handleWord(word) {
         showToast("🪙 Coin Word! +100 🪙", theme.accent);
         setTimeout(() => animateCoinFlyFromStandalone(), 200);
         if (state.foundWords.length === totalRequired) {
-            state.levelHistory[state.currentLevel] = [...state.foundWords];
-            delete state.inProgress[state.currentLevel];
-            saveProgress();
-            setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+            if (state.isDailyMode) {
+                handleDailyCompletion();
+            } else {
+                state.levelHistory[state.currentLevel] = [...state.foundWords];
+                delete state.inProgress[state.currentLevel];
+                saveProgress();
+                setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+            }
         }
         return;
     }
@@ -403,7 +571,8 @@ function handleWord(word) {
         // Auto-complete any crossing words whose cells are all now visible
         while (checkAutoCompleteWords()) {}
         state.coins += 1;
-        saveProgress();
+        state.totalCoinsEarned += 1;
+        if (state.isDailyMode) saveDailyState(); else saveProgress();
         renderGrid();
         highlightWord(w);
         playSound("wordFound");
@@ -413,11 +582,16 @@ function handleWord(word) {
         renderTargetBtn();
         renderRocketBtn();
         renderSpinBtn();
+        checkDailyCoinWord();
         if (state.foundWords.length === totalRequired) {
-            state.levelHistory[state.currentLevel] = [...state.foundWords];
-            delete state.inProgress[state.currentLevel];
-            saveProgress();
-            setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+            if (state.isDailyMode) {
+                handleDailyCompletion();
+            } else {
+                state.levelHistory[state.currentLevel] = [...state.foundWords];
+                delete state.inProgress[state.currentLevel];
+                saveProgress();
+                setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+            }
         }
         return;
     }
@@ -425,6 +599,7 @@ function handleWord(word) {
         playSound("bonusChime");
         state.bonusFound.push(w);
         state.coins += 5;
+        state.totalCoinsEarned += 5;
         state.bonusCounter++;
         if (state.bonusCounter >= 10) {
             state.bonusCounter = 0;
@@ -434,7 +609,7 @@ function handleWord(word) {
             if (cell) {
                 state.revealedCells.push(cell);
                 checkAutoCompleteWords();
-                saveProgress();
+                if (state.isDailyMode) saveDailyState(); else saveProgress();
                 renderGrid();
                 renderCoins();
                 renderWordCount();
@@ -445,20 +620,25 @@ function handleWord(word) {
                 showToast("⭐ Bonus Reward! Free letter!", theme.accent);
                 // Delayed flash so the grid renders first
                 setTimeout(() => flashHintCell(cell), 100);
+                checkDailyCoinWord();
                 if (state.foundWords.length === totalRequired) {
-                    state.levelHistory[state.currentLevel] = [...state.foundWords];
-                    delete state.inProgress[state.currentLevel];
-                    saveProgress();
-                    setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 1200);
+                    if (state.isDailyMode) {
+                        handleDailyCompletion();
+                    } else {
+                        state.levelHistory[state.currentLevel] = [...state.foundWords];
+                        delete state.inProgress[state.currentLevel];
+                        saveProgress();
+                        setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 1200);
+                    }
                 }
             } else {
-                saveProgress();
+                if (state.isDailyMode) saveDailyState(); else saveProgress();
                 renderCoins();
                 renderWordCount();
                 showToast("⭐ All letters revealed!", theme.accent);
             }
         } else {
-            saveProgress();
+            if (state.isDailyMode) saveDailyState(); else saveProgress();
             renderCoins();
             renderWordCount();
             renderBonusStar();
@@ -783,7 +963,7 @@ function handleHint() {
     }
     state.revealedCells.push(cell);
     checkAutoCompleteWords();
-    saveProgress();
+    if (state.isDailyMode) saveDailyState(); else saveProgress();
     showToast(hasFree ? "💡 Free hint used!" : "💡 Letter revealed  −100 🪙");
     renderGrid();
     flashHintCell(cell);
@@ -792,8 +972,13 @@ function handleHint() {
     renderHintBtn();
     renderRocketBtn();
     renderSpinBtn();
+    checkDailyCoinWord();
     if (state.foundWords.length === totalRequired) {
-        setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+        if (state.isDailyMode) {
+            handleDailyCompletion();
+        } else {
+            setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+        }
     }
 }
 
@@ -822,7 +1007,7 @@ function handlePickCell(key) {
     }
     state.revealedCells.push(key);
     checkAutoCompleteWords();
-    saveProgress();
+    if (state.isDailyMode) saveDailyState(); else saveProgress();
     showToast(wasFree ? "🎯 Free target used!" : "🎯 Letter placed!  −200 🪙");
     renderGrid();
     flashHintCell(key);
@@ -832,8 +1017,13 @@ function handlePickCell(key) {
     renderTargetBtn();
     renderRocketBtn();
     renderSpinBtn();
+    checkDailyCoinWord();
     if (state.foundWords.length === totalRequired) {
-        setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+        if (state.isDailyMode) {
+            handleDailyCompletion();
+        } else {
+            setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+        }
     }
 }
 
@@ -915,6 +1105,47 @@ function handleShuffle() {
     }
 }
 
+async function advanceToNextLevel() {
+    if (state.isDailyMode) { exitDailyMode(); return; }
+    // Advance level logic and return to home screen
+    const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
+    if (state.foundWords.length === totalRequired) {
+        state.levelHistory[state.currentLevel] = [...state.foundWords];
+        delete state.inProgress[state.currentLevel];
+    }
+    const isReplay = state.currentLevel < state.highestLevel;
+    let next;
+    if (isReplay) {
+        next = state.currentLevel + 1;
+        while (next <= maxLv && state.levelHistory[next]) next++;
+        next = Math.min(next, maxLv);
+    } else {
+        next = Math.min(state.currentLevel + 1, maxLv);
+    }
+    state.currentLevel = next;
+    state.highestLevel = Math.max(state.highestLevel, next);
+    state.foundWords = [];
+    state.bonusFound = [];
+    state.revealedCells = [];
+    state.standaloneFound = false;
+    state.showComplete = false;
+    if (!isReplay) {
+        state.coins += 1;
+        state.totalCoinsEarned += 1;
+        state.levelsCompleted++;
+        if (state.levelsCompleted % 10 === 0) state.freeHints++;
+        if (state.levelsCompleted % 10 === 0) state.freeTargets++;
+        if (state.levelsCompleted % 10 === 0) state.freeRockets++;
+    }
+    state.shuffleKey = 0;
+    saveProgress();
+    // Return to home screen
+    state.showHome = true;
+    const app = document.getElementById("app");
+    app.innerHTML = "";
+    renderHome();
+}
+
 async function handleNextLevel() {
     const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
     // Store completed level answers before advancing
@@ -941,6 +1172,7 @@ async function handleNextLevel() {
     state.showComplete = false;
     if (!isReplay) {
         state.coins += 1;
+        state.totalCoinsEarned += 1;
         state.levelsCompleted++;
         if (state.levelsCompleted % 10 === 0) {
             state.freeHints++;
@@ -965,8 +1197,11 @@ async function goToLevel(num) {
     if (num < 1 || num > maxLv) return;
     if (num === state.currentLevel) {
         state.showMap = false;
+        state.showHome = false;
         renderMap();
-        renderWheel();
+        const app = document.getElementById("app");
+        app.innerHTML = "";
+        renderAll();
         return;
     }
     saveInProgressState();
@@ -978,10 +1213,13 @@ async function goToLevel(num) {
     state.standaloneFound = false;
     state.showMenu = false;
     state.showMap = false;
+    state.showHome = false;
     state.shuffleKey = 0;
     await recompute();
     restoreLevelState();
     saveProgress();
+    const app = document.getElementById("app");
+    app.innerHTML = "";
     renderAll();
     animateGridEntrance();
 }
@@ -1018,6 +1256,125 @@ function renderAll() {
     renderGuide();
 }
 
+function formatCompact(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(n >= 10000000 ? 0 : 1).replace(/\.0$/, '') + 'M';
+    if (n >= 100000) return (n / 1000).toFixed(0) + 'K';
+    if (n >= 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return n.toLocaleString();
+}
+
+function renderCurrentScreen() {
+    const app = document.getElementById("app");
+    if (state.showHome) {
+        app.innerHTML = "";
+        renderHome();
+    } else {
+        renderAll();
+    }
+}
+
+// ---- HOME / OPENING SCREEN ----
+let _homeBgKey = null;
+
+function pickRandomBgKey() {
+    if (!_bgManifest || _bgManifest.size === 0) return null;
+    const keys = [..._bgManifest];
+    return keys[Math.floor(Math.random() * keys.length)];
+}
+
+function renderHome() {
+    const app = document.getElementById("app");
+    // Pick a random background each time we visit the home screen
+    _homeBgKey = pickRandomBgKey();
+    let bgStyle;
+    if (_homeBgKey) {
+        bgStyle = `linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.5) 100%), url('images/bg/${_homeBgKey}.webp') center/cover no-repeat`;
+    } else {
+        bgStyle = 'linear-gradient(170deg, #0f0520, #2d1b4e, #8b2252)';
+    }
+
+    const claimed = state.lastDailyClaim === getTodayStr();
+    const dailyBtnHtml = claimed ? '' : `
+        <button class="home-daily-btn" id="home-daily-btn">
+            <span class="daily-text">FREE</span>
+            <svg class="daily-coins" width="16" height="22" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg>
+        </button>`;
+
+    app.innerHTML = `
+        <div class="home-screen" id="home-screen" style="background:${bgStyle}">
+            <div class="home-top-bar">
+                <div class="home-top-right">
+                    <div class="home-coin-display" id="home-coin-display">🪙 ${formatCompact(state.coins)}</div>
+                    ${dailyBtnHtml}
+                </div>
+            </div>
+            <div class="home-expertise-row">
+                <div class="expertise-banner" id="home-expertise-btn">
+                    <div class="expertise-bottom">
+                        <span class="expertise-icon">🏆</span>
+                        <span class="expertise-label">Expertise</span>
+                    </div>
+                    <div class="expertise-row">
+                        <span class="expertise-coin">🪙</span>
+                        <span class="expertise-value">${formatCompact(state.totalCoinsEarned)}</span>
+                    </div>
+                </div>
+            </div>
+            ${(function() {
+                const dp = state.dailyPuzzle;
+                const completed = dp && dp.date === getTodayStr() && dp.completed;
+                if (completed) return '';
+                const inProgress = dp && dp.date === getTodayStr() && (dp.fw || []).length > 0 && !dp.completed;
+                return '<div class="home-daily-puzzle-row"><button class="home-daily-puzzle-btn' + (inProgress ? ' in-progress' : '') + '" id="home-daily-puzzle-btn">\uD83D\uDCC5 ' + (inProgress ? 'Continue Daily Puzzle' : 'Daily Puzzle') + '</button></div>';
+            })()}
+            <div class="home-center">
+                <div class="home-title">Word<br>Play</div>
+                <button class="home-level-btn" id="home-play-btn">
+                    <span class="home-level-label">Level</span>
+                    <span class="home-level-num" style="font-size:${state.currentLevel >= 100000 ? 22 : state.currentLevel >= 10000 ? 26 : 36}px">${state.currentLevel.toLocaleString()}</span>
+                </button>
+            </div>
+            <div class="home-bottom">
+                <div class="home-bottom-btns">
+                    <button class="home-corner-btn" id="home-settings-btn" title="Settings">⚙️</button>
+                    <button class="home-corner-btn home-info-corner" id="home-info-btn" title="How to Play"><i style="font-family:Georgia,'Times New Roman',serif;font-weight:700;font-style:italic;font-size:18px">i</i></button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Wire up event handlers
+    document.getElementById("home-settings-btn").onclick = () => {
+        state.showMenu = true;
+        renderMenu();
+    };
+    document.getElementById("home-info-btn").onclick = () => {
+        state.showGuide = true;
+        renderGuide();
+    };
+    document.getElementById("home-expertise-btn").onclick = () => {
+        state.showLeaderboard = true;
+        renderLeaderboard();
+    };
+    document.getElementById("home-play-btn").onclick = async () => {
+        state.showHome = false;
+        await recompute();
+        restoreLevelState();
+        app.innerHTML = "";
+        renderAll();
+        animateGridEntrance();
+    };
+
+    const dailyBtn = document.getElementById("home-daily-btn");
+    if (dailyBtn) {
+        dailyBtn.onclick = () => renderDailyModal(true);
+    }
+    const dpBtn = document.getElementById("home-daily-puzzle-btn");
+    if (dpBtn) {
+        dpBtn.onclick = () => enterDailyMode();
+    }
+}
+
 // ---- HEADER ----
 function renderHeader() {
     let hdr = document.getElementById("header");
@@ -1028,29 +1385,52 @@ function renderHeader() {
         document.getElementById("app").prepend(hdr);
     }
     hdr.style.color = theme.text;
-    hdr.innerHTML = `
-        <div style="display:flex;align-items:center;gap:0">
-            <button id="menu-btn" style="background:none;border:none;padding:4px 4px 4px 0;cursor:pointer;font-size:28px;line-height:1">⚙️</button>
-            <button id="lb-btn" style="background:none;border:none;padding:4px;cursor:pointer;font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(255,200,0,0.3))">🏆</button>
-        </div>
-        <div class="header-center">
-            <div class="header-pack">${level.group} · ${level.pack}</div>
-            <div class="header-level" style="color:${theme.accent}">Level ${getDisplayLevel()}</div>
-        </div>
-        <div class="header-right">
-            <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">🪙 ${state.coins}</div>
-            <button class="daily-btn" id="daily-btn"><span class="daily-text">FREE</span><svg class="daily-coins" width="16" height="22" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg></button>
-        </div>
-    `;
-    document.getElementById("menu-btn").onclick = () => { _menuSecretTaps = 0; state.showMenu = true; renderMenu(); };
-    document.getElementById("lb-btn").onclick = () => { state.showLeaderboard = true; renderLeaderboard(); };
-    document.getElementById("daily-btn").onclick = () => renderDailyModal(true);
-    renderDailyBtn();
+    if (state.isDailyMode) {
+        hdr.innerHTML = `
+            <button class="back-arrow-btn" id="back-home-btn" title="Back to Home">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <div class="header-center">
+                <div class="header-pack" style="color:#22a866">\uD83D\uDCC5 Daily Puzzle</div>
+                <div class="header-level" style="color:#22a866">${getTodayStr()}</div>
+            </div>
+            <div class="header-right">
+                <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">\uD83E\uDE99 ${state.coins.toLocaleString()}</div>
+            </div>
+        `;
+        document.getElementById("back-home-btn").onclick = () => exitDailyMode();
+    } else {
+        hdr.innerHTML = `
+            <button class="back-arrow-btn" id="back-home-btn" title="Back to Home">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <div class="header-center">
+                <div class="header-pack">${level.group} · ${level.pack}</div>
+                <div class="header-level" style="color:${theme.accent}">Level ${getDisplayLevel()}</div>
+            </div>
+            <div class="header-right">
+                <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">\uD83E\uDE99 ${state.coins.toLocaleString()}</div>
+                <button class="daily-btn" id="daily-btn"><span class="daily-text">FREE</span><svg class="daily-coins" width="16" height="22" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg></button>
+            </div>
+        `;
+        document.getElementById("back-home-btn").onclick = () => {
+            state.showHome = true;
+            const app = document.getElementById("app");
+            app.innerHTML = "";
+            renderHome();
+        };
+        document.getElementById("daily-btn").onclick = () => renderDailyModal(true);
+        renderDailyBtn();
+    }
 }
 
 function renderCoins() {
     const el = document.getElementById("coin-display");
-    if (el) el.textContent = "🪙 " + state.coins;
+    if (el) el.textContent = "🪙 " + state.coins.toLocaleString();
 }
 
 function getTodayStr() {
@@ -1091,18 +1471,23 @@ function renderDailyModal(show) {
     `;
     document.getElementById("daily-claim-btn").onclick = () => {
         state.coins += 100;
+        state.totalCoinsEarned += 100;
         state.lastDailyClaim = getTodayStr();
         saveProgress();
         renderDailyModal(false);
-        renderDailyBtn();
-        renderCoins();
-        renderHintBtn();
-        renderTargetBtn();
-        renderRocketBtn();
-        renderSpinBtn();
+        if (state.showHome) {
+            renderHome();
+        } else {
+            renderDailyBtn();
+            renderCoins();
+            renderHintBtn();
+            renderTargetBtn();
+            renderRocketBtn();
+            renderSpinBtn();
+        }
         showToast("🪙 +100 daily coins!", theme.accent);
         playSound("spinPrize");
-        setTimeout(() => animateCoinGain(100), 200);
+        if (!state.showHome) setTimeout(() => animateCoinGain(100), 200);
     };
     overlay.onclick = (e) => {
         if (e.target === overlay) renderDailyModal(false);
@@ -1255,14 +1640,37 @@ function renderGrid() {
                 div.textContent = cell;
             } else if (standaloneCells.has(k)) {
                 // Unsolved standalone coin cell
-                div.style.background = "rgba(220,215,230,1)";
-                div.style.border = "none";
+                div.style.background = state.pickMode ? "rgba(255,255,200,1)" : "rgba(220,215,230,1)";
+                div.style.border = state.pickMode ? "2px solid " + theme.accent : "none";
                 div.style.color = "";
                 div.style.textShadow = "";
-                const coinFs = Math.max(cs * 0.7, 10);
-                div.innerHTML = '<span class="standalone-coin" style="font-size:' + coinFs + 'px">\uD83E\uDE99</span>';
-                div.style.cursor = "";
-                div.onclick = null;
+                if (state.pickMode) {
+                    div.textContent = "";
+                    div.style.cursor = "pointer";
+                    div.onclick = () => handlePickCell(k);
+                } else {
+                    const coinFs = Math.max(cs * 0.7, 10);
+                    div.innerHTML = '<span class="standalone-coin" style="font-size:' + coinFs + 'px">\uD83E\uDE99</span>';
+                    div.style.cursor = "";
+                    div.onclick = null;
+                }
+            } else if (state.isDailyMode && _dailyCoinCellKey === k) {
+                // Daily coin cell
+                div.className = "grid-cell daily-coin-cell";
+                div.style.background = "rgba(220,215,230,1)";
+                div.style.border = "2px solid rgba(34,168,102,0.6)";
+                div.style.color = "";
+                div.style.textShadow = "";
+                if (state.pickMode) {
+                    div.textContent = "";
+                    div.style.cursor = "pointer";
+                    div.onclick = () => handlePickCell(k);
+                } else {
+                    const coinFs = Math.max(cs * 0.65, 10);
+                    div.innerHTML = '<span class="daily-coin-icon" style="font-size:' + coinFs + 'px">\uD83E\uDE99</span>';
+                    div.style.cursor = "";
+                    div.onclick = null;
+                }
             } else {
                 div.style.background = state.pickMode ? "rgba(255,255,200,1)" : "rgba(220,215,230,1)";
                 div.style.border = state.pickMode ? "2px solid " + theme.accent : "none";
@@ -1354,6 +1762,63 @@ function animateCoinFlyFromStandalone() {
             }
             requestAnimationFrame(animate);
         }, i * 60);
+    }
+}
+
+function animateCoinFlyFromDailyCoin() {
+    const gc = document.getElementById("grid-container");
+    const coinDisplay = document.getElementById("coin-display");
+    if (!gc || !coinDisplay || !_dailyCoinCellKey) return;
+    const [cr, cc] = _dailyCoinCellKey.split(",").map(Number);
+    const cellIdx = cr * crossword.cols + cc;
+    const cellEl = gc.children[cellIdx];
+    let startX = window.innerWidth / 2, startY = window.innerHeight / 2;
+    if (cellEl) {
+        const r = cellEl.getBoundingClientRect();
+        startX = r.left + r.width / 2;
+        startY = r.top + r.height / 2;
+    }
+    const coinRect = coinDisplay.getBoundingClientRect();
+    const endX = coinRect.left + coinRect.width / 2;
+    const endY = coinRect.top + coinRect.height / 2;
+    const gainText = document.createElement("div");
+    gainText.className = "coin-gain-text";
+    gainText.textContent = "+25";
+    gainText.style.left = endX + "px";
+    gainText.style.top = endY + "px";
+    document.body.appendChild(gainText);
+    setTimeout(() => gainText.remove(), 900);
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            const p = document.createElement("div");
+            p.className = "coin-particle";
+            p.textContent = "\uD83E\uDE99";
+            const sx = startX + (Math.random() - 0.5) * 40;
+            const sy = startY + (Math.random() - 0.5) * 20;
+            p.style.left = sx + "px";
+            p.style.top = sy + "px";
+            document.body.appendChild(p);
+            const curveX = (Math.random() - 0.5) * 60;
+            const curveY = (Math.random() - 0.5) * 30 - 20;
+            const midX = (sx + endX) / 2 + curveX;
+            const midY = (sy + endY) / 2 + curveY;
+            const duration = 450 + Math.random() * 150;
+            let start = null;
+            function animate(ts) {
+                if (!start) start = ts;
+                const t = Math.min((ts - start) / duration, 1);
+                const u = 1 - t;
+                const x = u * u * sx + 2 * u * t * midX + t * t * endX;
+                const y = u * u * sy + 2 * u * t * midY + t * t * endY;
+                p.style.left = x + "px";
+                p.style.top = y + "px";
+                p.style.transform = `translate(-50%, -50%) scale(${0.6 + t * 0.4})`;
+                p.style.opacity = 0.4 + t * 0.6;
+                if (t < 1) requestAnimationFrame(animate);
+                else p.remove();
+            }
+            requestAnimationFrame(animate);
+        }, i * 50);
     }
 }
 
@@ -1546,7 +2011,6 @@ function renderWheel() {
         <div class="spin-btn-area" id="spin-btn-area" style="display:none">
             <button class="spin-badge-btn" id="spin-btn" style="--accent:${theme.accent};--accent-dark:${theme.accentDark}"><span class="spin-gift">🎁</span><span class="spin-text">Spin</span></button>
         </div>
-        <button class="guide-btn" id="guide-btn"><i>i</i></button>
     `;
 
     // Render letter circles
@@ -1595,7 +2059,7 @@ function renderWheel() {
     document.getElementById("rocket-btn").onclick = handleRocketHint;
     document.getElementById("bonus-star-btn").onclick = () => renderBonusModal(true);
     document.getElementById("spin-btn").onclick = () => openSpinModal();
-    document.getElementById("guide-btn").onclick = () => { state.showGuide = true; renderGuide(); };
+
     renderSpinBtn();
 
     // Show "Next Level" overlay on wheel when level is already complete
@@ -1657,7 +2121,7 @@ function handleRocketHint() {
         state.revealedCells.push(cell);
         checkAutoCompleteWords();
     }
-    saveProgress();
+    if (state.isDailyMode) saveDailyState(); else saveProgress();
     showToast(hasFree ? "🚀 Free rocket used! " + revealed.length + " letters!" : "🚀 " + revealed.length + " letters revealed  −300 🪙");
     renderGrid();
     revealed.forEach((cell, i) => setTimeout(() => flashHintCell(cell), i * 400));
@@ -1667,8 +2131,13 @@ function handleRocketHint() {
     renderTargetBtn();
     renderRocketBtn();
     renderSpinBtn();
+    checkDailyCoinWord();
     if (state.foundWords.length === totalRequired) {
-        setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700 + revealed.length * 400);
+        if (state.isDailyMode) {
+            handleDailyCompletion();
+        } else {
+            setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700 + revealed.length * 400);
+        }
     }
 }
 
@@ -1683,12 +2152,10 @@ function renderRocketBtn() {
 
 function renderSpinBtn() {
     const el = document.getElementById("spin-btn-area");
-    const guideEl = document.getElementById("guide-btn");
     if (!el) return;
     const dailyAvailable = state.lastDailyClaim !== getTodayStr();
     const stuck = state.freeHints === 0 && state.freeTargets === 0 && state.freeRockets === 0 && state.coins < 100 && !dailyAvailable;
     el.style.display = stuck ? "" : "none";
-    if (guideEl) guideEl.style.display = stuck ? "none" : "";
 }
 
 // ---- RESCUE SPIN WHEEL ----
@@ -1985,12 +2452,14 @@ function claimSpinPrize(winner) {
         state.freeHints++;
     } else if (winner.label === "50 Coins") {
         state.coins += 50;
+        state.totalCoinsEarned += 50;
     } else if (winner.label === "Target") {
         state.freeTargets++;
     } else if (winner.label === "Rocket") {
         state.freeRockets++;
     } else if (winner.label === "100 Coins") {
         state.coins += 100;
+        state.totalCoinsEarned += 100;
     }
     // No Prize = nothing
     saveProgress();
@@ -2174,31 +2643,38 @@ function renderCompleteModal() {
     }
     overlay.className = "modal-overlay";
     overlay.style.display = "flex";
-    const maxLv = (typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
-    const isLast = state.currentLevel >= maxLv;
-    const bonusCount = state.bonusFound.length;
-    overlay.innerHTML = `
-        <div class="modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
-            <div class="modal-emoji">🎉</div>
-            <h2 class="modal-title" style="color:${theme.accent}">Level Complete!</h2>
-            <p class="modal-subtitle">${level.group} · ${level.pack} · Level ${getDisplayLevel()}</p>
-            <p class="modal-coins" style="color:${theme.text}">+1 🪙${bonusCount > 0 ? " · +" + bonusCount + " bonus" : ""}</p>
-            <button class="modal-next-btn" id="next-btn"
-                style="background:linear-gradient(180deg,${theme.accent} 0%,${theme.accentDark} 100%);border:2px solid ${theme.accent};border-bottom-color:${theme.accentDark};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
-                ${isLast ? "🏆 All Done!" : "Next Level →"}
-            </button>
-            <button class="modal-map-btn" id="modal-map-btn" style="border-color:${theme.accent}40;color:${theme.text}">View Map</button>
-        </div>
-    `;
-    document.getElementById("next-btn").onclick = handleNextLevel;
-    document.getElementById("modal-map-btn").onclick = () => {
-        state.showComplete = false;
-        state.showMap = true;
-        _mapAutoExpanded = false;
-        _mapHasScrolled = false;
-        renderCompleteModal();
-        renderMap();
-    };
+    if (state.isDailyMode) {
+        overlay.innerHTML = `
+            <div class="modal-box" style="border:2px solid #22a86650;box-shadow:0 0 40px #22a86620">
+                <div class="modal-emoji">\uD83D\uDCC5</div>
+                <h2 class="modal-title" style="color:#22a866">Daily Puzzle Complete!</h2>
+                <p class="modal-subtitle">${getTodayStr()}</p>
+                <p class="modal-coins" style="color:${theme.text}">+${_dailyCoinsEarned} \uD83E\uDE99 earned</p>
+                <button class="modal-next-btn" id="next-btn"
+                    style="background:linear-gradient(180deg,#22a866 0%,#158040 100%);border:2px solid #22a866;border-bottom-color:#158040;box-shadow:0 4px 14px #22a86660,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
+                    Done \u2713
+                </button>
+            </div>
+        `;
+        document.getElementById("next-btn").onclick = () => exitDailyMode();
+    } else {
+        const maxLv = (typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
+        const isLast = state.currentLevel >= maxLv;
+        const bonusCount = state.bonusFound.length;
+        overlay.innerHTML = `
+            <div class="modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
+                <div class="modal-emoji">\uD83C\uDF89</div>
+                <h2 class="modal-title" style="color:${theme.accent}">Level Complete!</h2>
+                <p class="modal-subtitle">${level.group} · ${level.pack} · Level ${getDisplayLevel()}</p>
+                <p class="modal-coins" style="color:${theme.text}">+1 \uD83E\uDE99${bonusCount > 0 ? " · +" + bonusCount + " bonus" : ""}</p>
+                <button class="modal-next-btn" id="next-btn"
+                    style="background:linear-gradient(180deg,${theme.accent} 0%,${theme.accentDark} 100%);border:2px solid ${theme.accent};border-bottom-color:${theme.accentDark};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
+                    ${isLast ? "\uD83C\uDFC6 All Done!" : "Next Level \u2192"}
+                </button>
+            </div>
+        `;
+        document.getElementById("next-btn").onclick = advanceToNextLevel;
+    }
 }
 
 // ---- Settings MENU ----
@@ -2386,7 +2862,16 @@ function renderMenu() {
     overlay.innerHTML = html;
 
     // Wire up event handlers
-    document.querySelector(".menu-header").onclick = () => { _menuSecretTaps = 0; state.showMenu = false; renderAll(); };
+    document.querySelector(".menu-header").onclick = () => {
+        _menuSecretTaps = 0;
+        state.showMenu = false;
+        if (state.showHome) {
+            renderMenu();
+            renderHome();
+        } else {
+            renderAll();
+        }
+    };
 
     // Easter egg: tap current level card 7 times to reveal hidden options
     document.getElementById("menu-current-level-card").onclick = () => {
@@ -2444,10 +2929,12 @@ function renderMenu() {
             state.freeTargets = 0;
             state.freeRockets = 0;
             state.levelsCompleted = 0;
+            state.totalCoinsEarned = 0;
             state.levelHistory = {};
             state.inProgress = {};
             state.lastDailyClaim = null;
             state.standaloneFound = false;
+            state.dailyPuzzle = null;
         }
         if (newUid) localStorage.setItem("wordplay-last-uid", String(newUid));
 
@@ -2461,7 +2948,12 @@ function renderMenu() {
         // Push current state to server — covers first-time sign-in where
         // syncPull found no server data, and same-user re-sign-in
         saveProgress();
-        renderMenu();
+        state.showMenu = false;
+        state.showHome = true;
+        const app = document.getElementById("app");
+        app.innerHTML = "";
+        renderHome();
+        showToast("Signed in as " + (getUser()?.displayName || ""));
     }
 
     const googleBtn = document.getElementById("menu-google-btn");
@@ -2494,18 +2986,18 @@ function renderMenu() {
     }
     const signOutBtn = document.getElementById("menu-signout-btn");
     if (signOutBtn) {
-        signOutBtn.onclick = async () => {
-            // Flush progress to server while we still have the JWT
-            if (typeof syncPush === "function") {
-                clearTimeout(_syncPushTimer);
-                await syncPush();
-            }
-            // Stash JWT so anonymous play can be pushed to this user later
+        signOutBtn.onclick = () => {
+            // Fire-and-forget sync before clearing auth
+            try { if (typeof syncPush === "function") syncPush(); } catch (e) {}
             const authRaw = localStorage.getItem("wordplay-auth");
             if (authRaw) localStorage.setItem("wordplay-last-jwt", JSON.parse(authRaw).jwt);
             signOut();
+            state.showMenu = false;
+            state.showHome = true;
+            const app = document.getElementById("app");
+            app.innerHTML = "";
+            renderHome();
             showToast("Signed out");
-            renderMenu();
         };
     }
     const displayNameEl = document.getElementById("menu-display-name");
@@ -2582,6 +3074,9 @@ function renderMenu() {
         await recompute();
         saveProgress();
         state.showMenu = false;
+        state.showHome = false;
+        const app = document.getElementById("app");
+        app.innerHTML = "";
         renderAll();
         showToast("Level restarted");
     };
@@ -2600,6 +3095,9 @@ function renderMenu() {
             restoreLevelState();
             saveProgress();
             state.showMenu = false;
+            state.showHome = false;
+            const app = document.getElementById("app");
+            app.innerHTML = "";
             renderAll();
         } else {
             showToast("Level " + val + " not available", "#ff8888");
@@ -2684,6 +3182,9 @@ function renderMenu() {
             }
             await recompute();
             state.showMenu = false;
+            state.showHome = false;
+            const app = document.getElementById("app");
+            app.innerHTML = "";
             renderAll();
             showToast("Progress set to level " + val.toLocaleString());
         } else {
@@ -2704,14 +3205,21 @@ function renderMenu() {
             state.freeTargets = 0;
             state.freeRockets = 0;
             state.levelsCompleted = 0;
+            state.totalCoinsEarned = 0;
             state.levelHistory = {};
             state.inProgress = {};
             state.lastDailyClaim = null;
+            state.dailyPuzzle = null;
             state.soundEnabled = true;
             state.coins = 50;
             state.showMenu = false;
+            state.showHome = true;
             saveProgress();
-            recompute().then(() => renderAll());
+            recompute().then(() => {
+                const app = document.getElementById("app");
+                app.innerHTML = "";
+                renderHome();
+            });
         }
     };
 }
@@ -2780,7 +3288,7 @@ function renderMap() {
     const packs = typeof getLevelPacks === "function" ? getLevelPacks() : [];
     if (!packs.length) {
         overlay.innerHTML = `<div class="map-header"><h2 class="map-title" style="color:${theme.accent}">Level Map</h2><button class="menu-close" id="map-close-btn">✕</button></div><div class="map-scroll"><p style="opacity:0.5;text-align:center;padding:40px">No level data available</p></div>`;
-        document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); renderWheel(); };
+        document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); if (!state.showHome) renderWheel(); };
         return;
     }
 
@@ -2859,7 +3367,7 @@ function renderMap() {
     overlay.innerHTML = html;
 
     // Wire close button
-    document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); renderWheel(); };
+    document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); if (!state.showHome) renderWheel(); };
 
     // Wire pack header toggles (accordion — only one open at a time)
     overlay.querySelectorAll(".map-pack-header.expandable").forEach(hdr => {
@@ -2912,11 +3420,12 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDCB0", title: "The Coin Word", body: "See a pulsing coin on the grid? That\u2019s a special standalone word worth 100 coins! It\u2019s a short word (4\u20135 letters) tucked away for you to discover." },
     { icon: "\uD83C\uDFB0", title: "Rescue Spin", body: "Completely stuck with no coins and no hints? A prize wheel appears! Spin to win free hints, targets, rockets, or coins. It\u2019s your lifeline!" },
     { icon: "\uD83C\uDF81", title: "Daily Bonus", body: "Tap the FREE button at the top of the screen once a day to claim 100 free coins. Come back every day \u2014 it resets at midnight!" },
+    { icon: "\uD83D\uDCC5", title: "Daily Puzzle", body: "A fresh puzzle every day! Tap the green Daily Puzzle button on the home screen to play. A coin (\uD83E\uDE99) appears on one word in the grid \u2014 find it for 25 bonus coins, then the coin moves to a new word. Keep chasing the coin to rack up rewards! Complete the entire puzzle for a 100-coin bonus. The same puzzle is shared by all players each day. Your regular progress is saved and waiting when you return." },
     { icon: "\uD83D\uDD00", title: "Shuffle", body: "Tap the shuffle button to rearrange the letters on the wheel. Same letters, fresh perspective \u2014 sometimes that\u2019s all you need to spot a hidden word!" },
     { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the Level Map from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },
     { icon: "\uD83C\uDFA8", title: "Themes", body: "The game features 16 beautiful color themes \u2014 Sunrise, Forest, Ocean, Aurora, and more. Themes change as you progress through different level groups." },
     { icon: "\uD83D\uDD04", title: "Sync Across Devices", body: "Sign in with Google or Microsoft in Settings to save your progress to the cloud. Switch phones, play on your tablet \u2014 your progress follows you automatically!" },
-    { icon: "\uD83C\uDFC6", title: "Leaderboard", body: "Tap the trophy in the game header to see the leaderboard! Compete for monthly and all-time rankings. You can opt in or out in Settings." },
+    { icon: "\uD83C\uDFC6", title: "Expertise & Leaderboard", body: "Your Expertise score on the home screen tracks every coin you\u2019ve ever earned \u2014 it only goes up! Tap it to open the leaderboard and compete with other players. Rank by levels completed or total points, and filter by this month or all time. Opt in or out in Settings." },
     { icon: "\uD83D\uDCF1", title: "Play Anywhere", body: "WordPlay works offline! Install it to your home screen for a full app experience \u2014 no app store needed. Your progress is always saved locally." },
 ];
 
@@ -2988,8 +3497,36 @@ function renderGuide() {
 
 // ---- LEADERBOARD OVERLAY ----
 let _lbTab = "month"; // "month" or "all"
+let _lbRankType = "levels"; // "levels" or "points"
+let _lbCountdownTimer = null;
+
+function getMonthCountdown() {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const diff = nextMonth - now;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${days}d ${hours}h ${mins}m`;
+}
+
+function getAvatarColor(name) {
+    let hash = 0;
+    for (let i = 0; i < (name || "").length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    const colors = ["#e74c3c","#3498db","#2ecc71","#9b59b6","#f39c12","#1abc9c","#e67e22","#e84393","#00b894","#6c5ce7"];
+    return colors[Math.abs(hash) % colors.length];
+}
+
+function getInitials(name) {
+    if (!name) return "?";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+}
 
 function renderLeaderboard() {
+    if (_lbCountdownTimer) { clearInterval(_lbCountdownTimer); _lbCountdownTimer = null; }
+
     let overlay = document.getElementById("leaderboard-overlay");
     if (!state.showLeaderboard) {
         if (overlay) overlay.style.display = "none";
@@ -3006,35 +3543,64 @@ function renderLeaderboard() {
     const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const now = new Date();
     const monthLabel = monthNames[now.getMonth()] + " " + now.getFullYear();
+    const accent = (typeof theme !== "undefined" && theme.accent) ? theme.accent : "#f4a535";
 
     overlay.innerHTML = `
         <div class="lb-header">
-            <button class="menu-close" id="lb-close-btn">\u2715</button>
+            <button class="lb-back-btn" id="lb-close-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
             <div class="lb-trophy">\uD83C\uDFC6</div>
-            <h2 class="lb-title" style="color:${theme.accent}">Leaderboard</h2>
-            <div class="lb-subtitle">Top Word Masters</div>
+            <h2 class="lb-title">LEADERBOARDS</h2>
+            <div class="lb-month-info">
+                <span>${monthLabel}</span>
+                <span>\u00b7</span>
+                <span class="lb-countdown" id="lb-countdown">Resets in ${getMonthCountdown()}</span>
+            </div>
             <div class="lb-tabs">
-                <button class="lb-tab${_lbTab === "month" ? " lb-tab-active" : ""}" id="lb-tab-month" style="--tab-accent:${theme.accent}">This Month</button>
-                <button class="lb-tab${_lbTab === "all" ? " lb-tab-active" : ""}" id="lb-tab-all" style="--tab-accent:${theme.accent}">All Time</button>
+                <button class="lb-tab${_lbTab === "month" ? " lb-tab-active" : ""}" id="lb-tab-month" style="--tab-accent:${accent}">This Month</button>
+                <button class="lb-tab${_lbTab === "all" ? " lb-tab-active" : ""}" id="lb-tab-all" style="--tab-accent:${accent}">All Time</button>
+            </div>
+            <div class="lb-rank-type-toggle" style="--tab-accent:${accent}">
+                <button class="lb-rank-type-btn${_lbRankType === "levels" ? " active" : ""}" id="lb-type-levels" style="--tab-accent:${accent}">By Levels</button>
+                <button class="lb-rank-type-btn${_lbRankType === "points" ? " active" : ""}" id="lb-type-points" style="--tab-accent:${accent}">By Points</button>
             </div>
         </div>
-        <div class="menu-scroll" id="lb-list" style="text-align:center;padding:20px">
+        <div class="menu-scroll" id="lb-list" style="text-align:center;padding:16px 0">
             <div class="lb-loading"><div class="lb-loading-dot"></div><div class="lb-loading-dot"></div><div class="lb-loading-dot"></div></div>
         </div>
     `;
 
+    // Countdown timer
+    _lbCountdownTimer = setInterval(() => {
+        const el = document.getElementById("lb-countdown");
+        if (el) el.textContent = "Resets in " + getMonthCountdown();
+        else { clearInterval(_lbCountdownTimer); _lbCountdownTimer = null; }
+    }, 60000);
+
     document.getElementById("lb-close-btn").onclick = () => {
         state.showLeaderboard = false;
-        renderAll();
+        if (_lbCountdownTimer) { clearInterval(_lbCountdownTimer); _lbCountdownTimer = null; }
+        if (state.showHome) {
+            renderLeaderboard();
+            renderHome();
+        } else {
+            renderAll();
+        }
     };
     document.getElementById("lb-tab-month").onclick = () => { _lbTab = "month"; renderLeaderboard(); };
     document.getElementById("lb-tab-all").onclick = () => { _lbTab = "all"; renderLeaderboard(); };
+    document.getElementById("lb-type-levels").onclick = () => { _lbRankType = "levels"; renderLeaderboard(); };
+    document.getElementById("lb-type-points").onclick = () => { _lbRankType = "points"; renderLeaderboard(); };
 
     const currentUser = typeof getUser === "function" ? getUser() : null;
     const currentUserId = currentUser ? currentUser.id : null;
     const medals = ["\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49"];
     const isMonthly = _lbTab === "month";
-    const url = isMonthly ? "/api/leaderboard?top=50&period=month" : "/api/leaderboard?top=50";
+    const byPoints = _lbRankType === "points";
+    let url = "/api/leaderboard?top=50";
+    if (isMonthly) url += "&period=month";
+    if (byPoints) url += "&rankType=points";
 
     fetch(url)
         .then(r => r.ok ? r.json() : Promise.reject())
@@ -3045,32 +3611,68 @@ function renderLeaderboard() {
                 list.innerHTML = `<div style="opacity:0.5;padding:40px 0;font-size:15px">${isMonthly ? "No progress this month yet \u2014 start climbing!" : "No players yet \u2014 be the first!"}</div>`;
                 return;
             }
-            let html = "";
+            let topHtml = "";
+            let restHtml = "";
             if (isMonthly) {
-                html += `<div class="lb-period-label">${monthLabel}</div>`;
+                topHtml += `<div class="lb-period-label">${monthLabel}</div>`;
             }
+            // Find user's index so we can mark a scroll anchor a few rows above
+            const meIndex = leaders.findIndex(l => l.userId === currentUserId);
+            const scrollAnchorIndex = meIndex > 3 ? Math.max(3, meIndex - 3) : -1;
+
             leaders.forEach((entry, i) => {
                 const isMe = entry.userId === currentUserId;
                 const medal = i < 3 ? medals[i] : "";
                 const isTop3 = i < 3;
-                const scoreText = isMonthly
-                    ? "+" + entry.monthlyGain.toLocaleString() + " levels"
-                    : "Lv " + entry.highestLevel.toLocaleString();
-                html += `
-                    <div class="lb-row${isMe ? " lb-me" : ""}${isTop3 ? " lb-top3" : ""}" style="animation-delay:${i * 40}ms">
+                const avatarColor = getAvatarColor(entry.name);
+                const initials = getInitials(entry.name);
+
+                let scoreText;
+                if (byPoints) {
+                    scoreText = isMonthly
+                        ? "+" + (entry.monthlyCoinsGain || 0).toLocaleString() + " pts"
+                        : (entry.totalCoinsEarned || 0).toLocaleString() + " pts";
+                } else {
+                    scoreText = isMonthly
+                        ? "+" + entry.monthlyGain.toLocaleString() + " levels"
+                        : "Lv " + entry.highestLevel.toLocaleString();
+                }
+
+                const anchorId = (i === scrollAnchorIndex) ? 'id="lb-scroll-anchor"' : "";
+                const meId = isMe ? 'id="lb-me-row"' : "";
+                const rowId = anchorId || meId;
+
+                const row = `
+                    <div class="lb-row${isMe ? " lb-me" : ""}${isTop3 ? " lb-top3" : ""}" ${rowId} style="animation-delay:${i * 40}ms">
                         <span class="lb-rank${isTop3 ? " lb-rank-top" : ""}">${medal || (i + 1)}</span>
+                        <div class="lb-avatar" style="background:${avatarColor}">${initials}</div>
                         <span class="lb-name">${escapeHtml(entry.name || "???")}</span>
-                        <span class="lb-level-badge" style="background:${isTop3 ? theme.accent : "rgba(255,255,255,0.08)"};color:${isTop3 ? "#000" : theme.accent}">${scoreText}</span>
+                        <span class="lb-score" style="background:${isTop3 ? accent : "rgba(255,255,255,0.08)"};color:${isTop3 ? "#000" : accent}">${scoreText}</span>
                     </div>
                 `;
+                if (isTop3) topHtml += row;
+                else restHtml += row;
             });
 
             if (currentUserId && !leaders.some(l => l.userId === currentUserId)) {
-                html += `<div class="lb-you-hint">Keep climbing to join the leaderboard!</div>`;
+                restHtml += `<div class="lb-you-hint">Keep climbing to join the leaderboard!</div>`;
             }
 
             list.style.textAlign = "left";
-            list.innerHTML = html;
+            // Top 3 sticky, rest scrollable
+            if (leaders.length > 3) {
+                list.innerHTML = `<div class="lb-sticky-top">${topHtml}</div><div class="lb-divider"></div><div class="lb-rest" id="lb-rest">${restHtml}</div>`;
+            } else {
+                list.innerHTML = topHtml + restHtml;
+            }
+
+            // Auto-scroll: show 3 competitors above the user at the top of the scrollable area
+            setTimeout(() => {
+                const anchor = document.getElementById("lb-scroll-anchor");
+                if (anchor) {
+                    anchor.scrollIntoView({ block: "start", behavior: "smooth" });
+                }
+            }, 350);
         })
         .catch(() => {
             const list = document.getElementById("lb-list");
@@ -3187,10 +3789,12 @@ async function init() {
             state.freeTargets = 0;
             state.freeRockets = 0;
             state.levelsCompleted = 0;
+            state.totalCoinsEarned = 0;
             state.levelHistory = {};
             state.inProgress = {};
             state.lastDailyClaim = null;
             state.standaloneFound = false;
+            state.dailyPuzzle = null;
             localStorage.setItem("wordplay-last-uid", String(uid));
         }
 
@@ -3215,10 +3819,10 @@ async function init() {
     }
     saveProgress();
 
-    // Build the UI
+    // Build the UI — start on home screen
     app.innerHTML = "";
-    renderAll();
-    animateGridEntrance();
+    state.showHome = true;
+    renderHome();
 
     // In-app browser banner
     if (window._inAppBrowser && !window.matchMedia('(display-mode: standalone)').matches && !sessionStorage.getItem('inapp-dismissed')) {
@@ -3252,8 +3856,10 @@ async function init() {
 
     // Handle resize
     window.addEventListener("resize", () => {
-        renderGrid();
-        renderWheel();
+        if (!state.showHome) {
+            renderGrid();
+            renderWheel();
+        }
     });
 }
 

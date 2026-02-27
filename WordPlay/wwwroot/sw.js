@@ -1,14 +1,14 @@
-const CACHE_NAME = 'wordplay-v63';
+const CACHE_NAME = 'wordplay-v65';
 const ASSETS = [
     '/',
     '/index.html',
-    '/css/app.css?v=16',
-    '/js/auth.js?v=16',
-    '/js/sync.js?v=16',
-    '/js/app.js?v=16',
-    '/js/levels.js?v=16',
-    '/js/level-loader.js?v=16',
-    '/js/crossword.js?v=16',
+    '/css/app.css?v=18',
+    '/js/auth.js?v=18',
+    '/js/sync.js?v=18',
+    '/js/app.js?v=18',
+    '/js/levels.js?v=18',
+    '/js/level-loader.js?v=18',
+    '/js/crossword.js?v=18',
     '/manifest.json',
     '/fonts/nunito-latin.woff2',
     '/fonts/nunito-latin-italic.woff2',
@@ -57,9 +57,9 @@ self.addEventListener('fetch', e => {
         return;
     }
 
-    // App shell: network-first (always get latest, fall back to cache offline)
+    // App shell: network-first, bypass HTTP cache so updates always propagate
     e.respondWith(
-        fetch(e.request)
+        fetch(e.request, { cache: 'no-store' })
             .then(response => {
                 // Update cache with fresh response
                 const clone = response.clone();

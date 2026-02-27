@@ -1,12 +1,16 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using WordPlay.Data;
 using WordPlay.Models;
 using WordPlay.Services;
+
+var _jsonIndented = new JsonSerializerOptions { WriteIndented = true };
+var _alphanumericRegex = new Regex(@"^[a-zA-Z0-9 ]+$", RegexOptions.Compiled);
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -85,7 +89,7 @@ app.MapPost("/api/deploy-data", async (HttpRequest request) =>
     {
         await File.WriteAllTextAsync(
             Path.Combine(dataDir, "chunk-manifest.json"),
-            JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
+            JsonSerializer.Serialize(manifest, _jsonIndented));
         fileCount++;
     }
 
@@ -94,7 +98,7 @@ app.MapPost("/api/deploy-data", async (HttpRequest request) =>
     {
         await File.WriteAllTextAsync(
             Path.Combine(dataDir, "level-index.json"),
-            JsonSerializer.Serialize(levelIndex, new JsonSerializerOptions { WriteIndented = true }));
+            JsonSerializer.Serialize(levelIndex, _jsonIndented));
         fileCount++;
     }
 
@@ -155,7 +159,8 @@ app.MapPost("/api/auth/google", async (HttpRequest request, WordPlayDb db, AuthS
 
     try
     {
-        string sub, email;
+        string sub;
+        string? email;
 
         if (body.TryGetProperty("idToken", out var tokenEl))
         {
@@ -233,7 +238,7 @@ app.MapPost("/api/auth/set-name", async (HttpRequest request, WordPlayDb db, Cla
     var name = nameEl.GetString()?.Trim() ?? "";
     if (name.Length < 3 || name.Length > 20)
         return Results.BadRequest(new { error = "Name must be 3-20 characters" });
-    if (!System.Text.RegularExpressions.Regex.IsMatch(name, @"^[a-zA-Z0-9 ]+$"))
+    if (!_alphanumericRegex.IsMatch(name))
         return Results.BadRequest(new { error = "Name must be alphanumeric (spaces allowed)" });
 
     var user = await db.Users.FindAsync(userId);
@@ -294,9 +299,10 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
     var progressJson = progressEl.GetRawText();
 
     // Extract denormalized fields
-    int highestLevel = 0, levelsCompleted = 0;
+    int highestLevel = 0, levelsCompleted = 0, totalCoinsEarned = 0;
     if (progressEl.TryGetProperty("hl", out var hlEl)) highestLevel = hlEl.GetInt32();
     if (progressEl.TryGetProperty("lc", out var lcEl)) levelsCompleted = lcEl.GetInt32();
+    if (progressEl.TryGetProperty("tce", out var tceEl)) totalCoinsEarned = tceEl.GetInt32();
 
     var progress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == userId);
     if (progress == null)
@@ -305,11 +311,12 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         db.UserProgress.Add(progress);
     }
 
-    // Monthly rollover: if the month changed, snapshot current level as the new baseline
+    // Monthly rollover: if the month changed, snapshot current level and coins as the new baseline
     var nowMonth = DateTime.UtcNow.ToString("yyyy-MM");
     if (progress.CurrentMonth != nowMonth)
     {
         progress.MonthlyStart = progress.HighestLevel;
+        progress.MonthlyCoinsStart = progress.TotalCoinsEarned;
         progress.CurrentMonth = nowMonth;
     }
 
@@ -326,12 +333,14 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         if (levelDelta > 50 || levelDelta < -10)
         {
             progress.MonthlyStart = highestLevel;
+            progress.MonthlyCoinsStart = totalCoinsEarned;
         }
     }
 
     progress.ProgressJson = progressJson;
     progress.HighestLevel = highestLevel;
     progress.LevelsCompleted = levelsCompleted;
+    progress.TotalCoinsEarned = totalCoinsEarned;
     progress.UpdatedAt = DateTime.UtcNow;
 
     await db.SaveChangesAsync();
@@ -342,49 +351,103 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
 // Leaderboard endpoint
 // ============================================================
 
-app.MapGet("/api/leaderboard", async (WordPlayDb db, int? top, string? period) =>
+app.MapGet("/api/leaderboard", async (WordPlayDb db, int? top, string? period, string? rankType) =>
 {
     var count = Math.Clamp(top ?? 50, 1, 100);
     var nowMonth = DateTime.UtcNow.ToString("yyyy-MM");
+    var byPoints = rankType == "points";
 
     if (period == "month")
     {
-        var leaders = await db.UserProgress
-            .Include(p => p.User)
-            .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard && p.CurrentMonth == nowMonth)
-            .Select(p => new
-            {
-                userId = p.UserId,
-                name = p.User.DisplayName,
-                highestLevel = p.HighestLevel,
-                levelsCompleted = p.LevelsCompleted,
-                monthlyGain = p.HighestLevel - p.MonthlyStart
-            })
-            .Where(p => p.monthlyGain > 0)
-            .OrderByDescending(p => p.monthlyGain)
-            .ThenByDescending(p => p.highestLevel)
-            .Take(count)
-            .ToListAsync();
-        return Results.Ok(leaders);
+        if (byPoints)
+        {
+            var leaders = await db.UserProgress
+                .Include(p => p.User)
+                .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard && p.CurrentMonth == nowMonth)
+                .Select(p => new
+                {
+                    userId = p.UserId,
+                    name = p.User.DisplayName,
+                    highestLevel = p.HighestLevel,
+                    levelsCompleted = p.LevelsCompleted,
+                    totalCoinsEarned = p.TotalCoinsEarned,
+                    monthlyGain = p.HighestLevel - p.MonthlyStart,
+                    monthlyCoinsGain = p.TotalCoinsEarned - p.MonthlyCoinsStart
+                })
+                .Where(p => p.monthlyCoinsGain > 0)
+                .OrderByDescending(p => p.monthlyCoinsGain)
+                .ThenByDescending(p => p.totalCoinsEarned)
+                .Take(count)
+                .ToListAsync();
+            return Results.Ok(leaders);
+        }
+        else
+        {
+            var leaders = await db.UserProgress
+                .Include(p => p.User)
+                .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard && p.CurrentMonth == nowMonth)
+                .Select(p => new
+                {
+                    userId = p.UserId,
+                    name = p.User.DisplayName,
+                    highestLevel = p.HighestLevel,
+                    levelsCompleted = p.LevelsCompleted,
+                    totalCoinsEarned = p.TotalCoinsEarned,
+                    monthlyGain = p.HighestLevel - p.MonthlyStart,
+                    monthlyCoinsGain = p.TotalCoinsEarned - p.MonthlyCoinsStart
+                })
+                .Where(p => p.monthlyGain > 0)
+                .OrderByDescending(p => p.monthlyGain)
+                .ThenByDescending(p => p.highestLevel)
+                .Take(count)
+                .ToListAsync();
+            return Results.Ok(leaders);
+        }
     }
     else
     {
-        var leaders = await db.UserProgress
-            .Include(p => p.User)
-            .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard)
-            .OrderByDescending(p => p.HighestLevel)
-            .ThenByDescending(p => p.LevelsCompleted)
-            .Take(count)
-            .Select(p => new
-            {
-                userId = p.UserId,
-                name = p.User.DisplayName,
-                highestLevel = p.HighestLevel,
-                levelsCompleted = p.LevelsCompleted,
-                monthlyGain = 0
-            })
-            .ToListAsync();
-        return Results.Ok(leaders);
+        if (byPoints)
+        {
+            var leaders = await db.UserProgress
+                .Include(p => p.User)
+                .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard)
+                .OrderByDescending(p => p.TotalCoinsEarned)
+                .ThenByDescending(p => p.HighestLevel)
+                .Take(count)
+                .Select(p => new
+                {
+                    userId = p.UserId,
+                    name = p.User.DisplayName,
+                    highestLevel = p.HighestLevel,
+                    levelsCompleted = p.LevelsCompleted,
+                    totalCoinsEarned = p.TotalCoinsEarned,
+                    monthlyGain = 0,
+                    monthlyCoinsGain = 0
+                })
+                .ToListAsync();
+            return Results.Ok(leaders);
+        }
+        else
+        {
+            var leaders = await db.UserProgress
+                .Include(p => p.User)
+                .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard)
+                .OrderByDescending(p => p.HighestLevel)
+                .ThenByDescending(p => p.LevelsCompleted)
+                .Take(count)
+                .Select(p => new
+                {
+                    userId = p.UserId,
+                    name = p.User.DisplayName,
+                    highestLevel = p.HighestLevel,
+                    levelsCompleted = p.LevelsCompleted,
+                    totalCoinsEarned = p.TotalCoinsEarned,
+                    monthlyGain = 0,
+                    monthlyCoinsGain = 0
+                })
+                .ToListAsync();
+            return Results.Ok(leaders);
+        }
     }
 });
 
@@ -393,6 +456,17 @@ app.MapGet("/api/leaderboard", async (WordPlayDb db, int? top, string? period) =
 // ============================================================
 
 app.UseDefaultFiles();
-app.UseStaticFiles();
+// Serve sw.js and index.html with no-cache so browsers always check for updates
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var name = ctx.File.Name;
+        if (name == "sw.js" || name == "index.html")
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "no-cache, no-store";
+        }
+    }
+});
 
 app.Run();

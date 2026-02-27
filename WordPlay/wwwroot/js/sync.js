@@ -15,13 +15,16 @@ document.addEventListener("visibilitychange", () => {
 
 async function syncPullAndReload() {
     if (_syncPulling) return;
+    // Don't clobber active daily puzzle session
+    if (typeof state !== "undefined" && state.isDailyMode) return;
     _syncPulling = true;
     try {
         await syncPull();
         if (typeof loadProgress === "function") loadProgress();
         if (typeof recompute === "function") await recompute();
         if (typeof restoreLevelState === "function") restoreLevelState();
-        if (typeof renderAll === "function") renderAll();
+        if (typeof renderCurrentScreen === "function") renderCurrentScreen();
+        else if (typeof renderAll === "function") renderAll();
     } catch (e) { /* ignore */ }
     _syncPulling = false;
 }
@@ -102,6 +105,7 @@ function mergeProgress(local, server) {
     merged.ft = Math.max(local.ft || 0, server.ft || 0);
     merged.fr = Math.max(local.fr || 0, server.fr || 0);
     merged.bc = Math.max(local.bc || 0, server.bc || 0);
+    merged.tce = Math.max(local.tce || 0, server.tce || 0);
 
     // Current-level state: take from whichever save has higher hl
     const localAhead = (local.hl || 1) >= (server.hl || 1);
@@ -153,6 +157,21 @@ function mergeProgress(local, server) {
         } else {
             merged.ip[key] = a || b;
         }
+    }
+
+    // Daily puzzle: same date → prefer completed > more found words; different dates → later date
+    const dpL = local.dp || null;
+    const dpS = server.dp || null;
+    if (dpL && dpS) {
+        if (dpL.date === dpS.date) {
+            if (dpL.completed) merged.dp = dpL;
+            else if (dpS.completed) merged.dp = dpS;
+            else merged.dp = ((dpL.fw || []).length >= (dpS.fw || []).length) ? dpL : dpS;
+        } else {
+            merged.dp = dpL.date > dpS.date ? dpL : dpS;
+        }
+    } else {
+        merged.dp = dpL || dpS || null;
     }
 
     return merged;
