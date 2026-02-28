@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -62,6 +63,10 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 var app = builder.Build();
+
+// --- Pacing config ---
+var pacingBridgetId = builder.Configuration.GetValue<int>("Pacing:BridgetUserId");
+var pacingEddieId = builder.Configuration.GetValue<int>("Pacing:EddieUserId");
 
 // --- Middleware ---
 
@@ -407,6 +412,67 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
     progress.UpdatedAt = DateTime.UtcNow;
 
     await db.SaveChangesAsync();
+
+    // --- Auto-pace Fast Eddie ---
+    if (pacingBridgetId > 0 && pacingEddieId > 0 && userId == pacingBridgetId)
+    {
+        var eddie = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == pacingEddieId);
+        if (eddie != null)
+        {
+            // Monthly rollover for Eddie
+            var eddieMonth = DateTime.UtcNow.ToString("yyyy-MM");
+            if (eddie.CurrentMonth != eddieMonth)
+            {
+                eddie.MonthlyStart = eddie.HighestLevel;
+                eddie.MonthlyCoinsStart = eddie.TotalCoinsEarned;
+                eddie.CurrentMonth = eddieMonth;
+            }
+
+            // Deterministic random: stable for a given day+level, shifts as Bridget advances
+            var seed = DateTime.UtcNow.DayOfYear * 1000 + highestLevel;
+            var rng = new Random(seed);
+
+            // Level gap distribution
+            var roll = rng.NextDouble();
+            int gap;
+            if (roll < 0.08)         // 8%: Bridget ties or briefly leads
+                gap = rng.Next(-1, 1);
+            else if (roll < 0.25)    // 17%: close race
+                gap = rng.Next(1, 3);
+            else                     // 75%: Eddie's comfortable lead
+                gap = rng.Next(3, 9);
+
+            var targetLevel = highestLevel + gap;
+
+            // Only bump UP — never decrease Eddie's level
+            if (targetLevel > eddie.HighestLevel)
+            {
+                var levelIncrease = targetLevel - eddie.HighestLevel;
+                var coinsPerLevel = rng.Next(6, 17);
+                var coinBonus = rng.Next(50, 301);
+                var targetCoins = Math.Max(
+                    eddie.TotalCoinsEarned + levelIncrease * coinsPerLevel + coinBonus,
+                    mergedCoins + rng.Next(50, 301));
+
+                // Update ProgressJson fields
+                var eddieNode = JsonNode.Parse(eddie.ProgressJson ?? "{}")?.AsObject()
+                    ?? new JsonObject();
+                eddieNode["hl"] = targetLevel;
+                eddieNode["lc"] = targetLevel;
+                eddieNode["tce"] = targetCoins;
+                eddieNode["cl"] = targetLevel;
+
+                eddie.ProgressJson = eddieNode.ToJsonString();
+                eddie.HighestLevel = targetLevel;
+                eddie.LevelsCompleted = targetLevel;
+                eddie.TotalCoinsEarned = targetCoins;
+                eddie.UpdatedAt = DateTime.UtcNow;
+
+                await db.SaveChangesAsync();
+            }
+        }
+    }
+
     return Results.Ok(new { updatedAt = progress.UpdatedAt });
 }).RequireAuthorization();
 
