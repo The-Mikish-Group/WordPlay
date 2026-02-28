@@ -3323,12 +3323,28 @@ function renderContact() {
                 <label class="menu-setting-label">Message</label>
                 <textarea id="contact-message" class="contact-textarea" placeholder="Describe your issue or question..."></textarea>
             </div>
+            <div class="contact-hp" aria-hidden="true">
+                <label>Leave this empty</label>
+                <input type="text" id="contact-website" name="website" autocomplete="off" tabindex="-1">
+            </div>
+            <input type="hidden" id="contact-token" value="">
+            <input type="hidden" id="contact-ts" value="">
             <div class="menu-setting" style="border:none;background:none;padding-top:0">
                 <button class="menu-setting-btn" id="contact-send-btn" style="background:${theme.accent};color:#000;width:100%;padding:12px 0;font-size:15px">Send Message</button>
                 <div id="contact-status" style="text-align:center;margin-top:10px;font-size:13px"></div>
             </div>
         </div>
     `;
+
+    // Anti-spam: generate JS token and record open timestamp
+    const contactOpenTime = Date.now();
+    document.getElementById("contact-ts").value = String(contactOpenTime);
+    const tokenBase = "wp" + contactOpenTime + navigator.userAgent.length;
+    let hash = 0;
+    for (let i = 0; i < tokenBase.length; i++) {
+        hash = ((hash << 5) - hash + tokenBase.charCodeAt(i)) | 0;
+    }
+    document.getElementById("contact-token").value = "wp-" + Math.abs(hash).toString(36) + "-" + contactOpenTime.toString(36);
 
     // Pre-fill email if signed in
     if (typeof isSignedIn === "function" && isSignedIn()) {
@@ -3361,10 +3377,13 @@ function renderContact() {
         statusEl.textContent = "";
 
         try {
+            const hp = document.getElementById("contact-website").value;
+            const token = document.getElementById("contact-token").value;
+            const ts = document.getElementById("contact-ts").value;
             const res = await fetch("/api/contact", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, email, subject, message })
+                body: JSON.stringify({ name, email, subject, message, website: hp, token, ts })
             });
             const data = await res.json();
             if (res.ok && data.success) {

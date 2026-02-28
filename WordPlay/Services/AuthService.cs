@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.RegularExpressions;
 using Google.Apis.Auth;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -44,8 +45,15 @@ public class AuthService
             IssuerSigningKeys = oidcConfig.SigningKeys,
             ValidateLifetime = true,
         };
-        // Microsoft common tenant issues tokens with tenant-specific issuers
-        validationParams.ValidateIssuer = false;
+        // Microsoft common tenant issues tokens with tenant-specific issuers;
+        // validate using a pattern to accept any Azure AD v2 tenant issuer
+        validationParams.ValidateIssuer = true;
+        validationParams.IssuerValidator = (issuer, token, parameters) =>
+        {
+            if (Regex.IsMatch(issuer, @"^https://login\.microsoftonline\.com/[0-9a-f\-]+/v2\.0$"))
+                return issuer;
+            throw new SecurityTokenInvalidIssuerException($"Invalid issuer: {issuer}");
+        };
 
         var handler = new JwtSecurityTokenHandler();
         handler.ValidateToken(idToken, validationParams, out var validated);

@@ -47,9 +47,50 @@ builder.Services.AddHttpClient("scraper", client =>
     client.Timeout = TimeSpan.FromSeconds(15);
 });
 
+// Limit request body size globally (50 MB to accommodate deploy endpoint;
+// individual endpoints enforce their own limits via application-level validation)
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 52_428_800; // 50 MB
+});
+
 var app = builder.Build();
 
 // --- Middleware ---
+
+// Security headers
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    headers["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline' https://accounts.google.com https://alcdn.msauth.net; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data:; " +
+        "connect-src 'self' https://www.googleapis.com https://login.microsoftonline.com; " +
+        "frame-src https://accounts.google.com; " +
+        "font-src 'self'";
+    await next();
+});
+
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
+
+// Block access to scraper.html in production
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/scraper.html"))
+    {
+        context.Response.StatusCode = 404;
+        return;
+    }
+    await next();
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -60,24 +101,35 @@ app.UseAuthorization();
 // Proxy endpoint for the browser-based scraper (avoids CORS issues)
 app.MapGet("/api/proxy", async (string url, IHttpClientFactory factory) =>
 {
-    if (string.IsNullOrEmpty(url) || !url.StartsWith("https://www.wordscapescheat.com"))
+    if (string.IsNullOrEmpty(url) ||
+        !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+        uri.Scheme != "https" ||
+        uri.Host != "www.wordscapescheat.com")
         return Results.BadRequest("Only wordscapescheat.com URLs allowed");
 
     var client = factory.CreateClient("scraper");
     try
     {
-        var html = await client.GetStringAsync(url);
+        var html = await client.GetStringAsync(uri);
         return Results.Text(html, "text/html");
     }
-    catch (Exception ex)
+    catch
     {
-        return Results.Problem(ex.Message);
+        return Results.Problem("Failed to fetch URL");
     }
 });
 
 // Deploy endpoint: browser scraper sends chunk data, server writes to wwwroot/data/
-app.MapPost("/api/deploy-data", async (HttpRequest request) =>
+var _chunkFilenameRegex = new Regex(@"^levels-\d{6}-\d{6}\.json$", RegexOptions.Compiled);
+
+app.MapPost("/api/deploy-data", async (HttpRequest request, IConfiguration config) =>
 {
+    // Require deploy key for authentication
+    var expectedKey = config["DeployKey"];
+    var providedKey = request.Headers["X-Deploy-Key"].FirstOrDefault();
+    if (string.IsNullOrEmpty(expectedKey) || providedKey != expectedKey)
+        return Results.Unauthorized();
+
     var dataDir = Path.Combine(app.Environment.WebRootPath, "data");
     Directory.CreateDirectory(dataDir);
 
@@ -105,11 +157,14 @@ app.MapPost("/api/deploy-data", async (HttpRequest request) =>
         fileCount++;
     }
 
-    // Write individual chunk files
+    // Write individual chunk files — validate filenames to prevent path traversal
     if (bundle.TryGetProperty("chunks", out var chunks))
     {
         foreach (var chunk in chunks.EnumerateObject())
         {
+            if (!_chunkFilenameRegex.IsMatch(chunk.Name))
+                continue; // skip invalid filenames
+
             await File.WriteAllTextAsync(
                 Path.Combine(dataDir, chunk.Name),
                 JsonSerializer.Serialize(chunk.Value));
@@ -197,9 +252,9 @@ app.MapPost("/api/auth/google", async (HttpRequest request, WordPlayDb db, AuthS
             user = new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard }
         });
     }
-    catch (Exception ex)
+    catch
     {
-        return Results.BadRequest(new { error = "Invalid Google token", detail = ex.Message });
+        return Results.BadRequest(new { error = "Invalid Google token" });
     }
 });
 
@@ -222,9 +277,9 @@ app.MapPost("/api/auth/microsoft", async (HttpRequest request, WordPlayDb db, Au
             user = new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard }
         });
     }
-    catch (Exception ex)
+    catch
     {
-        return Results.BadRequest(new { error = "Invalid Microsoft token", detail = ex.Message });
+        return Results.BadRequest(new { error = "Invalid Microsoft token" });
     }
 });
 
@@ -300,6 +355,8 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         return Results.BadRequest(new { error = "progress required" });
 
     var progressJson = progressEl.GetRawText();
+    if (progressJson.Length > 65_536)
+        return Results.BadRequest(new { error = "Progress data too large" });
 
     // Extract denormalized fields
     int highestLevel = 0, levelsCompleted = 0, totalCoinsEarned = 0;
@@ -477,12 +534,51 @@ app.MapPost("/api/contact", async (HttpRequest request, IConfiguration config) =
     string? subject = body.TryGetProperty("subject", out var s) ? s.GetString()?.Trim() : null;
     string? message = body.TryGetProperty("message", out var m) ? m.GetString()?.Trim() : null;
 
+    // Anti-spam layer 1: Honeypot — reject if hidden field was filled
+    string? honeypot = body.TryGetProperty("website", out var hp) ? hp.GetString() : null;
+    if (!string.IsNullOrEmpty(honeypot))
+        return Results.Ok(new { success = true }); // Silent success to not tip off bots
+
+    // Anti-spam layer 2: JS token — must be present and match expected format
+    string? token = body.TryGetProperty("token", out var tk) ? tk.GetString() : null;
+    if (string.IsNullOrEmpty(token) || !token.StartsWith("wp-") || token.Split('-').Length != 3)
+        return Results.BadRequest(new { error = "Invalid request. Please reload the page and try again." });
+
+    // Anti-spam layer 3: Timing — reject submissions faster than 3 seconds
+    string? tsStr = body.TryGetProperty("ts", out var ts) ? ts.GetString() : null;
+    if (!string.IsNullOrEmpty(tsStr) && long.TryParse(tsStr, out var tsMs))
+    {
+        var formOpenedAt = DateTimeOffset.FromUnixTimeMilliseconds(tsMs).UtcDateTime;
+        if ((DateTime.UtcNow - formOpenedAt).TotalSeconds < 3)
+            return Results.BadRequest(new { error = "Please take a moment before submitting." });
+    }
+    else
+    {
+        return Results.BadRequest(new { error = "Invalid request. Please reload the page and try again." });
+    }
+
     if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(email) ||
         string.IsNullOrEmpty(subject) || string.IsNullOrEmpty(message))
         return Results.BadRequest(new { error = "All fields are required" });
 
-    if (!_emailRegex.IsMatch(email))
-        return Results.BadRequest(new { error = "Invalid email address" });
+    // Length limits to prevent abuse
+    if (name.Length > 100)
+        return Results.BadRequest(new { error = "Name is too long" });
+    if (email.Length > 254)
+        return Results.BadRequest(new { error = "Email is too long" });
+    if (subject.Length > 200)
+        return Results.BadRequest(new { error = "Subject is too long" });
+    if (message.Length > 5000)
+        return Results.BadRequest(new { error = "Message is too long (max 5000 characters)" });
+
+    // Reject newlines in single-line fields (header injection prevention)
+    if (name.Contains('\n') || name.Contains('\r') ||
+        subject.Contains('\n') || subject.Contains('\r'))
+        return Results.BadRequest(new { error = "Invalid characters in name or subject" });
+
+    // Strict email validation
+    try { var _ = new System.Net.Mail.MailAddress(email); }
+    catch { return Results.BadRequest(new { error = "Invalid email address" }); }
 
     // Rate limit: 3 per 10 minutes per IP
     var ip = request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -523,9 +619,9 @@ app.MapPost("/api/contact", async (HttpRequest request, IConfiguration config) =
 
         return Results.Ok(new { success = true });
     }
-    catch (Exception ex)
+    catch
     {
-        return Results.Problem("Failed to send message: " + ex.Message);
+        return Results.Problem("Failed to send message. Please try again later.");
     }
 });
 

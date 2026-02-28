@@ -14,6 +14,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 - [Themes](#themes)
 - [Accounts & Sync](#accounts--sync)
 - [Leaderboard](#leaderboard)
+- [Contact Form](#contact-form)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Data Formats](#data-formats)
@@ -49,6 +50,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 | **Level map** | Browse all packs with snake-path navigation and progress tracking |
 | **Cross-device sync** | Sign in with Google or Microsoft to sync progress across devices |
 | **Leaderboard** | Monthly and all-time rankings with trophy animations and medals |
+| **Contact form** | In-app support form with four-layer anti-spam protection |
 | **Installable PWA** | Works offline with service worker caching; add to home screen on mobile |
 | **Mobile-first design** | Optimized for phones with safe-area support, touch gestures, and responsive layout |
 
@@ -154,6 +156,25 @@ Access the leaderboard from the trophy button in the game header.
 
 ---
 
+## Contact Form
+
+Users can submit support messages directly from the in-app menu. Messages are delivered via SMTP to the support inbox with the sender's email set as the reply-to address.
+
+### Anti-Spam Protection
+
+The contact form uses four layers of defense to block automated submissions:
+
+| Layer | Mechanism | How It Works |
+|-------|-----------|--------------|
+| **Honeypot** | Hidden input field | An invisible `website` field is rendered off-screen. Bots that auto-fill all fields will populate it. If the server detects a value, it returns a fake success response to avoid tipping off the bot. |
+| **JS Token** | Client-generated token | When the form opens, JavaScript computes a token (`wp-{hash}-{timestamp}`) from the open timestamp and browser fingerprint. Requests missing this token or with an invalid format are rejected. Bots that POST directly to the API without rendering the page will fail this check. |
+| **Timing** | Minimum submission time | The form records when it was opened. Submissions made in under 3 seconds are rejected — no human can fill out four fields that fast. |
+| **Rate Limit** | IP-based throttle | Maximum 3 submissions per 10 minutes per IP address. |
+
+Layers are evaluated in order — honeypot and token checks are fast and cheap, so they run before any rate-limit bookkeeping or email validation.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -163,6 +184,7 @@ Access the leaderboard from the trophy button in the game header.
 | **Backend** | ASP.NET Core (.NET 10) minimal API |
 | **Database** | SQL Server via Entity Framework Core |
 | **Auth** | Google Identity Services (GSI), MSAL.js (Microsoft), JWT Bearer tokens |
+| **Email** | MailKit (SMTP with StartTls) for contact form delivery |
 | **Offline** | Service worker with cache-first strategy for level data, network-first for app shell |
 | **Level data** | Chunked JSON files (200 levels per file) loaded on demand |
 | **Storage** | `localStorage` for game progress, synced to server when signed in |
@@ -349,6 +371,15 @@ The `appsettings.json` file is gitignored because it contains secrets. Create on
       "ClientId": "your-microsoft-application-id",
       "TenantId": "common"
     }
+  },
+  "Smtp": {
+    "Host": "your-smtp-host",
+    "Port": 587,
+    "UseSsl": true,
+    "Username": "your-email@example.com",
+    "Password": "your-smtp-password",
+    "FromAddress": "noreply@example.com",
+    "ToAddress": "support@example.com"
   }
 }
 ```
@@ -370,6 +401,7 @@ The `appsettings.json` file is gitignored because it contains secrets. Create on
 | `GET /api/progress` | JWT | Fetch saved progress JSON |
 | `POST /api/progress` | JWT | Save progress, extract denormalized fields |
 | `GET /api/leaderboard` | — | Top players (query: `?top=50&period=month` or `?period=all`) |
+| `POST /api/contact` | — | Submit contact form (four-layer anti-spam) |
 | `GET /api/proxy` | — | CORS proxy for level data scraping |
 | `POST /api/deploy-data` | — | Deploy chunked level data to server |
 
