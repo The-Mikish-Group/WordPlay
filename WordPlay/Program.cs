@@ -179,30 +179,16 @@ app.MapPost("/api/deploy-data", async (HttpRequest request, IConfiguration confi
 // Auth endpoints
 // ============================================================
 
-// Shared: find or create user, linking by email across providers
+// Shared: find or create user by provider+subject (no cross-provider linking)
 async Task<User> UpsertUser(WordPlayDb db, string provider, string sub, string? email)
 {
-    // First, look for exact provider+subject match
+    // Look for exact provider+subject match only
     var user = await db.Users.FirstOrDefaultAsync(u => u.Provider == provider && u.ProviderSubject == sub);
     if (user != null)
     {
         user.Email = email ?? user.Email;
         user.LastLoginAt = DateTime.UtcNow;
         return user;
-    }
-
-    // If email is known, link to existing account from a different provider
-    if (!string.IsNullOrEmpty(email))
-    {
-        user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user != null)
-        {
-            // Update provider info so future logins match directly
-            user.Provider = provider;
-            user.ProviderSubject = sub;
-            user.LastLoginAt = DateTime.UtcNow;
-            return user;
-        }
     }
 
     // Brand new user
