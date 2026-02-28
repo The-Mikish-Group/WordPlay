@@ -1,10 +1,13 @@
+using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MimeKit;
 using WordPlay.Data;
 using WordPlay.Models;
 using WordPlay.Services;
@@ -455,6 +458,74 @@ app.MapGet("/api/leaderboard", async (WordPlayDb db, int? top, string? period, s
                 .ToListAsync();
             return Results.Ok(leaders);
         }
+    }
+});
+
+// ============================================================
+// Contact endpoint
+// ============================================================
+
+var _contactRateLimit = new ConcurrentDictionary<string, List<DateTime>>();
+var _emailRegex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
+
+app.MapPost("/api/contact", async (HttpRequest request, IConfiguration config) =>
+{
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+
+    string? name = body.TryGetProperty("name", out var n) ? n.GetString()?.Trim() : null;
+    string? email = body.TryGetProperty("email", out var e) ? e.GetString()?.Trim() : null;
+    string? subject = body.TryGetProperty("subject", out var s) ? s.GetString()?.Trim() : null;
+    string? message = body.TryGetProperty("message", out var m) ? m.GetString()?.Trim() : null;
+
+    if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(email) ||
+        string.IsNullOrEmpty(subject) || string.IsNullOrEmpty(message))
+        return Results.BadRequest(new { error = "All fields are required" });
+
+    if (!_emailRegex.IsMatch(email))
+        return Results.BadRequest(new { error = "Invalid email address" });
+
+    // Rate limit: 3 per 10 minutes per IP
+    var ip = request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    var now = DateTime.UtcNow;
+    var timestamps = _contactRateLimit.GetOrAdd(ip, _ => new List<DateTime>());
+    lock (timestamps)
+    {
+        timestamps.RemoveAll(t => now - t > TimeSpan.FromMinutes(10));
+        if (timestamps.Count >= 3)
+            return Results.Json(new { error = "Too many requests. Please try again later." }, statusCode: 429);
+        timestamps.Add(now);
+    }
+
+    try
+    {
+        var smtpHost = config["Smtp:Host"]!;
+        var smtpPort = int.Parse(config["Smtp:Port"]!);
+        var smtpUser = config["Smtp:Username"]!;
+        var smtpPass = config["Smtp:Password"]!;
+        var fromAddr = config["Smtp:FromAddress"]!;
+        var toAddr = config["Smtp:ToAddress"]!;
+
+        var msg = new MimeMessage();
+        msg.From.Add(MailboxAddress.Parse(fromAddr));
+        msg.To.Add(MailboxAddress.Parse(toAddr));
+        msg.ReplyTo.Add(MailboxAddress.Parse(email));
+        msg.Subject = $"[WordPlay Contact] {subject}";
+        msg.Body = new TextPart("plain")
+        {
+            Text = $"From: {name} <{email}>\n\n{message}"
+        };
+
+        using var client = new SmtpClient();
+        await client.ConnectAsync(smtpHost, smtpPort, MailKit.Security.SecureSocketOptions.StartTls);
+        await client.AuthenticateAsync(smtpUser, smtpPass);
+        await client.SendAsync(msg);
+        await client.DisconnectAsync(true);
+
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem("Failed to send message: " + ex.Message);
     }
 });
 

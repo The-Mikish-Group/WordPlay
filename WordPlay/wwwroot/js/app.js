@@ -131,6 +131,7 @@ const state = {
     standaloneFound: false, // whether the standalone coin word has been solved
     showLeaderboard: false,
     showGuide: false,
+    showContact: false,
     dailyPuzzle: null,     // { date, levelNum, fw, bf, rc, sf, coinWordsFound, completed }
     isDailyMode: false,
 };
@@ -1273,6 +1274,7 @@ function renderAll() {
     renderMap();
     renderLeaderboard();
     renderGuide();
+    renderContact();
 }
 
 function formatCompact(n) {
@@ -2889,6 +2891,14 @@ function renderMenu() {
     }
     html += `</div>`;
 
+    // Contact Support
+    html += `
+        <div class="menu-setting">
+            <label class="menu-setting-label">Support</label>
+            <button class="menu-setting-btn" id="contact-support-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px"><span style="font-size:24px;vertical-align:middle;margin-right:6px">✉️</span>Contact Support</button>
+        </div>
+    `;
+
     html += `</div>`; // close menu-scroll
     overlay.innerHTML = html;
 
@@ -3166,6 +3176,13 @@ function renderMenu() {
         };
     }
 
+    document.getElementById("contact-support-btn").onclick = () => {
+        state.showMenu = false;
+        state.showContact = true;
+        renderMenu();
+        renderContact();
+    };
+
     document.getElementById("seed-level-btn").onclick = async () => {
         const input = document.getElementById("seed-level-input");
         const val = parseInt(input.value);
@@ -3266,6 +3283,114 @@ function renderMenu() {
             renderMenu();
             renderHome();
         });
+    };
+}
+
+// ---- CONTACT FORM ----
+function renderContact() {
+    let overlay = document.getElementById("contact-overlay");
+    if (!state.showContact) {
+        if (overlay) overlay.style.display = "none";
+        return;
+    }
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "contact-overlay";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "menu-overlay";
+    overlay.style.display = "flex";
+
+    overlay.innerHTML = `
+        <div class="menu-header">
+            <h2 class="menu-title" style="color:${theme.accent}">✉️ Contact Support</h2>
+            <button class="menu-close" id="contact-close-btn">\u2715</button>
+        </div>
+        <div class="menu-scroll">
+            <div class="menu-setting">
+                <label class="menu-setting-label">Name</label>
+                <input type="text" id="contact-name" class="menu-setting-input" placeholder="Your name" style="width:100%">
+            </div>
+            <div class="menu-setting">
+                <label class="menu-setting-label">Email</label>
+                <input type="email" id="contact-email" class="menu-setting-input" placeholder="Your email address" style="width:100%">
+            </div>
+            <div class="menu-setting">
+                <label class="menu-setting-label">Subject</label>
+                <input type="text" id="contact-subject" class="menu-setting-input" placeholder="What is this about?" style="width:100%">
+            </div>
+            <div class="menu-setting">
+                <label class="menu-setting-label">Message</label>
+                <textarea id="contact-message" class="contact-textarea" placeholder="Describe your issue or question..."></textarea>
+            </div>
+            <div class="menu-setting" style="border:none;background:none;padding-top:0">
+                <button class="menu-setting-btn" id="contact-send-btn" style="background:${theme.accent};color:#000;width:100%;padding:12px 0;font-size:15px">Send Message</button>
+                <div id="contact-status" style="text-align:center;margin-top:10px;font-size:13px"></div>
+            </div>
+        </div>
+    `;
+
+    // Pre-fill email if signed in
+    if (typeof isSignedIn === "function" && isSignedIn()) {
+        const user = getUser();
+        if (user?.email) document.getElementById("contact-email").value = user.email;
+    }
+
+    document.getElementById("contact-close-btn").onclick = () => {
+        state.showContact = false;
+        renderContact();
+    };
+
+    document.getElementById("contact-send-btn").onclick = async () => {
+        const name = document.getElementById("contact-name").value.trim();
+        const email = document.getElementById("contact-email").value.trim();
+        const subject = document.getElementById("contact-subject").value.trim();
+        const message = document.getElementById("contact-message").value.trim();
+        const statusEl = document.getElementById("contact-status");
+        const btn = document.getElementById("contact-send-btn");
+
+        if (!name || !email || !subject || !message) {
+            statusEl.style.color = "#ff8888";
+            statusEl.textContent = "Please fill in all fields.";
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Sending\u2026";
+        btn.style.opacity = "0.7";
+        statusEl.textContent = "";
+
+        try {
+            const res = await fetch("/api/contact", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, email, subject, message })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                statusEl.style.color = "#66dd99";
+                statusEl.textContent = "Message sent! We'll get back to you soon.";
+                btn.textContent = "Sent \u2713";
+                // Clear form after brief delay
+                setTimeout(() => {
+                    state.showContact = false;
+                    renderContact();
+                    showToast("Message sent!", theme.accent);
+                }, 1500);
+            } else {
+                statusEl.style.color = "#ff8888";
+                statusEl.textContent = data.error || "Failed to send. Please try again.";
+                btn.disabled = false;
+                btn.textContent = "Send Message";
+                btn.style.opacity = "1";
+            }
+        } catch (err) {
+            statusEl.style.color = "#ff8888";
+            statusEl.textContent = "Network error. Please try again.";
+            btn.disabled = false;
+            btn.textContent = "Send Message";
+            btn.style.opacity = "1";
+        }
     };
 }
 

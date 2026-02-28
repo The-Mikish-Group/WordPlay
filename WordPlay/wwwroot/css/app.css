@@ -48,7 +48,7 @@ html, body {
 }
 
 @media (min-width: 1024px) {
-    #app, .modal-overlay, .menu-overlay, .map-overlay, .leaderboard-overlay, .guide-overlay { max-width: 480px; }
+    #app, .modal-overlay, .menu-overlay, .map-overlay, .leaderboard-overlay, .guide-overlay, #contact-overlay { max-width: 480px; }
 }
 
 /* ---- IN-APP BROWSER BANNER ---- */
@@ -2181,4 +2181,22 @@ html, body {
 @keyframes dailyCoinPulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.15); }
+}
+
+/* ---- CONTACT FORM ---- */
+.contact-textarea {
+    width: 100%;
+    min-height: 120px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    color: #fff;
+    outline: none;
+    resize: vertical;
+}
+.contact-textarea:focus {
+    border-color: rgba(255,255,255,0.3);
 }
