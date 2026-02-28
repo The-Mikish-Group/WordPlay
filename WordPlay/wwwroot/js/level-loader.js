@@ -6,6 +6,7 @@
 
 // ---- LEVEL CACHE ----
 const _chunkCache = {};  // chunkFile -> { levelNum: [letters, words, group, pack] }
+const CHUNK_SIZE = 200;  // levels per chunk file
 let _manifest = null;    // [{ file, start, end }, ...]
 let _levelIndex = null;  // [{ group, pack, start, end }, ...]
 let _maxLevel = 0;
@@ -245,6 +246,3 @@ function getMaxLevel() {
     return _maxLevel;
 }
 
-function isUsingBuiltIn() {
-    return _useBuiltIn;
-}

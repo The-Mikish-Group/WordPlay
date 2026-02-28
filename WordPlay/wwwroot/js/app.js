@@ -231,9 +231,26 @@ function preloadBgImage(key) {
 let level, theme, crossword, placedWords, bonusPool, totalRequired, wheelLetters;
 let standaloneWord = null;
 
-function getDisplayLevel() {
-    return state.currentLevel;
+function resetStateToDefaults() {
+    state.currentLevel = 1;
+    state.highestLevel = 1;
+    state.foundWords = [];
+    state.bonusFound = [];
+    state.coins = 50;
+    state.bonusCounter = 0;
+    state.revealedCells = [];
+    state.freeHints = 0;
+    state.freeTargets = 0;
+    state.freeRockets = 0;
+    state.levelsCompleted = 0;
+    state.totalCoinsEarned = 0;
+    state.levelHistory = {};
+    state.inProgress = {};
+    state.lastDailyClaim = null;
+    state.standaloneFound = false;
+    state.dailyPuzzle = null;
 }
+
 
 async function recompute() {
     // Try dynamic loader first, fall back to built-in
@@ -327,10 +344,6 @@ function loadProgress() {
             state.soundEnabled = d.se !== undefined ? d.se : true;
             state.standaloneFound = d.sf || false;
             state.totalCoinsEarned = d.tce || 0;
-            // Retroactive seed for existing players who don't have tce yet
-            if (!d.tce && (state.levelsCompleted > 0 || state.coins > 50)) {
-                state.totalCoinsEarned = Math.max(state.coins, state.highestLevel * 100 + 50);
-            }
             state.dailyPuzzle = d.dp || null;
             // Clear stale daily data
             if (state.dailyPuzzle && state.dailyPuzzle.date !== getTodayStr()) {
@@ -564,7 +577,6 @@ function handleWord(word) {
         renderGrid();
         highlightWord(w);
         renderCoins();
-        renderWordCount();
         playSound("bonusChime");
         showToast("🪙 Coin Word! +100 🪙", theme.accent);
         setTimeout(() => animateCoinFlyFromStandalone(), 200);
@@ -595,7 +607,6 @@ function handleWord(word) {
         renderGrid();
         highlightWord(w);
         playSound("wordFound");
-        renderWordCount();
         renderCoins();
         renderHintBtn();
         renderTargetBtn();
@@ -631,8 +642,7 @@ function handleWord(word) {
                 if (state.isDailyMode) saveDailyState(); else saveProgress();
                 renderGrid();
                 renderCoins();
-                renderWordCount();
-                renderHintBtn();
+                        renderHintBtn();
                 renderTargetBtn();
                 renderRocketBtn();
                 renderSpinBtn();
@@ -653,14 +663,12 @@ function handleWord(word) {
             } else {
                 if (state.isDailyMode) saveDailyState(); else saveProgress();
                 renderCoins();
-                renderWordCount();
-                showToast("⭐ All letters revealed!", theme.accent);
+                        showToast("⭐ All letters revealed!", theme.accent);
             }
         } else {
             if (state.isDailyMode) saveDailyState(); else saveProgress();
             renderCoins();
-            renderWordCount();
-            renderBonusStar();
+                renderBonusStar();
             // Pulse animation on the star
             const starArea = document.getElementById("bonus-star-area");
             if (starArea) {
@@ -986,7 +994,6 @@ function handleHint() {
     showToast(hasFree ? "💡 Free hint used!" : "💡 Letter revealed  −100 🪙");
     renderGrid();
     flashHintCell(cell);
-    renderWordCount();
     renderCoins();
     renderHintBtn();
     renderRocketBtn();
@@ -1030,7 +1037,6 @@ function handlePickCell(key) {
     showToast(wasFree ? "🎯 Free target used!" : "🎯 Letter placed!  −200 🪙");
     renderGrid();
     flashHintCell(key);
-    renderWordCount();
     renderCoins();
     renderHintBtn();
     renderTargetBtn();
@@ -1213,8 +1219,7 @@ async function handleNextLevel() {
 }
 
 async function goToLevel(num) {
-    const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : 999999;
-    if (num < 1 || num > maxLv) return;
+    if (num < 1 || num > state.highestLevel) return;
     if (num === state.currentLevel) {
         state.showMap = false;
         state.showHome = false;
@@ -1225,7 +1230,6 @@ async function goToLevel(num) {
         return;
     }
     saveInProgressState();
-    state.highestLevel = Math.max(state.highestLevel, num);
     state.currentLevel = num;
     state.foundWords = [];
     state.bonusFound = [];
@@ -1325,7 +1329,7 @@ function renderHome() {
         <div class="home-screen" id="home-screen" style="background:${bgStyle}">
             <div class="home-top-bar">
                 <div class="home-top-right">
-                    <div class="home-coin-display" id="home-coin-display">🪙 ${formatCompact(state.coins)}</div>
+                    <div class="home-coin-display" id="home-coin-display">🪙 ${state.coins.toLocaleString()}</div>
                     ${dailyBtnHtml}
                 </div>
             </div>
@@ -1431,7 +1435,7 @@ function renderHeader() {
             </button>
             <div class="header-center">
                 <div class="header-pack">${level.group} · ${level.pack}</div>
-                <div class="header-level" style="color:${theme.accent}">Level ${getDisplayLevel()}</div>
+                <div class="header-level" style="color:${theme.accent}">Level ${state.currentLevel}</div>
             </div>
             <div class="header-right">
                 <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">\uD83E\uDE99 ${state.coins.toLocaleString()}</div>
@@ -1954,7 +1958,6 @@ function flashHintCell(key) {
     setTimeout(() => el.classList.remove("hint-flash"), 2500);
 }
 
-function renderWordCount() {} // removed — kept as no-op for callers
 
 // ---- LETTER WHEEL ----
 let wheelState = { sel: [], word: "", dragging: false, ptr: null };
@@ -2112,11 +2115,6 @@ function renderWheel() {
         document.getElementById("wheel-area").appendChild(overlay);
     }
 
-    document.addEventListener("click", (e) => {
-        if (!state.pickMode) return;
-        if (e.target.closest(".grid-cell") || e.target.closest("#target-btn")) return;
-        cancelPickMode();
-    });
 }
 
 function renderHintBtn() {
@@ -2153,7 +2151,6 @@ function handleRocketHint() {
     showToast(hasFree ? "🚀 Free rocket used! " + revealed.length + " letters!" : "🚀 " + revealed.length + " letters revealed  −300 🪙");
     renderGrid();
     revealed.forEach((cell, i) => setTimeout(() => flashHintCell(cell), i * 400));
-    renderWordCount();
     renderCoins();
     renderHintBtn();
     renderTargetBtn();
@@ -2524,8 +2521,11 @@ function claimSpinPrize(winner) {
 }
 
 function hitTestWheel(px, py) {
-    const wheelR = Math.min(110, (window.innerWidth - 100) / 2.6);
-    const letterR = Math.min(28, Math.max(20, wheelR * 0.23));
+    const gridRows = crossword && crossword.rows ? crossword.rows : 8;
+    const maxByWidth = (window.innerWidth - 100) / 2.4;
+    const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
+    const wheelR = Math.max(70, Math.min(122, maxByWidth, maxByViewport));
+    const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
     for (let i = 0; i < wheelPositions.length; i++) {
         const dx = px - wheelPositions[i].x, dy = py - wheelPositions[i].y;
         if (Math.sqrt(dx * dx + dy * dy) < letterR + 12) return i;
@@ -2693,7 +2693,7 @@ function renderCompleteModal() {
             <div class="modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
                 <div class="modal-emoji">\uD83C\uDF89</div>
                 <h2 class="modal-title" style="color:${theme.accent}">Level Complete!</h2>
-                <p class="modal-subtitle">${level.group} · ${level.pack} · Level ${getDisplayLevel()}</p>
+                <p class="modal-subtitle">${level.group} · ${level.pack} · Level ${state.currentLevel}</p>
                 <p class="modal-coins" style="color:${theme.text}">+1 \uD83E\uDE99${bonusCount > 0 ? " · +" + bonusCount + " bonus" : ""}</p>
                 <button class="modal-next-btn" id="next-btn"
                     style="background:linear-gradient(180deg,${theme.accent} 0%,${theme.accentDark} 100%);border:2px solid ${theme.accent};border-bottom-color:${theme.accentDark};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
@@ -2786,7 +2786,7 @@ function renderMenu() {
         <div class="menu-nav-row">
             <button class="menu-nav-btn" id="menu-prev" style="border-color:${theme.accent}40">◀ Prev</button>
             <button class="menu-nav-btn" id="menu-restart" style="border-color:${theme.accent}40">↺ Restart Level</button>
-            <button class="menu-nav-btn" id="menu-next" style="border-color:${theme.accent}40">Next ▶</button>
+            <button class="menu-nav-btn" id="menu-next" style="border-color:${theme.accent}40" ${state.currentLevel >= state.highestLevel ? "disabled" : ""}>Next ▶</button>
         </div>
     `;
 
@@ -2812,13 +2812,15 @@ function renderMenu() {
     // Set progress + Reset (hidden until easter egg)
     html += `<div id="menu-secret-section" style="display:${_menuSecretTaps >= 7 ? 'block' : 'none'}">`;
 
+    // Compute current monthly display values from stored baselines
+    const _msRaw = parseInt(localStorage.getItem("wordplay-monthly-start") || "0");
+    const _mcsRaw = parseInt(localStorage.getItem("wordplay-monthly-coins-start") || "0");
+    const _monthlyLevels = Math.max(0, state.highestLevel - _msRaw);
+    const _monthlyPoints = Math.max(0, state.totalCoinsEarned - _mcsRaw);
+
     html += `
         <div class="menu-setting">
-            <label class="menu-setting-label">Set Your Progress:</label>
-            <div class="menu-setting-row" style="margin-bottom:8px">
-                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">Level</span>
-                <input type="number" id="seed-level-input" value="${state.highestLevel}" min="1" max="${maxLv}" class="menu-setting-input">
-            </div>
+            <label class="menu-setting-label">Game State:</label>
             <div class="menu-setting-row" style="margin-bottom:8px">
                 <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">🪙 Coins</span>
                 <input type="number" id="seed-coins-input" value="${state.coins}" min="0" class="menu-setting-input">
@@ -2835,16 +2837,30 @@ function renderMenu() {
                 <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">🚀 Rocket</span>
                 <input type="number" id="seed-rockets-input" value="${state.freeRockets}" min="0" class="menu-setting-input">
             </div>
+        </div>
+    `;
+
+    html += `
+        <div class="menu-setting">
+            <label class="menu-setting-label">Leaderboard:</label>
             <div class="menu-setting-row" style="margin-bottom:8px">
-                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">📅 Mo.Lv</span>
-                <input type="number" id="seed-monthly-start-input" value="" min="0" placeholder="auto" class="menu-setting-input">
+                <span style="font-size:13px;opacity:0.6;width:90px;flex-shrink:0">All-Time Levels</span>
+                <input type="number" id="seed-level-input" value="${state.highestLevel}" min="1" max="${maxLv}" class="menu-setting-input">
             </div>
             <div class="menu-setting-row" style="margin-bottom:8px">
-                <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">📅 Mo.Coins</span>
-                <input type="number" id="seed-monthly-coins-start-input" value="" min="0" placeholder="auto" class="menu-setting-input">
+                <span style="font-size:13px;opacity:0.6;width:90px;flex-shrink:0">All-Time Points</span>
+                <input type="number" id="seed-tce-input" value="${state.totalCoinsEarned}" min="0" class="menu-setting-input">
+            </div>
+            <div class="menu-setting-row" style="margin-bottom:8px">
+                <span style="font-size:13px;opacity:0.6;width:90px;flex-shrink:0">Monthly Levels</span>
+                <input type="number" id="seed-monthly-levels-input" value="${_monthlyLevels}" min="0" class="menu-setting-input">
+            </div>
+            <div class="menu-setting-row" style="margin-bottom:8px">
+                <span style="font-size:13px;opacity:0.6;width:90px;flex-shrink:0">Monthly Points</span>
+                <input type="number" id="seed-monthly-points-input" value="${_monthlyPoints}" min="0" class="menu-setting-input">
             </div>
             <button class="menu-setting-btn" id="seed-level-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;margin-top:4px">Set Progress</button>
-            <div class="menu-setting-hint">Set level to mark all prior levels as completed</div>
+            <div class="menu-setting-hint">Values map directly to leaderboard display</div>
         </div>
     `;
 
@@ -2959,23 +2975,7 @@ function renderMenu() {
 
             // Reset in-memory state to defaults so stale data from the previous
             // user can't bleed through if syncPull fails or returns empty
-            state.currentLevel = 1;
-            state.highestLevel = 1;
-            state.foundWords = [];
-            state.bonusFound = [];
-            state.coins = 50;
-            state.bonusCounter = 0;
-            state.revealedCells = [];
-            state.freeHints = 0;
-            state.freeTargets = 0;
-            state.freeRockets = 0;
-            state.levelsCompleted = 0;
-            state.totalCoinsEarned = 0;
-            state.levelHistory = {};
-            state.inProgress = {};
-            state.lastDailyClaim = null;
-            state.standaloneFound = false;
-            state.dailyPuzzle = null;
+            resetStateToDefaults();
         }
         if (newUid) localStorage.setItem("wordplay-last-uid", String(newUid));
 
@@ -3081,10 +3081,10 @@ function renderMenu() {
         if (state.currentLevel <= 1) return;
         saveInProgressState();
         state.currentLevel--;
-        state.highestLevel = Math.max(state.highestLevel, state.currentLevel);
         state.foundWords = [];
         state.bonusFound = [];
         state.revealedCells = [];
+        state.standaloneFound = false;
         state.shuffleKey = 0;
         await recompute();
         restoreLevelState();
@@ -3092,13 +3092,13 @@ function renderMenu() {
         renderMenu();
     };
     document.getElementById("menu-next").onclick = async () => {
-        if (state.currentLevel >= maxLv) return;
+        if (state.currentLevel >= state.highestLevel) return;
         saveInProgressState();
         state.currentLevel++;
-        state.highestLevel = Math.max(state.highestLevel, state.currentLevel);
         state.foundWords = [];
         state.bonusFound = [];
         state.revealedCells = [];
+        state.standaloneFound = false;
         state.shuffleKey = 0;
         await recompute();
         restoreLevelState();
@@ -3190,10 +3190,9 @@ function renderMenu() {
         const hints = parseInt(document.getElementById("seed-hints-input").value);
         const targets = parseInt(document.getElementById("seed-targets-input").value);
         const rockets = parseInt(document.getElementById("seed-rockets-input").value);
-        const monthlyStartRaw = document.getElementById("seed-monthly-start-input").value;
-        const monthlyStart = monthlyStartRaw !== "" ? parseInt(monthlyStartRaw) : null;
-        const monthlyCoinsStartRaw = document.getElementById("seed-monthly-coins-start-input").value;
-        const monthlyCoinsStart = monthlyCoinsStartRaw !== "" ? parseInt(monthlyCoinsStartRaw) : null;
+        const tce = parseInt(document.getElementById("seed-tce-input").value);
+        const monthlyLevels = parseInt(document.getElementById("seed-monthly-levels-input").value);
+        const monthlyPoints = parseInt(document.getElementById("seed-monthly-points-input").value);
         if (val >= 1 && val <= maxLv && !isNaN(val)) {
             state.highestLevel = val;
             state.currentLevel = val;
@@ -3205,6 +3204,7 @@ function renderMenu() {
             if (!isNaN(hints) && hints >= 0) state.freeHints = hints;
             if (!isNaN(targets) && targets >= 0) state.freeTargets = targets;
             if (!isNaN(rockets) && rockets >= 0) state.freeRockets = rockets;
+            if (!isNaN(tce) && tce >= 0) state.totalCoinsEarned = tce;
             // Mark all levels below as completed, clear anything at or above
             for (let lv = 1; lv < val; lv++) {
                 if (!state.levelHistory[lv]) state.levelHistory[lv] = [];
@@ -3216,17 +3216,18 @@ function renderMenu() {
                 if (parseInt(key) >= val) delete state.inProgress[key];
             }
             saveProgress();
-            // If monthly overrides specified, push immediately with overrides
-            const hasOverride = (monthlyStart !== null && !isNaN(monthlyStart)) ||
-                                (monthlyCoinsStart !== null && !isNaN(monthlyCoinsStart));
-            if (hasOverride && isSignedIn()) {
+            // Push immediately so server gets the exact values
+            if (isSignedIn()) {
                 clearTimeout(_syncPushTimer);
                 try {
                     const raw = localStorage.getItem("wordplay-save");
                     if (raw) {
                         const payload = { progress: JSON.parse(raw) };
-                        if (monthlyStart !== null && !isNaN(monthlyStart)) payload.monthlyStart = monthlyStart;
-                        if (monthlyCoinsStart !== null && !isNaN(monthlyCoinsStart)) payload.monthlyCoinsStart = monthlyCoinsStart;
+                        // Convert display values to server baselines:
+                        // MonthlyStart = HighestLevel - monthlyLevels displayed
+                        // MonthlyCoinsStart = TotalCoinsEarned - monthlyPoints displayed
+                        if (!isNaN(monthlyLevels)) payload.monthlyStart = state.highestLevel - monthlyLevels;
+                        if (!isNaN(monthlyPoints)) payload.monthlyCoinsStart = state.totalCoinsEarned - monthlyPoints;
                         await fetch("/api/progress", {
                             method: "POST",
                             headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -3235,12 +3236,15 @@ function renderMenu() {
                     }
                 } catch (e) { /* best effort */ }
             }
+            // Update local monthly baselines so settings re-renders correctly
+            if (!isNaN(monthlyLevels)) localStorage.setItem("wordplay-monthly-start", String(state.highestLevel - monthlyLevels));
+            if (!isNaN(monthlyPoints)) localStorage.setItem("wordplay-monthly-coins-start", String(state.totalCoinsEarned - monthlyPoints));
             _menuSecretTaps = 0;
             state.showMenu = false;
             state.showHome = true;
             renderMenu();
             renderHome();
-            showToast("Progress set to level " + val.toLocaleString());
+            showToast("Progress updated");
         } else {
             showToast("Invalid level number", "#ff8888");
         }
@@ -3259,23 +3263,8 @@ function renderMenu() {
     document.getElementById("reset-progress-btn").onclick = () => {
         if (!confirm("Reset all progress? This cannot be undone.")) return;
         localStorage.removeItem("wordplay-save");
-        state.currentLevel = 1;
-        state.highestLevel = 1;
-        state.foundWords = [];
-        state.bonusFound = [];
-        state.revealedCells = [];
-        state.bonusCounter = 0;
-        state.freeHints = 0;
-        state.freeTargets = 0;
-        state.freeRockets = 0;
-        state.levelsCompleted = 0;
-        state.totalCoinsEarned = 0;
-        state.levelHistory = {};
-        state.inProgress = {};
-        state.lastDailyClaim = null;
-        state.dailyPuzzle = null;
+        resetStateToDefaults();
         state.soundEnabled = true;
-        state.coins = 50;
         state.showMenu = false;
         state.showHome = true;
         saveProgress();
@@ -3500,6 +3489,7 @@ function renderMap() {
 
     let lastGroup = "";
     for (const p of packs) {
+        if (p.start > state.highestLevel) continue;
         const key = p.group + "/" + p.pack + "/" + p.start;
         const total = p.end - p.start + 1;
         const isGiant = total > PACK_MAX_EXPANDABLE;
@@ -3573,6 +3563,7 @@ function renderMap() {
     // Wire level node clicks
     overlay.querySelectorAll(".map-node[data-lv]").forEach(node => {
         node.onclick = () => {
+            if (node.classList.contains("locked")) return;
             const lv = parseInt(node.getAttribute("data-lv"));
             if (!isNaN(lv)) {
                 state.showMap = false;
@@ -4014,23 +4005,7 @@ async function init() {
         // if handlePostSignIn didn't complete, e.g. app closed during sign-in)
         if (lastUid && uid && String(lastUid) !== String(uid)) {
             localStorage.removeItem("wordplay-save");
-            state.currentLevel = 1;
-            state.highestLevel = 1;
-            state.foundWords = [];
-            state.bonusFound = [];
-            state.coins = 50;
-            state.bonusCounter = 0;
-            state.revealedCells = [];
-            state.freeHints = 0;
-            state.freeTargets = 0;
-            state.freeRockets = 0;
-            state.levelsCompleted = 0;
-            state.totalCoinsEarned = 0;
-            state.levelHistory = {};
-            state.inProgress = {};
-            state.lastDailyClaim = null;
-            state.standaloneFound = false;
-            state.dailyPuzzle = null;
+            resetStateToDefaults();
             localStorage.setItem("wordplay-last-uid", String(uid));
         }
 
@@ -4089,6 +4064,13 @@ async function init() {
     };
     document.addEventListener("touchstart", _warmAudio, { once: true });
     document.addEventListener("mousedown", _warmAudio, { once: true });
+
+    // Cancel pick mode when clicking outside grid/target button
+    document.addEventListener("click", (e) => {
+        if (!state.pickMode) return;
+        if (e.target.closest(".grid-cell") || e.target.closest("#target-btn")) return;
+        cancelPickMode();
+    });
 
     // Handle resize
     window.addEventListener("resize", () => {

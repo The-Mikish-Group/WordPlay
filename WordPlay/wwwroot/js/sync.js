@@ -68,6 +68,10 @@ async function syncPull() {
             ? JSON.parse(data.progress)
             : data.progress;
 
+        // Store monthly baselines for settings UI
+        if (data.monthlyStart !== undefined) localStorage.setItem("wordplay-monthly-start", data.monthlyStart);
+        if (data.monthlyCoinsStart !== undefined) localStorage.setItem("wordplay-monthly-coins-start", data.monthlyCoinsStart);
+
         const localRaw = localStorage.getItem("wordplay-save");
         const localSave = localRaw ? JSON.parse(localRaw) : null;
 

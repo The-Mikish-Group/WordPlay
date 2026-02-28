@@ -673,64 +673,15 @@ html, body {
     background: rgba(255,255,255,0.1);
 }
 
+.menu-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
 .menu-stat {
     font-size: 14px;
     padding: 6px 0;
     opacity: 0.7;
-}
-
-.menu-setting {
-    margin: 20px 0 10px;
-    padding: 16px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 14px;
-}
-
-.menu-setting-label {
-    font-size: 12px;
-    opacity: 0.6;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    display: block;
-    margin-bottom: 8px;
-}
-
-.menu-setting-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.menu-setting-input {
-    flex: 1;
-    min-width: 0;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 10px;
-    padding: 8px 12px;
-    font-size: 16px;
-    color: #fff;
-    outline: none;
-}
-
-.menu-setting-input:focus {
-    border-color: rgba(255,255,255,0.3);
-}
-
-.menu-setting-btn {
-    border: none;
-    border-radius: 10px;
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.menu-setting-hint {
-    font-size: 11px;
-    opacity: 0.35;
-    margin-top: 6px;
 }
 
 .menu-setting {
@@ -830,11 +781,7 @@ html, body {
     100% { opacity: 1; }
 }
 
-@keyframes wordReveal {
-    0% { transform: scale(0.5); opacity: 0; }
-    40% { transform: scale(1.12); }
-    100% { transform: scale(1); opacity: 1; }
-}
+
 
 @keyframes wordFlash {
     0% { background: rgba(160,120,255,0.9); transform: scale(1.12); }
@@ -1070,7 +1017,11 @@ html, body {
     background: transparent;
     border: 2px solid rgba(255,255,255,0.12);
     color: rgba(255,255,255,0.2);
-    cursor: pointer;
+    cursor: default;
+}
+
+.map-node.locked:active {
+    transform: none;
 }
 
 .map-node[data-lv]:active {
@@ -1824,10 +1775,6 @@ html, body {
     pointer-events: none;
 }
 
-.expertise-banner {
-    pointer-events: auto;
-}
-
 .home-corner-btn {
     background: rgba(0,0,0,0.35);
     border: 1.5px solid rgba(255,255,255,0.18);
@@ -1860,6 +1807,7 @@ html, body {
 }
 
 .expertise-banner {
+    pointer-events: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2130,9 +2078,6 @@ html, body {
 
 .home-daily-puzzle-btn {
     pointer-events: auto;
-}
-
-.home-daily-puzzle-btn {
     background: linear-gradient(180deg, #22a866 0%, #158040 100%);
     color: #fff;
     border: 2px solid #22a866;
@@ -2209,5 +2154,4 @@ html, body {
     width: 0;
     z-index: -1;
     pointer-events: none;
-    tab-index: -1;
 }

@@ -14,6 +14,13 @@ using WordPlay.Services;
 
 var _jsonIndented = new JsonSerializerOptions { WriteIndented = true };
 var _alphanumericRegex = new Regex(@"^[a-zA-Z0-9 ]+$", RegexOptions.Compiled);
+var _contactRateLimit = new ConcurrentDictionary<string, List<DateTime>>();
+
+int? GetUserId(ClaimsPrincipal principal)
+{
+    var claim = principal.FindFirst("uid")?.Value;
+    return claim != null && int.TryParse(claim, out var id) ? id : null;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -271,9 +278,8 @@ app.MapPost("/api/auth/microsoft", async (HttpRequest request, WordPlayDb db, Au
 
 app.MapPost("/api/auth/set-name", async (HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
 {
-    var uidClaim = principal.FindFirst("uid")?.Value;
-    if (uidClaim == null) return Results.Unauthorized();
-    var userId = int.Parse(uidClaim);
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
 
     var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
     if (!body.TryGetProperty("name", out var nameEl))
@@ -296,9 +302,8 @@ app.MapPost("/api/auth/set-name", async (HttpRequest request, WordPlayDb db, Cla
 
 app.MapPost("/api/auth/set-leaderboard", async (HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
 {
-    var uidClaim = principal.FindFirst("uid")?.Value;
-    if (uidClaim == null) return Results.Unauthorized();
-    var userId = int.Parse(uidClaim);
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
 
     var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
     if (!body.TryGetProperty("show", out var showEl))
@@ -319,22 +324,22 @@ app.MapPost("/api/auth/set-leaderboard", async (HttpRequest request, WordPlayDb 
 
 app.MapGet("/api/progress", async (WordPlayDb db, ClaimsPrincipal principal) =>
 {
-    var uidClaim = principal.FindFirst("uid")?.Value;
-    if (uidClaim == null) return Results.Unauthorized();
-    var userId = int.Parse(uidClaim);
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
 
     var progress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == userId);
     if (progress == null)
-        return Results.Ok(new { progress = (string?)null, updatedAt = (DateTime?)null });
+        return Results.Ok(new { progress = (string?)null, updatedAt = (DateTime?)null,
+            monthlyStart = 0, monthlyCoinsStart = 0 });
 
-    return Results.Ok(new { progress = progress.ProgressJson, updatedAt = progress.UpdatedAt });
+    return Results.Ok(new { progress = progress.ProgressJson, updatedAt = progress.UpdatedAt,
+        monthlyStart = progress.MonthlyStart, monthlyCoinsStart = progress.MonthlyCoinsStart });
 }).RequireAuthorization();
 
 app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
 {
-    var uidClaim = principal.FindFirst("uid")?.Value;
-    if (uidClaim == null) return Results.Unauthorized();
-    var userId = int.Parse(uidClaim);
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
 
     var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
     if (!body.TryGetProperty("progress", out var progressEl))
@@ -353,7 +358,7 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
     var progress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == userId);
     if (progress == null)
     {
-        progress = new UserProgress { UserId = userId };
+        progress = new UserProgress { UserId = userId.Value };
         db.UserProgress.Add(progress);
     }
 
@@ -408,108 +413,51 @@ app.MapGet("/api/leaderboard", async (WordPlayDb db, int? top, string? period, s
 {
     var count = Math.Clamp(top ?? 50, 1, 100);
     var nowMonth = DateTime.UtcNow.ToString("yyyy-MM");
+    var isMonthly = period == "month";
     var byPoints = rankType == "points";
 
-    if (period == "month")
+    var query = db.UserProgress
+        .Include(p => p.User)
+        .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard);
+
+    if (isMonthly)
+        query = query.Where(p => p.CurrentMonth == nowMonth);
+
+    var projected = query.Select(p => new
     {
-        if (byPoints)
-        {
-            var leaders = await db.UserProgress
-                .Include(p => p.User)
-                .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard && p.CurrentMonth == nowMonth)
-                .Select(p => new
-                {
-                    userId = p.UserId,
-                    name = p.User.DisplayName,
-                    highestLevel = p.HighestLevel,
-                    levelsCompleted = p.LevelsCompleted,
-                    totalCoinsEarned = p.TotalCoinsEarned,
-                    monthlyGain = p.HighestLevel - p.MonthlyStart,
-                    monthlyCoinsGain = p.TotalCoinsEarned - p.MonthlyCoinsStart
-                })
-                .Where(p => p.monthlyCoinsGain > 0)
-                .OrderByDescending(p => p.monthlyCoinsGain)
-                .ThenByDescending(p => p.totalCoinsEarned)
-                .Take(count)
-                .ToListAsync();
-            return Results.Ok(leaders);
-        }
-        else
-        {
-            var leaders = await db.UserProgress
-                .Include(p => p.User)
-                .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard && p.CurrentMonth == nowMonth)
-                .Select(p => new
-                {
-                    userId = p.UserId,
-                    name = p.User.DisplayName,
-                    highestLevel = p.HighestLevel,
-                    levelsCompleted = p.LevelsCompleted,
-                    totalCoinsEarned = p.TotalCoinsEarned,
-                    monthlyGain = p.HighestLevel - p.MonthlyStart,
-                    monthlyCoinsGain = p.TotalCoinsEarned - p.MonthlyCoinsStart
-                })
-                .Where(p => p.monthlyGain > 0)
-                .OrderByDescending(p => p.monthlyGain)
-                .ThenByDescending(p => p.highestLevel)
-                .Take(count)
-                .ToListAsync();
-            return Results.Ok(leaders);
-        }
-    }
-    else
+        userId = p.UserId,
+        name = p.User.DisplayName,
+        highestLevel = p.HighestLevel,
+        levelsCompleted = p.LevelsCompleted,
+        totalCoinsEarned = p.TotalCoinsEarned,
+        monthlyGain = isMonthly ? p.HighestLevel - p.MonthlyStart : 0,
+        monthlyCoinsGain = isMonthly ? p.TotalCoinsEarned - p.MonthlyCoinsStart : 0
+    });
+
+    if (isMonthly)
+        projected = byPoints
+            ? projected.Where(p => p.monthlyCoinsGain > 0)
+            : projected.Where(p => p.monthlyGain > 0);
+
+    projected = (isMonthly, byPoints) switch
     {
-        if (byPoints)
-        {
-            var leaders = await db.UserProgress
-                .Include(p => p.User)
-                .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard)
-                .OrderByDescending(p => p.TotalCoinsEarned)
-                .ThenByDescending(p => p.HighestLevel)
-                .Take(count)
-                .Select(p => new
-                {
-                    userId = p.UserId,
-                    name = p.User.DisplayName,
-                    highestLevel = p.HighestLevel,
-                    levelsCompleted = p.LevelsCompleted,
-                    totalCoinsEarned = p.TotalCoinsEarned,
-                    monthlyGain = 0,
-                    monthlyCoinsGain = 0
-                })
-                .ToListAsync();
-            return Results.Ok(leaders);
-        }
-        else
-        {
-            var leaders = await db.UserProgress
-                .Include(p => p.User)
-                .Where(p => p.User.DisplayName != null && p.User.ShowOnLeaderboard)
-                .OrderByDescending(p => p.HighestLevel)
-                .ThenByDescending(p => p.LevelsCompleted)
-                .Take(count)
-                .Select(p => new
-                {
-                    userId = p.UserId,
-                    name = p.User.DisplayName,
-                    highestLevel = p.HighestLevel,
-                    levelsCompleted = p.LevelsCompleted,
-                    totalCoinsEarned = p.TotalCoinsEarned,
-                    monthlyGain = 0,
-                    monthlyCoinsGain = 0
-                })
-                .ToListAsync();
-            return Results.Ok(leaders);
-        }
-    }
+        (true, true) => projected.OrderByDescending(p => p.monthlyCoinsGain)
+                                  .ThenByDescending(p => p.totalCoinsEarned),
+        (true, false) => projected.OrderByDescending(p => p.monthlyGain)
+                                   .ThenByDescending(p => p.highestLevel),
+        (false, true) => projected.OrderByDescending(p => p.totalCoinsEarned)
+                                   .ThenByDescending(p => p.highestLevel),
+        _ => projected.OrderByDescending(p => p.highestLevel)
+                       .ThenByDescending(p => p.levelsCompleted),
+    };
+
+    var leaders = await projected.Take(count).ToListAsync();
+    return Results.Ok(leaders);
 });
 
 // ============================================================
 // Contact endpoint
 // ============================================================
-
-var _contactRateLimit = new ConcurrentDictionary<string, List<DateTime>>();
-var _emailRegex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
 
 app.MapPost("/api/contact", async (HttpRequest request, IConfiguration config) =>
 {

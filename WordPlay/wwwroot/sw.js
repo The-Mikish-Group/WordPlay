@@ -18,9 +18,10 @@ const DATA_CACHE = 'wordplay-data-v2';
 
 self.addEventListener('install', e => {
     e.waitUntil(
-        caches.open(CACHE_NAME).then(c => c.addAll(ASSETS))
+        caches.open(CACHE_NAME)
+            .then(c => c.addAll(ASSETS))
+            .then(() => self.skipWaiting())
     );
-    self.skipWaiting();
 });
 
 self.addEventListener('fetch', e => {
@@ -50,7 +51,12 @@ self.addEventListener('fetch', e => {
                             cache.put(e.request, response.clone());
                         }
                         return response;
-                    });
+                    }).catch(() =>
+                        new Response(JSON.stringify({ error: "offline" }), {
+                            status: 503,
+                            headers: { 'Content-Type': 'application/json' }
+                        })
+                    );
                 })
             )
         );
