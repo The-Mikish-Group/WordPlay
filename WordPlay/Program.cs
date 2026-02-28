@@ -395,10 +395,15 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         }
     }
 
+    // Use max of client/server so server-side bonuses aren't overwritten by stale client syncs
+    var mergedCoins = Math.Max(totalCoinsEarned, progress.TotalCoinsEarned);
+    if (mergedCoins != totalCoinsEarned)
+        progressJson = progressJson.Replace($"\"tce\":{totalCoinsEarned}", $"\"tce\":{mergedCoins}");
+
     progress.ProgressJson = progressJson;
     progress.HighestLevel = highestLevel;
     progress.LevelsCompleted = levelsCompleted;
-    progress.TotalCoinsEarned = totalCoinsEarned;
+    progress.TotalCoinsEarned = mergedCoins;
     progress.UpdatedAt = DateTime.UtcNow;
 
     await db.SaveChangesAsync();
