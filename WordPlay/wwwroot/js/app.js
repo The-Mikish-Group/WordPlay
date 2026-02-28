@@ -2735,9 +2735,13 @@ function renderMenu() {
     const maxLv = (typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 0);
 
     let html = `
-        <div class="menu-header">
+        <div class="menu-header" style="justify-content:center;position:relative;cursor:default">
+            <button class="back-arrow-btn" id="menu-close-btn" title="Back" style="position:absolute;left:12px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
             <h2 class="menu-title" style="color:${theme.accent}">⚙️ Settings</h2>
-            <button class="menu-close" id="menu-close-btn">\u2715</button>
         </div>
         <div class="menu-scroll">
     `;
@@ -2931,7 +2935,7 @@ function renderMenu() {
     overlay.innerHTML = html;
 
     // Wire up event handlers
-    document.querySelector(".menu-header").onclick = () => {
+    document.getElementById("menu-close-btn").onclick = () => {
         _menuSecretTaps = 0;
         state.showMenu = false;
         if (state.showHome) {
@@ -3303,9 +3307,13 @@ function renderContact() {
     overlay.style.display = "flex";
 
     overlay.innerHTML = `
-        <div class="menu-header">
+        <div class="menu-header" style="justify-content:center;position:relative;cursor:default">
+            <button class="back-arrow-btn" id="contact-close-btn" title="Back" style="position:absolute;left:12px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
             <h2 class="menu-title" style="color:${theme.accent}">✉️ Contact Support</h2>
-            <button class="menu-close" id="contact-close-btn">\u2715</button>
         </div>
         <div class="menu-scroll">
             <div class="menu-setting">
@@ -3477,7 +3485,7 @@ function renderMap() {
 
     const packs = typeof getLevelPacks === "function" ? getLevelPacks() : [];
     if (!packs.length) {
-        overlay.innerHTML = `<div class="map-header"><h2 class="map-title" style="color:${theme.accent}">Level Map</h2><button class="menu-close" id="map-close-btn">✕</button></div><div class="map-scroll"><p style="opacity:0.5;text-align:center;padding:40px">No level data available</p></div>`;
+        overlay.innerHTML = `<div class="map-header" style="justify-content:center;position:relative"><button class="back-arrow-btn" id="map-close-btn" title="Back" style="position:absolute;left:12px"><svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h2 class="map-title" style="color:${theme.accent}">Level Map</h2></div><div class="map-scroll"><p style="opacity:0.5;text-align:center;padding:40px">No level data available</p></div>`;
         document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); if (!state.showHome) renderWheel(); };
         return;
     }
@@ -3497,7 +3505,7 @@ function renderMap() {
         }
     }
 
-    let html = `<div class="map-header"><h2 class="map-title" style="color:${theme.accent}">Level Map</h2><button class="menu-close" id="map-close-btn">✕</button></div><div class="map-scroll" id="map-scroll">`;
+    let html = `<div class="map-header" style="justify-content:center;position:relative"><button class="back-arrow-btn" id="map-close-btn" title="Back" style="position:absolute;left:12px"><svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h2 class="map-title" style="color:${theme.accent}">Level Map</h2></div><div class="map-scroll" id="map-scroll">`;
 
     let lastGroup = "";
     for (const p of packs) {
@@ -3650,7 +3658,11 @@ function renderGuide() {
 
     overlay.innerHTML = `
         <div class="guide-header">
-            <button class="menu-close" id="guide-close-btn">\u2715</button>
+            <button class="back-arrow-btn" id="guide-close-btn" title="Back" style="position:absolute;left:16px;top:20px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
             <div class="guide-icon">\uD83D\uDCD6</div>
             <h2 class="guide-title" style="color:${theme.accent}">How to Play</h2>
             <div class="guide-subtitle">Everything you need to become a Word Master</div>

@@ -1635,13 +1635,6 @@ html, body {
     flex-shrink: 0;
 }
 
-.guide-header .menu-close {
-    position: absolute;
-    right: 16px;
-    top: 20px;
-    z-index: 10;
-}
-
 .guide-icon {
     font-size: 48px;
     animation: lbTrophyBounce 1s ease;
