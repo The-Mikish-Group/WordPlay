@@ -501,7 +501,14 @@ function exitDailyMode() {
 let toastTimer = null;
 function showToast(msg, color, fast, bg) {
     if (toastTimer) clearTimeout(toastTimer);
-    const el = document.getElementById("toast");
+    let el = document.getElementById("toast");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "toast";
+        el.className = "toast";
+        el.style.display = "none";
+        document.getElementById("app").appendChild(el);
+    }
     el.textContent = msg;
     el.style.color = color || theme.accent;
     el.style.borderColor = (color || theme.accent) + "30";
@@ -3646,7 +3653,26 @@ function renderLeaderboard() {
             const list = document.getElementById("lb-list");
             if (!list) return;
             if (leaders.length === 0) {
-                list.innerHTML = `<div style="opacity:0.5;padding:40px 0;font-size:15px">${isMonthly ? "No progress this month yet \u2014 start climbing!" : "No players yet \u2014 be the first!"}</div>`;
+                let emptyVis = "";
+                if (currentUserId && typeof getUser === "function") {
+                    const u = getUser();
+                    const isVisible = u && u.showOnLeaderboard !== false;
+                    emptyVis = `<div class="lb-vis-toggle"><label class="lb-vis-label"><input type="checkbox" id="lb-vis-cb" ${isVisible ? "checked" : ""} style="width:18px;height:18px;accent-color:${accent};cursor:pointer"> Show me on leaderboard</label></div>`;
+                }
+                list.innerHTML = `<div style="opacity:0.5;padding:40px 0;font-size:15px">${isMonthly ? "No progress this month yet \u2014 start climbing!" : "No players yet \u2014 be the first!"}</div>${emptyVis}`;
+                const visCb = document.getElementById("lb-vis-cb");
+                if (visCb) {
+                    visCb.onchange = async () => {
+                        try {
+                            await setLeaderboardVisibility(visCb.checked);
+                            showToast(visCb.checked ? "Shown on leaderboard" : "Hidden from leaderboard");
+                            renderLeaderboard();
+                        } catch (e) {
+                            visCb.checked = !visCb.checked;
+                            showToast("Failed to update", "#ff8888");
+                        }
+                    };
+                }
                 return;
             }
             let topHtml = "";
@@ -3673,7 +3699,7 @@ function renderLeaderboard() {
                 } else {
                     scoreText = isMonthly
                         ? "+" + entry.monthlyGain.toLocaleString() + " levels"
-                        : "Lv " + entry.highestLevel.toLocaleString();
+                        : "+" + entry.highestLevel.toLocaleString() + " levels";
                 }
 
                 const anchorId = (i === scrollAnchorIndex) ? 'id="lb-scroll-anchor"' : "";
@@ -3693,15 +3719,28 @@ function renderLeaderboard() {
             });
 
             if (currentUserId && !leaders.some(l => l.userId === currentUserId)) {
-                restHtml += `<div class="lb-you-hint">Keep climbing to join the leaderboard!</div>`;
+                const user = typeof getUser === "function" ? getUser() : null;
+                if (user && user.showOnLeaderboard === false) {
+                    restHtml += `<div class="lb-you-hint">You're hidden from the leaderboard</div>`;
+                } else {
+                    restHtml += `<div class="lb-you-hint">Keep climbing to join the leaderboard!</div>`;
+                }
+            }
+
+            // Visibility toggle for signed-in users
+            let visToggle = "";
+            if (currentUserId && typeof getUser === "function") {
+                const u = getUser();
+                const isVisible = u && u.showOnLeaderboard !== false;
+                visToggle = `<div class="lb-vis-toggle"><label class="lb-vis-label"><input type="checkbox" id="lb-vis-cb" ${isVisible ? "checked" : ""} style="width:18px;height:18px;accent-color:${accent};cursor:pointer"> Show me on leaderboard</label></div>`;
             }
 
             list.style.textAlign = "left";
             // Top 3 sticky, rest scrollable
             if (leaders.length > 3) {
-                list.innerHTML = `<div class="lb-sticky-top">${topHtml}</div><div class="lb-divider"></div><div class="lb-rest" id="lb-rest">${restHtml}</div>`;
+                list.innerHTML = `<div class="lb-sticky-top">${topHtml}</div><div class="lb-divider"></div><div class="lb-rest" id="lb-rest">${restHtml}${visToggle}</div>`;
             } else {
-                list.innerHTML = topHtml + restHtml;
+                list.innerHTML = topHtml + restHtml + visToggle;
             }
 
             // Auto-scroll: show 3 competitors above the user at the top of the scrollable area
@@ -3711,6 +3750,21 @@ function renderLeaderboard() {
                     anchor.scrollIntoView({ block: "start", behavior: "smooth" });
                 }
             }, 350);
+
+            // Visibility toggle handler
+            const visCb = document.getElementById("lb-vis-cb");
+            if (visCb) {
+                visCb.onchange = async () => {
+                    try {
+                        await setLeaderboardVisibility(visCb.checked);
+                        showToast(visCb.checked ? "Shown on leaderboard" : "Hidden from leaderboard");
+                        renderLeaderboard();
+                    } catch (e) {
+                        visCb.checked = !visCb.checked;
+                        showToast("Failed to update", "#ff8888");
+                    }
+                };
+            }
         })
         .catch(() => {
             const list = document.getElementById("lb-list");
