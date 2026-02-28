@@ -548,6 +548,18 @@ function checkDailyCoinWord() {
         assignDailyCoinWord();
         setTimeout(() => animateCoinFlyFromDailyCoin(oldCellKey), 200);
         setTimeout(() => renderGrid(), 350);
+    } else if (_dailyCoinCellKey) {
+        const revealed = new Set();
+        for (const p of crossword.placements) {
+            if (state.foundWords.includes(p.word)) {
+                for (const c of p.cells) revealed.add(c.row + "," + c.col);
+            }
+        }
+        for (const k of state.revealedCells) revealed.add(k);
+        if (revealed.has(_dailyCoinCellKey)) {
+            assignDailyCoinWord();
+            renderGrid();
+        }
     }
 }
 
