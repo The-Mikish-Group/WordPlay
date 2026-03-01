@@ -780,7 +780,7 @@ function handleWord(word) {
         if (!state.foundWords.includes(w)) state.foundWords.push(w);
         state.coins += 100;
         state.totalCoinsEarned += 100;
-        if (state.isDailyMode) { _dailyCoinsEarned += 100; saveDailyState(); } else if (state.isBonusMode) saveBonusState(); else saveProgress();
+        if (state.isDailyMode) { _dailyCoinsEarned += 100; saveDailyState(); } else if (state.isBonusMode) { _bonusCoinsEarned += 100; saveBonusState(); } else saveProgress();
         renderGrid();
         highlightWord(w);
         renderCoins();
@@ -810,6 +810,7 @@ function handleWord(word) {
     if (placedWords.includes(w)) {
         state.foundWords.push(w);
         // Auto-complete any crossing words whose cells are all now visible
+        const beforeAuto = state.foundWords.length;
         while (checkAutoCompleteWords()) {}
         state.coins += 1;
         state.totalCoinsEarned += 1;
@@ -824,6 +825,12 @@ function handleWord(word) {
         renderSpinBtn();
         checkDailyCoinWord();
         checkBonusStars(w);
+        // Check stars for any auto-completed words
+        if (state.isBonusMode) {
+            for (let i = beforeAuto; i < state.foundWords.length; i++) {
+                checkBonusStars(state.foundWords[i]);
+            }
+        }
         if (state.foundWords.length === totalRequired) {
             if (state.isBonusMode) {
                 handleBonusCompletion();
@@ -2188,7 +2195,19 @@ function checkBonusStars(word) {
     if (!placement) return;
     const wordStarCells = placement.cells
         .map(c => c.row + "," + c.col)
-        .filter(k => _bonusStarCells.includes(k));
+        .filter(k => {
+            if (!_bonusStarCells.includes(k)) return false;
+            // Skip stars already collected by a previously found word
+            for (const p of crossword.placements) {
+                if (p.word === word || p.standalone) continue;
+                if (state.foundWords.includes(p.word)) {
+                    for (const c of p.cells) {
+                        if ((c.row + "," + c.col) === k) return false;
+                    }
+                }
+            }
+            return true;
+        });
     if (wordStarCells.length === 0) return;
     const starsInWord = wordStarCells.length;
     const coinReward = starsInWord * 10;
