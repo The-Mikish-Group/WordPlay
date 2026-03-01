@@ -681,6 +681,230 @@ app.MapPost("/api/contact", async (HttpRequest request, IConfiguration config) =
 });
 
 // ============================================================
+// Admin endpoints (require admin role)
+// ============================================================
+
+app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+
+    var users = await db.Users
+        .GroupJoin(db.UserProgress, u => u.Id, p => p.UserId, (u, ps) => new { u, p = ps.FirstOrDefault() })
+        .Select(x => new
+        {
+            id = x.u.Id,
+            displayName = x.u.DisplayName,
+            email = x.u.Email,
+            role = x.u.Role,
+            showOnLeaderboard = x.u.ShowOnLeaderboard,
+            provider = x.u.Provider,
+            lastLoginAt = x.u.LastLoginAt,
+            highestLevel = x.p != null ? x.p.HighestLevel : 0,
+            totalCoinsEarned = x.p != null ? x.p.TotalCoinsEarned : 0,
+            monthlyGain = x.p != null ? x.p.HighestLevel - x.p.MonthlyStart : 0,
+        })
+        .OrderByDescending(x => x.highestLevel)
+        .ToListAsync();
+
+    return Results.Ok(users);
+}).RequireAuthorization();
+
+app.MapPut("/api/admin/users/{id}/role", async (int id, HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+    if (!body.TryGetProperty("role", out var roleEl)) return Results.BadRequest(new { error = "role required" });
+    var role = roleEl.GetString();
+    if (role != "user" && role != "admin" && role != "bot") return Results.BadRequest(new { error = "Invalid role" });
+
+    var user = await db.Users.FindAsync(id);
+    if (user == null) return Results.NotFound();
+    user.Role = role;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { user.Id, user.Role });
+}).RequireAuthorization();
+
+app.MapPut("/api/admin/users/{id}/progress", async (int id, HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+
+    var user = await db.Users.FindAsync(id);
+    if (user == null) return Results.NotFound();
+
+    var progress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == id);
+    if (progress == null)
+    {
+        progress = new UserProgress { UserId = id };
+        db.UserProgress.Add(progress);
+    }
+
+    if (body.TryGetProperty("highestLevel", out var hlEl)) progress.HighestLevel = hlEl.GetInt32();
+    if (body.TryGetProperty("totalCoinsEarned", out var tceEl)) progress.TotalCoinsEarned = tceEl.GetInt32();
+    if (body.TryGetProperty("coins", out var coEl))
+    {
+        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+        node["co"] = coEl.GetInt32();
+        progress.ProgressJson = node.ToJsonString();
+    }
+    if (body.TryGetProperty("freeHints", out var fhEl))
+    {
+        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+        node["fh"] = fhEl.GetInt32();
+        progress.ProgressJson = node.ToJsonString();
+    }
+    if (body.TryGetProperty("freeTargets", out var ftEl))
+    {
+        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+        node["ft"] = ftEl.GetInt32();
+        progress.ProgressJson = node.ToJsonString();
+    }
+    if (body.TryGetProperty("freeRockets", out var frEl))
+    {
+        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+        node["fr"] = frEl.GetInt32();
+        progress.ProgressJson = node.ToJsonString();
+    }
+
+    // Sync denormalized JSON fields
+    var pNode = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+    pNode["hl"] = progress.HighestLevel;
+    pNode["lc"] = progress.HighestLevel;
+    pNode["tce"] = progress.TotalCoinsEarned;
+    pNode["cl"] = progress.HighestLevel;
+    progress.ProgressJson = pNode.ToJsonString();
+    progress.LevelsCompleted = progress.HighestLevel;
+    progress.UpdatedAt = DateTime.UtcNow;
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new { progress.HighestLevel, progress.TotalCoinsEarned });
+}).RequireAuthorization();
+
+app.MapPut("/api/admin/users/{id}/visibility", async (int id, HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+    if (!body.TryGetProperty("show", out var showEl)) return Results.BadRequest(new { error = "show required" });
+
+    var user = await db.Users.FindAsync(id);
+    if (user == null) return Results.NotFound();
+    user.ShowOnLeaderboard = showEl.GetBoolean();
+    await db.SaveChangesAsync();
+    return Results.Ok(new { user.ShowOnLeaderboard });
+}).RequireAuthorization();
+
+app.MapDelete("/api/admin/users/{id}", async (int id, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var adminId = GetUserId(principal);
+    if (id == adminId) return Results.BadRequest(new { error = "Cannot delete yourself" });
+
+    var user = await db.Users.FindAsync(id);
+    if (user == null) return Results.NotFound();
+
+    // Delete progress and rabbit assignments first
+    var progress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == id);
+    if (progress != null) db.UserProgress.Remove(progress);
+    var assignments = await db.RabbitAssignments.Where(r => r.BotUserId == id || r.TargetUserId == id).ToListAsync();
+    db.RabbitAssignments.RemoveRange(assignments);
+    db.Users.Remove(user);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { deleted = true });
+}).RequireAuthorization();
+
+app.MapPost("/api/admin/bots", async (HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+    if (!body.TryGetProperty("displayName", out var nameEl))
+        return Results.BadRequest(new { error = "displayName required" });
+
+    var name = nameEl.GetString()?.Trim() ?? "";
+    if (name.Length < 3 || name.Length > 20)
+        return Results.BadRequest(new { error = "Name must be 3-20 characters" });
+
+    var bot = new User
+    {
+        Provider = "bot",
+        ProviderSubject = $"bot-{Guid.NewGuid():N}",
+        DisplayName = name,
+        Role = "bot",
+        ShowOnLeaderboard = true,
+    };
+    db.Users.Add(bot);
+    await db.SaveChangesAsync();
+
+    // Create empty progress record
+    db.UserProgress.Add(new UserProgress { UserId = bot.Id });
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { bot.Id, bot.DisplayName, bot.Role });
+}).RequireAuthorization();
+
+app.MapGet("/api/admin/rabbits", async (WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+
+    var assignments = await db.RabbitAssignments
+        .Include(r => r.BotUser)
+        .Include(r => r.TargetUser)
+        .Select(r => new
+        {
+            id = r.Id,
+            botUserId = r.BotUserId,
+            botName = r.BotUser.DisplayName,
+            targetUserId = r.TargetUserId,
+            targetName = r.TargetUser.DisplayName,
+            isActive = r.IsActive,
+            createdAt = r.CreatedAt,
+        })
+        .ToListAsync();
+
+    return Results.Ok(assignments);
+}).RequireAuthorization();
+
+app.MapPost("/api/admin/rabbits", async (HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+    if (!body.TryGetProperty("botUserId", out var botEl) || !body.TryGetProperty("targetUserId", out var targetEl))
+        return Results.BadRequest(new { error = "botUserId and targetUserId required" });
+
+    var botId = botEl.GetInt32();
+    var targetId = targetEl.GetInt32();
+
+    // Validate bot exists and has bot role
+    var bot = await db.Users.FindAsync(botId);
+    if (bot == null || bot.Role != "bot") return Results.BadRequest(new { error = "Invalid bot user" });
+
+    // Validate target exists
+    var target = await db.Users.FindAsync(targetId);
+    if (target == null) return Results.BadRequest(new { error = "Target user not found" });
+
+    // Check for existing active assignment for this target
+    var existing = await db.RabbitAssignments.FirstOrDefaultAsync(
+        r => r.TargetUserId == targetId && r.IsActive);
+    if (existing != null)
+        return Results.BadRequest(new { error = "Target already has an active rabbit. Remove it first." });
+
+    var assignment = new RabbitAssignment { BotUserId = botId, TargetUserId = targetId };
+    db.RabbitAssignments.Add(assignment);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { assignment.Id, assignment.BotUserId, assignment.TargetUserId });
+}).RequireAuthorization();
+
+app.MapDelete("/api/admin/rabbits/{id}", async (int id, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var assignment = await db.RabbitAssignments.FindAsync(id);
+    if (assignment == null) return Results.NotFound();
+    db.RabbitAssignments.Remove(assignment);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { deleted = true });
+}).RequireAuthorization();
+
+// ============================================================
 // Static files
 // ============================================================
 
