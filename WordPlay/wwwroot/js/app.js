@@ -755,6 +755,18 @@ function handleDailyCompletion() {
     setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
 }
 
+function handleBonusCompletion() {
+    if (!state.bonusPuzzle) return;
+    state.bonusPuzzle.completed = true;
+    if (state.bonusPuzzle.starsCollected >= 9) {
+        state.coins += 500;
+        state.totalCoinsEarned += 500;
+        _bonusCoinsEarned += 500;
+    }
+    saveBonusState();
+    setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
+}
+
 function handleWord(word) {
     const w = word.toUpperCase();
 
@@ -775,8 +787,11 @@ function handleWord(word) {
         playSound("bonusChime");
         showToast("🪙 Coin Word! +100 🪙", theme.accent);
         setTimeout(() => animateCoinFlyFromStandalone(), 200);
+        checkBonusStars(w);
         if (state.foundWords.length === totalRequired) {
-            if (state.isDailyMode) {
+            if (state.isBonusMode) {
+                handleBonusCompletion();
+            } else if (state.isDailyMode) {
                 handleDailyCompletion();
             } else {
                 state.levelHistory[state.currentLevel] = [...state.foundWords];
@@ -808,8 +823,11 @@ function handleWord(word) {
         renderRocketBtn();
         renderSpinBtn();
         checkDailyCoinWord();
+        checkBonusStars(w);
         if (state.foundWords.length === totalRequired) {
-            if (state.isDailyMode) {
+            if (state.isBonusMode) {
+                handleBonusCompletion();
+            } else if (state.isDailyMode) {
                 handleDailyCompletion();
             } else {
                 state.levelHistory[state.currentLevel] = [...state.foundWords];
@@ -1383,6 +1401,7 @@ async function advanceToNextLevel() {
 }
 
 async function handleNextLevel() {
+    if (state.isBonusMode) { exitBonusMode(false); return; }
     if (state.isDailyMode) { exitDailyMode(); return; }
     const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
     // Store completed level answers before advancing
@@ -2117,6 +2136,145 @@ function animateCoinFlyFromDailyCoin(cellKey) {
     document.body.appendChild(gainText);
     setTimeout(() => gainText.remove(), 900);
     for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            const p = document.createElement("div");
+            p.className = "coin-particle";
+            p.textContent = "\uD83E\uDE99";
+            const sx = startX + (Math.random() - 0.5) * 40;
+            const sy = startY + (Math.random() - 0.5) * 20;
+            p.style.left = sx + "px";
+            p.style.top = sy + "px";
+            document.body.appendChild(p);
+            const curveX = (Math.random() - 0.5) * 60;
+            const curveY = (Math.random() - 0.5) * 30 - 20;
+            const midX = (sx + endX) / 2 + curveX;
+            const midY = (sy + endY) / 2 + curveY;
+            const duration = 450 + Math.random() * 150;
+            let start = null;
+            function animate(ts) {
+                if (!start) start = ts;
+                const t = Math.min((ts - start) / duration, 1);
+                const u = 1 - t;
+                const x = u * u * sx + 2 * u * t * midX + t * t * endX;
+                const y = u * u * sy + 2 * u * t * midY + t * t * endY;
+                p.style.left = x + "px";
+                p.style.top = y + "px";
+                p.style.transform = `translate(-50%, -50%) scale(${0.6 + t * 0.4})`;
+                p.style.opacity = 0.4 + t * 0.6;
+                if (t < 1) requestAnimationFrame(animate);
+                else p.remove();
+            }
+            requestAnimationFrame(animate);
+        }, i * 50);
+    }
+}
+
+function checkBonusStars(word) {
+    if (!state.isBonusMode || !state.bonusPuzzle) return;
+    const placement = crossword.placements.find(p => p.word === word);
+    if (!placement) return;
+    const wordStarCells = placement.cells
+        .map(c => c.row + "," + c.col)
+        .filter(k => _bonusStarCells.includes(k));
+    if (wordStarCells.length === 0) return;
+    const starsInWord = wordStarCells.length;
+    const coinReward = starsInWord * 10;
+    state.bonusPuzzle.starsCollected += starsInWord;
+    state.coins += coinReward;
+    state.totalCoinsEarned += coinReward;
+    _bonusCoinsEarned += coinReward;
+    wordStarCells.forEach((cellKey, i) => {
+        setTimeout(() => animateStarFly(cellKey), i * 200);
+    });
+    setTimeout(() => {
+        animateBonusCoinFly(wordStarCells[0], coinReward);
+    }, wordStarCells.length * 200 + 400);
+    const oldPoints = state.bonusPuzzle.starPoints;
+    const newPoints = Math.floor(state.bonusPuzzle.starsCollected / 3);
+    if (newPoints > oldPoints) {
+        state.bonusPuzzle.starPoints = newPoints;
+        setTimeout(() => {
+            renderHeader();
+            playSound("bonusChime");
+        }, wordStarCells.length * 200 + 600);
+    }
+    saveBonusState();
+    renderCoins();
+}
+
+function animateStarFly(cellKey) {
+    const gc = document.getElementById("grid-container");
+    const starDisplay = document.getElementById("bonus-star-display");
+    if (!gc || !starDisplay || !cellKey) return;
+    const [cr, cc] = cellKey.split(",").map(Number);
+    const cellIdx = cr * crossword.cols + cc;
+    const cellEl = gc.children[cellIdx];
+    let startX = window.innerWidth / 2, startY = window.innerHeight / 2;
+    if (cellEl) {
+        const r = cellEl.getBoundingClientRect();
+        startX = r.left + r.width / 2;
+        startY = r.top + r.height / 2;
+    }
+    const destRect = starDisplay.getBoundingClientRect();
+    const endX = destRect.left + destRect.width / 2;
+    const endY = destRect.top + destRect.height / 2;
+    const star = document.createElement("div");
+    star.style.position = "fixed";
+    star.style.left = startX + "px";
+    star.style.top = startY + "px";
+    star.style.fontSize = "24px";
+    star.style.zIndex = "10000";
+    star.style.pointerEvents = "none";
+    star.style.transform = "translate(-50%, -50%)";
+    star.textContent = "\u2B50";
+    document.body.appendChild(star);
+    const curveX = (Math.random() - 0.5) * 80;
+    const curveY = (Math.random() - 0.5) * 40 - 30;
+    const midX = (startX + endX) / 2 + curveX;
+    const midY = (startY + endY) / 2 + curveY;
+    const duration = 500;
+    let start = null;
+    function animate(ts) {
+        if (!start) start = ts;
+        const t = Math.min((ts - start) / duration, 1);
+        const u = 1 - t;
+        const x = u * u * startX + 2 * u * t * midX + t * t * endX;
+        const y = u * u * startY + 2 * u * t * midY + t * t * endY;
+        star.style.left = x + "px";
+        star.style.top = y + "px";
+        star.style.transform = `translate(-50%, -50%) scale(${1 + t * 0.5})`;
+        star.style.opacity = 0.5 + t * 0.5;
+        if (t < 1) requestAnimationFrame(animate);
+        else star.remove();
+    }
+    requestAnimationFrame(animate);
+}
+
+function animateBonusCoinFly(cellKey, amount) {
+    const gc = document.getElementById("grid-container");
+    const coinDisplay = document.getElementById("coin-display");
+    if (!gc || !coinDisplay || !cellKey) return;
+    const [cr, cc] = cellKey.split(",").map(Number);
+    const cellIdx = cr * crossword.cols + cc;
+    const cellEl = gc.children[cellIdx];
+    let startX = window.innerWidth / 2, startY = window.innerHeight / 2;
+    if (cellEl) {
+        const r = cellEl.getBoundingClientRect();
+        startX = r.left + r.width / 2;
+        startY = r.top + r.height / 2;
+    }
+    const coinRect = coinDisplay.getBoundingClientRect();
+    const endX = coinRect.left + coinRect.width / 2;
+    const endY = coinRect.top + coinRect.height / 2;
+    const gainText = document.createElement("div");
+    gainText.className = "coin-gain-text";
+    gainText.textContent = "+" + amount;
+    gainText.style.left = endX + "px";
+    gainText.style.top = endY + "px";
+    document.body.appendChild(gainText);
+    setTimeout(() => gainText.remove(), 900);
+    const particleCount = Math.min(amount / 2, 6);
+    for (let i = 0; i < particleCount; i++) {
         setTimeout(() => {
             const p = document.createElement("div");
             p.className = "coin-particle";
@@ -2967,7 +3125,26 @@ function renderCompleteModal() {
     }
     overlay.className = "modal-overlay";
     overlay.style.display = "flex";
-    if (state.isDailyMode) {
+    if (state.isBonusMode) {
+        const bp = state.bonusPuzzle;
+        const allStars = bp && bp.starsCollected >= 9;
+        const starDisplay = [0, 1, 2].map(i => i < (bp ? bp.starPoints : 0) ? '\u2B50' : '\u2606').join(' ');
+        overlay.innerHTML = `
+            <div class="modal-box" style="border:2px solid #d4a51c50;box-shadow:0 0 40px #d4a51c20">
+                <div class="modal-emoji">${allStars ? '\uD83C\uDF1F' : '\u2B50'}</div>
+                <h2 class="modal-title" style="color:#d4a51c">${allStars ? 'Bonus Complete!' : 'Puzzle Done'}</h2>
+                <p class="modal-subtitle" style="font-size:24px">${starDisplay}</p>
+                <p class="modal-subtitle">${bp ? bp.starsCollected : 0}/9 stars collected</p>
+                ${allStars ? '<p class="modal-coins" style="color:#d4a51c;font-size:18px;font-weight:700">Grand Prize: +500 \uD83E\uDE99</p>' : ''}
+                <p class="modal-coins" style="color:${theme.text}">+${_bonusCoinsEarned} \uD83E\uDE99 total earned</p>
+                <button class="modal-next-btn" id="next-btn"
+                    style="background:linear-gradient(180deg,#d4a51c 0%,#a07818 100%);border:2px solid #d4a51c;border-bottom-color:#a07818;box-shadow:0 4px 14px #d4a51c60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
+                    Collect & Return Home
+                </button>
+            </div>
+        `;
+        document.getElementById("next-btn").onclick = () => exitBonusMode(false);
+    } else if (state.isDailyMode) {
         overlay.innerHTML = `
             <div class="modal-box" style="border:2px solid #22a86650;box-shadow:0 0 40px #22a86620">
                 <div class="modal-emoji">\uD83D\uDCC5</div>
