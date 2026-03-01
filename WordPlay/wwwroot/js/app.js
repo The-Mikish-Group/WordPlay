@@ -4212,10 +4212,12 @@ function renderAdminUserDetail(overlay) {
                     '</div>';
             });
 
-            // Add new assignment form
-            if (bots.length > 0) {
+            // Add new assignment form — only show unassigned bots
+            const assignedBotIds = new Set(activeRabbits.map(a => a.botUserId));
+            const availableBots = bots.filter(b => !assignedBotIds.has(b.id));
+            if (availableBots.length > 0) {
                 let botOpts = '<option value="">Add a rabbit...</option>';
-                bots.forEach(b => { botOpts += '<option value="' + b.id + '">' + escapeHtml(b.displayName || "Bot #" + b.id) + '</option>'; });
+                availableBots.forEach(b => { botOpts += '<option value="' + b.id + '">' + escapeHtml(b.displayName || "Bot #" + b.id) + '</option>'; });
                 html += '<div style="display:flex;gap:6px;margin-top:8px;align-items:center">' +
                     '<select id="admin-rabbit-select" style="flex:1;padding:6px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#f0e8ff;font-size:13px">' + botOpts + '</select>' +
                     '<select id="admin-rabbit-mode" style="width:90px;padding:6px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#f0e8ff;font-size:13px"><option value="leading">Leading</option><option value="trailing">Trailing</option></select>' +
@@ -4341,10 +4343,11 @@ function renderAdminRabbits(overlay) {
             });
         }
 
-        // Populate dropdowns
+        // Populate dropdowns — only show bots not already assigned
+        const assignedBotIds = new Set(rabbits.map(r => r.botUserId));
         const botSelect = document.getElementById("admin-new-rabbit-bot");
         const targetSelect = document.getElementById("admin-new-rabbit-target");
-        users.filter(u => u.role === "bot").forEach(b => {
+        users.filter(u => u.role === "bot" && !assignedBotIds.has(u.id)).forEach(b => {
             botSelect.innerHTML += '<option value="' + b.id + '">' + escapeHtml(b.displayName || "Bot #" + b.id) + '</option>';
         });
         users.filter(u => u.role !== "bot").forEach(u => {
