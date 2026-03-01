@@ -64,14 +64,14 @@ public class AuthService
         return (sub, email);
     }
 
-    public string IssueJwt(int userId)
+    public string IssueJwt(int userId, string role = "user")
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Auth:Jwt:Secret"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(
             issuer: _config["Auth:Jwt:Issuer"],
             audience: _config["Auth:Jwt:Audience"],
-            claims: new[] { new Claim("uid", userId.ToString()) },
+            claims: new[] { new Claim("uid", userId.ToString()), new Claim("role", role) },
             expires: DateTime.UtcNow.AddDays(30),
             signingCredentials: creds);
         return new JwtSecurityTokenHandler().WriteToken(token);

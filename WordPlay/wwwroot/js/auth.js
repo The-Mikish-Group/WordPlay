@@ -40,6 +40,10 @@ function getAuthHeaders() {
     return { Authorization: "Bearer " + _authState.jwt };
 }
 
+function isAdmin() {
+    return _authState && _authState.user && _authState.user.role === "admin";
+}
+
 function _saveAuth(jwt, user) {
     _authState = { jwt, user };
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(_authState));
@@ -143,7 +147,7 @@ async function setDisplayName(name) {
     }
     const data = await res.json();
     if (_authState) {
-        _authState.user = { id: data.Id || data.id, displayName: data.DisplayName || data.displayName, email: data.Email || data.email, showOnLeaderboard: data.ShowOnLeaderboard ?? data.showOnLeaderboard ?? true };
+        _authState.user = { id: data.Id || data.id, displayName: data.DisplayName || data.displayName, email: data.Email || data.email, showOnLeaderboard: data.ShowOnLeaderboard ?? data.showOnLeaderboard ?? true, role: data.Role || data.role || "user" };
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(_authState));
     }
     return data;

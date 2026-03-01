@@ -28,6 +28,11 @@ int? GetUserId(ClaimsPrincipal principal)
     return claim != null && int.TryParse(claim, out var id) ? id : null;
 }
 
+string? GetUserRole(ClaimsPrincipal principal)
+{
+    return principal.FindFirst("role")?.Value;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Services ---
@@ -203,6 +208,8 @@ async Task<User> UpsertUser(WordPlayDb db, string provider, string sub, string? 
     var user = await db.Users.FirstOrDefaultAsync(u => u.Provider == provider && u.ProviderSubject == sub);
     if (user != null)
     {
+        if (user.Role == "bot")
+            throw new InvalidOperationException("Bot accounts cannot sign in");
         user.Email = email ?? user.Email;
         user.LastLoginAt = DateTime.UtcNow;
         return user;
@@ -262,11 +269,11 @@ app.MapPost("/api/auth/google", async (HttpRequest request, WordPlayDb db, AuthS
         var user = await UpsertUser(db, "google", sub, email);
         await db.SaveChangesAsync();
 
-        var jwt = auth.IssueJwt(user.Id);
+        var jwt = auth.IssueJwt(user.Id, user.Role);
         return Results.Ok(new
         {
             token = jwt,
-            user = new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard }
+            user = new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard, user.Role }
         });
     }
     catch
@@ -287,11 +294,11 @@ app.MapPost("/api/auth/microsoft", async (HttpRequest request, WordPlayDb db, Au
         var user = await UpsertUser(db, "microsoft", sub, email);
         await db.SaveChangesAsync();
 
-        var jwt = auth.IssueJwt(user.Id);
+        var jwt = auth.IssueJwt(user.Id, user.Role);
         return Results.Ok(new
         {
             token = jwt,
-            user = new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard }
+            user = new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard, user.Role }
         });
     }
     catch
@@ -321,7 +328,7 @@ app.MapPost("/api/auth/set-name", async (HttpRequest request, WordPlayDb db, Cla
     user.DisplayName = name;
     await db.SaveChangesAsync();
 
-    return Results.Ok(new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard });
+    return Results.Ok(new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard, user.Role });
 }).RequireAuthorization();
 
 app.MapPost("/api/auth/set-leaderboard", async (HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
