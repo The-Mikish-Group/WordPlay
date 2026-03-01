@@ -2236,3 +2236,47 @@ html, body {
     z-index: -1;
     pointer-events: none;
 }
+
+/* ---- Admin Panel ---- */
+.admin-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    align-items: center;
+}
+.admin-user-row {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.admin-user-row:hover { background: rgba(255,255,255,0.05); }
+.admin-user-info { flex: 1; min-width: 0; }
+.admin-user-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-user-meta { font-size: 12px; opacity: 0.5; margin-top: 2px; }
+.admin-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; font-weight: 700; text-transform: uppercase; vertical-align: middle; }
+.admin-badge-admin { background: rgba(255,107,53,0.25); color: #ff6b35; }
+.admin-badge-bot { background: rgba(128,128,255,0.2); color: #aaaaff; }
+.admin-detail-field { padding: 10px 12px; }
+.admin-detail-field label { display: block; font-size: 12px; opacity: 0.5; margin-bottom: 4px; }
+.admin-detail-field input, .admin-detail-field select {
+    width: 100%;
+    padding: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    color: inherit;
+    font-size: 14px;
+}
+.admin-rabbit-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 14px;
+}
+.admin-rabbit-row .admin-rabbit-info { flex: 1; }
+.admin-rabbit-row button { background: rgba(255,80,80,0.2); color: #ff8888; border: 1px solid rgba(255,80,80,0.3); padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }

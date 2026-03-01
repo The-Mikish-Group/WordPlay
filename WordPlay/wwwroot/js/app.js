@@ -131,6 +131,7 @@ const state = {
     showLeaderboard: false,
     showGuide: false,
     showContact: false,
+    showAdmin: false,
     dailyPuzzle: null,     // { date, levelNum, fw, bf, rc, sf, coinWordsFound, completed }
     bonusPuzzle: null,         // { available, trigger, levelNum, fw, bf, rc, sf, starsCollected, starPoints, coinsEarned, completed, starCells }
     isBonusMode: false,
@@ -262,6 +263,7 @@ function resetStateToDefaults() {
     state.speedLevels = [];
     state.loginStreak = 0;
     state.lastPlayDate = null;
+    state.showAdmin = false;
 }
 
 
@@ -3412,6 +3414,16 @@ function renderMenu() {
         </div>
     `;
 
+    // Admin panel (visible only to admins)
+    if (typeof isAdmin === "function" && isAdmin()) {
+        html += `
+            <div class="menu-setting">
+                <label class="menu-setting-label">Administration</label>
+                <button class="menu-setting-btn" id="admin-panel-btn" style="background:linear-gradient(135deg,#ff6b35,#d63384);color:#fff;width:100%;padding:10px 0;font-size:14px;border:none">Admin Panel</button>
+            </div>
+        `;
+    }
+
     html += `</div>`; // close menu-scroll
     overlay.innerHTML = html;
 
@@ -3696,6 +3708,16 @@ function renderMenu() {
         renderContact();
     };
 
+    const adminPanelBtn = document.getElementById("admin-panel-btn");
+    if (adminPanelBtn) {
+        adminPanelBtn.onclick = () => {
+            state.showMenu = false;
+            state.showAdmin = true;
+            renderMenu();
+            renderAdmin();
+        };
+    }
+
     document.getElementById("seed-level-btn").onclick = async () => {
         const input = document.getElementById("seed-level-input");
         const val = parseInt(input.value);
@@ -3910,6 +3932,409 @@ function renderContact() {
             btn.textContent = "Send Message";
             btn.style.opacity = "1";
         }
+    };
+}
+
+// ---- ADMIN PANEL ----
+let _adminUsers = [];
+let _adminSearch = "";
+let _adminSelectedUser = null;
+let _adminRabbits = [];
+let _adminView = "users"; // "users" | "user-detail" | "rabbits"
+
+function renderAdmin() {
+    let overlay = document.getElementById("admin-overlay");
+    if (!state.showAdmin) {
+        if (overlay) overlay.style.display = "none";
+        return;
+    }
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "admin-overlay";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "menu-overlay";
+    overlay.style.display = "flex";
+
+    if (_adminView === "user-detail" && _adminSelectedUser) {
+        renderAdminUserDetail(overlay);
+        return;
+    }
+    if (_adminView === "rabbits") {
+        renderAdminRabbits(overlay);
+        return;
+    }
+
+    const accent = theme.accent;
+    overlay.innerHTML = `
+        <div class="menu-header" style="justify-content:center;position:relative;cursor:default">
+            <button class="back-arrow-btn" id="admin-close-btn" title="Back" style="position:absolute;left:12px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h2 class="menu-title" style="color:${accent}">Admin Panel</h2>
+        </div>
+        <div class="menu-scroll">
+            <div class="admin-toolbar">
+                <input type="text" id="admin-search" class="menu-setting-input" placeholder="Search users..." value="${escapeHtml(_adminSearch)}" style="flex:1">
+                <button class="menu-setting-btn" id="admin-create-bot-btn" style="background:${accent};color:#000;white-space:nowrap;padding:8px 12px">+ Bot</button>
+                <button class="menu-setting-btn" id="admin-rabbits-btn" style="background:rgba(255,255,255,0.1);white-space:nowrap;padding:8px 12px">Rabbits</button>
+            </div>
+            <div id="admin-user-list" style="padding:0 4px">
+                <div style="text-align:center;padding:30px;opacity:0.5">Loading...</div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("admin-close-btn").onclick = () => {
+        state.showAdmin = false;
+        _adminView = "users";
+        renderAdmin();
+        state.showMenu = true;
+        renderMenu();
+    };
+
+    document.getElementById("admin-search").oninput = (e) => {
+        _adminSearch = e.target.value;
+        renderAdminUserList();
+    };
+
+    document.getElementById("admin-create-bot-btn").onclick = () => {
+        const name = prompt("Bot display name (3-20 chars):");
+        if (!name || name.trim().length < 3) return;
+        fetch("/api/admin/bots", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ displayName: name.trim() }),
+        }).then(r => r.json()).then(() => {
+            showToast("Bot created");
+            loadAdminUsers();
+        }).catch(() => showToast("Failed to create bot", "#ff8888"));
+    };
+
+    document.getElementById("admin-rabbits-btn").onclick = () => {
+        _adminView = "rabbits";
+        renderAdmin();
+    };
+
+    loadAdminUsers();
+}
+
+function loadAdminUsers() {
+    fetch("/api/admin/users", { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(users => {
+            _adminUsers = users;
+            renderAdminUserList();
+        })
+        .catch(() => {
+            const list = document.getElementById("admin-user-list");
+            if (list) list.innerHTML = '<div style="text-align:center;padding:30px;opacity:0.5">Failed to load users</div>';
+        });
+}
+
+function renderAdminUserList() {
+    const list = document.getElementById("admin-user-list");
+    if (!list) return;
+
+    const search = _adminSearch.toLowerCase();
+    const filtered = _adminUsers.filter(u =>
+        !search || (u.displayName || "").toLowerCase().includes(search) || (u.email || "").toLowerCase().includes(search)
+    );
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:30px;opacity:0.5">No users found</div>';
+        return;
+    }
+
+    const roleBadge = (role) => {
+        if (role === "admin") return '<span class="admin-badge admin-badge-admin">admin</span>';
+        if (role === "bot") return '<span class="admin-badge admin-badge-bot">bot</span>';
+        return '';
+    };
+
+    list.innerHTML = filtered.map(u => `
+        <div class="admin-user-row" data-uid="${u.id}">
+            <div class="admin-user-info">
+                <div class="admin-user-name">${escapeHtml(u.displayName || "\u2014")} ${roleBadge(u.role)}</div>
+                <div class="admin-user-meta">Lv ${u.highestLevel.toLocaleString()} \u00b7 ${u.totalCoinsEarned.toLocaleString()} pts \u00b7 +${u.monthlyGain} this mo</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.4;flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+    `).join("");
+
+    list.querySelectorAll(".admin-user-row").forEach(row => {
+        row.onclick = () => {
+            const uid = parseInt(row.dataset.uid);
+            _adminSelectedUser = _adminUsers.find(u => u.id === uid);
+            _adminView = "user-detail";
+            renderAdmin();
+        };
+    });
+}
+
+function renderAdminUserDetail(overlay) {
+    const u = _adminSelectedUser;
+    const accent = theme.accent;
+
+    overlay.innerHTML = `
+        <div class="menu-header" style="justify-content:center;position:relative;cursor:default">
+            <button class="back-arrow-btn" id="admin-detail-back" title="Back" style="position:absolute;left:12px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h2 class="menu-title" style="color:${accent}">${escapeHtml(u.displayName || "User #" + u.id)}</h2>
+        </div>
+        <div class="menu-scroll">
+            <div class="menu-setting">
+                <div class="admin-detail-field">
+                    <label>Role</label>
+                    <select id="admin-role-select">
+                        <option value="user" ${u.role === "user" ? "selected" : ""}>User</option>
+                        <option value="admin" ${u.role === "admin" ? "selected" : ""}>Admin</option>
+                        <option value="bot" ${u.role === "bot" ? "selected" : ""}>Bot</option>
+                    </select>
+                </div>
+                <div class="admin-detail-field">
+                    <label>Leaderboard Visibility</label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+                        <input type="checkbox" id="admin-vis-cb" ${u.showOnLeaderboard ? "checked" : ""} style="width:18px;height:18px;accent-color:${accent}">
+                        Show on leaderboard
+                    </label>
+                </div>
+            </div>
+            <div class="menu-setting">
+                <label class="menu-setting-label">Progress</label>
+                <div class="admin-detail-field">
+                    <label>Highest Level</label>
+                    <input type="number" id="admin-hl" value="${u.highestLevel}" min="0">
+                </div>
+                <div class="admin-detail-field">
+                    <label>Total Coins Earned</label>
+                    <input type="number" id="admin-tce" value="${u.totalCoinsEarned}" min="0">
+                </div>
+                <button class="menu-setting-btn" id="admin-save-progress" style="background:${accent};color:#000;width:100%;padding:10px 0;margin:8px 12px">Save Progress</button>
+            </div>
+            <div class="menu-setting">
+                <label class="menu-setting-label">Rabbit Assignment</label>
+                <div id="admin-rabbit-section" style="padding:4px 12px;font-size:13px;opacity:0.5">Loading...</div>
+            </div>
+            <div class="menu-setting">
+                <label class="menu-setting-label">Danger Zone</label>
+                <button class="menu-setting-btn" id="admin-delete-user" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);width:100%;padding:10px 0;margin:0 12px">Delete User</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("admin-detail-back").onclick = () => {
+        _adminView = "users";
+        _adminSelectedUser = null;
+        renderAdmin();
+    };
+
+    document.getElementById("admin-role-select").onchange = async (e) => {
+        try {
+            await fetch("/api/admin/users/" + u.id + "/role", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                body: JSON.stringify({ role: e.target.value }),
+            });
+            u.role = e.target.value;
+            showToast("Role updated");
+        } catch (err) { showToast("Failed", "#ff8888"); }
+    };
+
+    document.getElementById("admin-vis-cb").onchange = async (e) => {
+        try {
+            await fetch("/api/admin/users/" + u.id + "/visibility", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                body: JSON.stringify({ show: e.target.checked }),
+            });
+            u.showOnLeaderboard = e.target.checked;
+            showToast("Visibility updated");
+        } catch (err) { showToast("Failed", "#ff8888"); }
+    };
+
+    document.getElementById("admin-save-progress").onclick = async () => {
+        const hl = parseInt(document.getElementById("admin-hl").value);
+        const tce = parseInt(document.getElementById("admin-tce").value);
+        try {
+            await fetch("/api/admin/users/" + u.id + "/progress", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                body: JSON.stringify({ highestLevel: hl, totalCoinsEarned: tce }),
+            });
+            u.highestLevel = hl;
+            u.totalCoinsEarned = tce;
+            showToast("Progress saved");
+        } catch (err) { showToast("Failed", "#ff8888"); }
+    };
+
+    document.getElementById("admin-delete-user").onclick = async () => {
+        if (!confirm("Delete " + (u.displayName || "User #" + u.id) + "? This cannot be undone.")) return;
+        try {
+            const res = await fetch("/api/admin/users/" + u.id, {
+                method: "DELETE",
+                headers: getAuthHeaders(),
+            });
+            if (res.ok) {
+                showToast("User deleted");
+                _adminView = "users";
+                _adminSelectedUser = null;
+                loadAdminUsers();
+                renderAdmin();
+            } else {
+                const data = await res.json().catch(() => ({}));
+                showToast(data.error || "Failed", "#ff8888");
+            }
+        } catch (err) { showToast("Failed", "#ff8888"); }
+    };
+
+    // Load rabbit assignment for this user
+    fetch("/api/admin/rabbits", { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(rabbits => {
+            const section = document.getElementById("admin-rabbit-section");
+            if (!section) return;
+            const assignment = rabbits.find(r => r.targetUserId === u.id && r.isActive);
+            const bots = _adminUsers.filter(x => x.role === "bot");
+
+            if (assignment) {
+                section.innerHTML = '<div style="opacity:1;font-size:14px">Paced by: <strong>' + escapeHtml(assignment.botName || "Bot #" + assignment.botUserId) + '</strong></div>' +
+                    '<button class="menu-setting-btn" id="admin-remove-rabbit" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);margin-top:8px;padding:6px 12px;font-size:12px">Remove Rabbit</button>';
+                document.getElementById("admin-remove-rabbit").onclick = async () => {
+                    await fetch("/api/admin/rabbits/" + assignment.id, { method: "DELETE", headers: getAuthHeaders() });
+                    showToast("Rabbit removed");
+                    renderAdmin();
+                };
+            } else if (bots.length > 0) {
+                let optionsHtml = '<option value="">No rabbit assigned</option>';
+                bots.forEach(b => { optionsHtml += '<option value="' + b.id + '">' + escapeHtml(b.displayName || "Bot #" + b.id) + '</option>'; });
+                section.innerHTML = '<select id="admin-rabbit-select" style="width:100%;padding:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:inherit;font-size:14px">' + optionsHtml + '</select>' +
+                    '<button class="menu-setting-btn" id="admin-assign-rabbit" style="background:' + accent + ';color:#000;margin-top:8px;padding:6px 12px;font-size:12px">Assign Rabbit</button>';
+                document.getElementById("admin-assign-rabbit").onclick = async () => {
+                    const botId = parseInt(document.getElementById("admin-rabbit-select").value);
+                    if (!botId) return;
+                    try {
+                        const res = await fetch("/api/admin/rabbits", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                            body: JSON.stringify({ botUserId: botId, targetUserId: u.id }),
+                        });
+                        if (res.ok) { showToast("Rabbit assigned"); renderAdmin(); }
+                        else { const d = await res.json().catch(() => ({})); showToast(d.error || "Failed", "#ff8888"); }
+                    } catch (err) { showToast("Failed", "#ff8888"); }
+                };
+            } else {
+                section.innerHTML = '<div>No bots available. Create a bot first.</div>';
+            }
+        });
+}
+
+function renderAdminRabbits(overlay) {
+    const accent = theme.accent;
+
+    overlay.innerHTML = `
+        <div class="menu-header" style="justify-content:center;position:relative;cursor:default">
+            <button class="back-arrow-btn" id="admin-rabbits-back" title="Back" style="position:absolute;left:12px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h2 class="menu-title" style="color:${accent}">Rabbit Assignments</h2>
+        </div>
+        <div class="menu-scroll">
+            <div id="admin-rabbit-list" style="padding:0 4px">
+                <div style="text-align:center;padding:30px;opacity:0.5">Loading...</div>
+            </div>
+            <div class="menu-setting" style="border-top:1px solid rgba(255,255,255,0.08)">
+                <label class="menu-setting-label">New Assignment</label>
+                <div class="admin-detail-field">
+                    <label>Bot</label>
+                    <select id="admin-new-rabbit-bot" style="width:100%;padding:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:inherit;font-size:14px">
+                        <option value="">Select bot...</option>
+                    </select>
+                </div>
+                <div class="admin-detail-field">
+                    <label>Target Player</label>
+                    <select id="admin-new-rabbit-target" style="width:100%;padding:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:inherit;font-size:14px">
+                        <option value="">Select player...</option>
+                    </select>
+                </div>
+                <button class="menu-setting-btn" id="admin-new-rabbit-btn" style="background:${accent};color:#000;width:100%;padding:10px 0;margin:8px 12px">Assign Rabbit</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("admin-rabbits-back").onclick = () => {
+        _adminView = "users";
+        renderAdmin();
+    };
+
+    // Load rabbits and populate
+    Promise.all([
+        fetch("/api/admin/rabbits", { headers: getAuthHeaders() }).then(r => r.json()),
+        _adminUsers.length ? Promise.resolve(_adminUsers) : fetch("/api/admin/users", { headers: getAuthHeaders() }).then(r => r.json()),
+    ]).then(([rabbits, users]) => {
+        _adminUsers = users;
+        _adminRabbits = rabbits;
+
+        // Render assignment list
+        const list = document.getElementById("admin-rabbit-list");
+        if (!list) return;
+        if (rabbits.length === 0) {
+            list.innerHTML = '<div style="text-align:center;padding:20px;opacity:0.5">No rabbit assignments</div>';
+        } else {
+            list.innerHTML = rabbits.map(r => `
+                <div class="admin-rabbit-row">
+                    <div class="admin-rabbit-info">
+                        <strong>${escapeHtml(r.botName || "Bot #" + r.botUserId)}</strong>
+                        <span style="opacity:0.5;margin:0 6px">\u2192</span>
+                        ${escapeHtml(r.targetName || "User #" + r.targetUserId)}
+                        ${r.isActive ? '' : '<span style="opacity:0.4;margin-left:6px">(paused)</span>'}
+                    </div>
+                    <button data-rid="${r.id}">Remove</button>
+                </div>
+            `).join("");
+
+            list.querySelectorAll("button[data-rid]").forEach(btn => {
+                btn.onclick = async () => {
+                    if (!confirm("Remove this rabbit assignment?")) return;
+                    await fetch("/api/admin/rabbits/" + btn.dataset.rid, { method: "DELETE", headers: getAuthHeaders() });
+                    showToast("Removed");
+                    _adminView = "rabbits";
+                    renderAdmin();
+                };
+            });
+        }
+
+        // Populate dropdowns
+        const botSelect = document.getElementById("admin-new-rabbit-bot");
+        const targetSelect = document.getElementById("admin-new-rabbit-target");
+        users.filter(u => u.role === "bot").forEach(b => {
+            botSelect.innerHTML += '<option value="' + b.id + '">' + escapeHtml(b.displayName || "Bot #" + b.id) + '</option>';
+        });
+        users.filter(u => u.role !== "bot").forEach(u => {
+            targetSelect.innerHTML += '<option value="' + u.id + '">' + escapeHtml(u.displayName || "User #" + u.id) + '</option>';
+        });
+    });
+
+    document.getElementById("admin-new-rabbit-btn").onclick = async () => {
+        const botId = parseInt(document.getElementById("admin-new-rabbit-bot").value);
+        const targetId = parseInt(document.getElementById("admin-new-rabbit-target").value);
+        if (!botId || !targetId) { showToast("Select both bot and target", "#ff8888"); return; }
+        try {
+            const res = await fetch("/api/admin/rabbits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                body: JSON.stringify({ botUserId: botId, targetUserId: targetId }),
+            });
+            if (res.ok) { showToast("Rabbit assigned"); _adminView = "rabbits"; renderAdmin(); }
+            else { const d = await res.json().catch(() => ({})); showToast(d.error || "Failed", "#ff8888"); }
+        } catch (err) { showToast("Failed", "#ff8888"); }
     };
 }
 
