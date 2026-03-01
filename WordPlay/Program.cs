@@ -88,8 +88,8 @@ app.Use(async (context, next) =>
         "script-src 'self' 'unsafe-inline' https://accounts.google.com https://alcdn.msauth.net; " +
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data:; " +
-        "connect-src 'self' https://www.googleapis.com https://login.microsoftonline.com; " +
-        "frame-src https://accounts.google.com; " +
+        "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://login.microsoftonline.com; " +
+        "frame-src https://accounts.google.com https://login.microsoftonline.com; " +
         "font-src 'self'";
     await next();
 });
