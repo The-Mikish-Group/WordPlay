@@ -74,10 +74,6 @@ builder.WebHost.ConfigureKestrel(options =>
 
 var app = builder.Build();
 
-// --- Pacing config ---
-var pacingBridgetId = builder.Configuration.GetValue<int>("Pacing:BridgetUserId");
-var pacingEddieId = builder.Configuration.GetValue<int>("Pacing:EddieUserId");
-
 // --- Middleware ---
 
 // Security headers
@@ -448,81 +444,84 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
 
     await db.SaveChangesAsync();
 
-    // --- Auto-pace Fast Eddie ---
-    if (pacingBridgetId > 0 && pacingEddieId > 0 && userId == pacingBridgetId)
+    // --- Auto-pace rabbits ---
+    var rabbitAssignments = await db.RabbitAssignments
+        .Where(r => r.TargetUserId == userId && r.IsActive)
+        .ToListAsync();
+
+    foreach (var assignment in rabbitAssignments)
     {
-        var eddie = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == pacingEddieId);
-        if (eddie != null)
+        var rabbit = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == assignment.BotUserId);
+        if (rabbit == null) continue;
+
+        // Monthly rollover for rabbit
+        var rabbitMonth = CentralMonth();
+        if (rabbit.CurrentMonth != rabbitMonth)
         {
-            // Monthly rollover for Eddie
-            var eddieMonth = CentralMonth();
-            if (eddie.CurrentMonth != eddieMonth)
-            {
-                eddie.MonthlyStart = eddie.HighestLevel;
-                eddie.MonthlyCoinsStart = eddie.TotalCoinsEarned;
-                eddie.CurrentMonth = eddieMonth;
-            }
+            rabbit.MonthlyStart = rabbit.HighestLevel;
+            rabbit.MonthlyCoinsStart = rabbit.TotalCoinsEarned;
+            rabbit.CurrentMonth = rabbitMonth;
+        }
 
-            // Deterministic random: stable for a given day+level, shifts as Bridget advances
-            var seed = DateTime.UtcNow.DayOfYear * 1000 + highestLevel;
-            var rng = new Random(seed);
+        // Deterministic random: stable for a given day+level+bot, shifts as target advances
+        var seed = DateTime.UtcNow.DayOfYear * 1000 + highestLevel + assignment.BotUserId;
+        var rng = new Random(seed);
 
-            // Level gap distribution
-            var roll = rng.NextDouble();
-            int gap;
-            if (roll < 0.08)         // 8%: Bridget ties or briefly leads
-                gap = rng.Next(-1, 1);
-            else if (roll < 0.25)    // 17%: close race
-                gap = rng.Next(1, 3);
-            else                     // 75%: Eddie's comfortable lead
-                gap = rng.Next(3, 9);
+        // Level gap distribution
+        var roll = rng.NextDouble();
+        int gap;
+        if (roll < 0.08)         // 8%: target ties or briefly leads
+            gap = rng.Next(-1, 1);
+        else if (roll < 0.25)    // 17%: close race
+            gap = rng.Next(1, 3);
+        else                     // 75%: rabbit's comfortable lead
+            gap = rng.Next(3, 9);
 
-            var targetLevel = highestLevel + gap;
+        var targetLevel = highestLevel + gap;
 
-            // Also ensure Eddie stays ahead on the monthly leaderboard
-            var bridgetMonthlyGain = highestLevel - progress.MonthlyStart;
-            var eddieMonthlyGain = eddie.HighestLevel - eddie.MonthlyStart;
-            if (eddieMonthlyGain <= bridgetMonthlyGain)
-            {
-                // Eddie needs at least as many monthly levels as Bridget, plus the gap
-                var monthlyTarget = eddie.MonthlyStart + bridgetMonthlyGain + Math.Max(gap, 1);
-                targetLevel = Math.Max(targetLevel, monthlyTarget);
-            }
+        // Ensure rabbit stays ahead on the monthly leaderboard
+        var userMonthlyGain = highestLevel - progress.MonthlyStart;
+        var rabbitMonthlyGain = rabbit.HighestLevel - rabbit.MonthlyStart;
+        if (rabbitMonthlyGain <= userMonthlyGain)
+        {
+            var monthlyTarget = rabbit.MonthlyStart + userMonthlyGain + Math.Max(gap, 1);
+            targetLevel = Math.Max(targetLevel, monthlyTarget);
+        }
 
-            // Only bump UP — never decrease Eddie's level
-            if (targetLevel > eddie.HighestLevel)
-            {
-                var levelIncrease = targetLevel - eddie.HighestLevel;
-                var coinsPerLevel = rng.Next(6, 17);
-                var coinBonus = rng.Next(50, 301);
-                var targetCoins = Math.Max(
-                    eddie.TotalCoinsEarned + levelIncrease * coinsPerLevel + coinBonus,
-                    totalCoinsEarned + rng.Next(50, 301));
+        // Only bump UP — never decrease rabbit's level
+        if (targetLevel > rabbit.HighestLevel)
+        {
+            var levelIncrease = targetLevel - rabbit.HighestLevel;
+            var coinsPerLevel = rng.Next(6, 17);
+            var coinBonus = rng.Next(50, 301);
+            var targetCoins = Math.Max(
+                rabbit.TotalCoinsEarned + levelIncrease * coinsPerLevel + coinBonus,
+                totalCoinsEarned + rng.Next(50, 301));
 
-                // Also ensure Eddie stays ahead on monthly coins leaderboard
-                var bridgetMonthlyCoins = totalCoinsEarned - progress.MonthlyCoinsStart;
-                var eddieMonthlyCoins = targetCoins - eddie.MonthlyCoinsStart;
-                if (eddieMonthlyCoins <= bridgetMonthlyCoins)
-                    targetCoins = eddie.MonthlyCoinsStart + bridgetMonthlyCoins + rng.Next(50, 301);
+            // Ensure rabbit stays ahead on monthly coins leaderboard
+            var userMonthlyCoins = totalCoinsEarned - progress.MonthlyCoinsStart;
+            var rabbitMonthlyCoins = targetCoins - rabbit.MonthlyCoinsStart;
+            if (rabbitMonthlyCoins <= userMonthlyCoins)
+                targetCoins = rabbit.MonthlyCoinsStart + userMonthlyCoins + rng.Next(50, 301);
 
-                // Update ProgressJson fields
-                var eddieNode = JsonNode.Parse(eddie.ProgressJson ?? "{}")?.AsObject()
-                    ?? new JsonObject();
-                eddieNode["hl"] = targetLevel;
-                eddieNode["lc"] = targetLevel;
-                eddieNode["tce"] = targetCoins;
-                eddieNode["cl"] = targetLevel;
+            // Update ProgressJson fields
+            var rabbitNode = JsonNode.Parse(rabbit.ProgressJson ?? "{}")?.AsObject()
+                ?? new JsonObject();
+            rabbitNode["hl"] = targetLevel;
+            rabbitNode["lc"] = targetLevel;
+            rabbitNode["tce"] = targetCoins;
+            rabbitNode["cl"] = targetLevel;
 
-                eddie.ProgressJson = eddieNode.ToJsonString();
-                eddie.HighestLevel = targetLevel;
-                eddie.LevelsCompleted = targetLevel;
-                eddie.TotalCoinsEarned = targetCoins;
-                eddie.UpdatedAt = DateTime.UtcNow;
-
-                await db.SaveChangesAsync();
-            }
+            rabbit.ProgressJson = rabbitNode.ToJsonString();
+            rabbit.HighestLevel = targetLevel;
+            rabbit.LevelsCompleted = targetLevel;
+            rabbit.TotalCoinsEarned = targetCoins;
+            rabbit.UpdatedAt = DateTime.UtcNow;
         }
     }
+
+    if (rabbitAssignments.Count > 0)
+        await db.SaveChangesAsync();
 
     return Results.Ok(new { updatedAt = progress.UpdatedAt });
 }).RequireAuthorization();
