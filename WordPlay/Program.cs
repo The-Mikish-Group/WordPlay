@@ -892,6 +892,48 @@ app.MapPost("/api/admin/rabbits", async (HttpRequest request, WordPlayDb db, Cla
     db.RabbitAssignments.Add(assignment);
     await db.SaveChangesAsync();
 
+    // Initialize bot progress to be ahead of the target player
+    var targetProgress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == targetId);
+    if (targetProgress != null && targetProgress.HighestLevel > 0)
+    {
+        var botProgress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == botId);
+        if (botProgress == null)
+        {
+            botProgress = new UserProgress { UserId = botId };
+            db.UserProgress.Add(botProgress);
+        }
+
+        // Only initialize if bot is behind the target
+        if (botProgress.HighestLevel <= targetProgress.HighestLevel)
+        {
+            var rng = new Random(DateTime.UtcNow.DayOfYear * 1000 + targetProgress.HighestLevel + botId);
+            var gap = rng.Next(3, 9);
+            var initLevel = targetProgress.HighestLevel + gap;
+            var initCoins = targetProgress.TotalCoinsEarned + rng.Next(200, 801);
+
+            var botNode = JsonNode.Parse(botProgress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+            botNode["hl"] = initLevel;
+            botNode["lc"] = initLevel;
+            botNode["tce"] = initCoins;
+            botNode["cl"] = initLevel;
+
+            botProgress.ProgressJson = botNode.ToJsonString();
+            botProgress.HighestLevel = initLevel;
+            botProgress.LevelsCompleted = initLevel;
+            botProgress.TotalCoinsEarned = initCoins;
+            botProgress.CurrentMonth = CentralMonth();
+            botProgress.MonthlyStart = targetProgress.MonthlyStart > 0
+                ? targetProgress.MonthlyStart + gap
+                : initLevel;
+            botProgress.MonthlyCoinsStart = targetProgress.MonthlyCoinsStart > 0
+                ? targetProgress.MonthlyCoinsStart + rng.Next(100, 401)
+                : initCoins;
+            botProgress.UpdatedAt = DateTime.UtcNow;
+
+            await db.SaveChangesAsync();
+        }
+    }
+
     return Results.Ok(new { assignment.Id, assignment.BotUserId, assignment.TargetUserId });
 }).RequireAuthorization();
 
