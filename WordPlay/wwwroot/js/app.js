@@ -364,6 +364,11 @@ function loadProgress() {
             state.speedLevels = d.sl || [];
             state.loginStreak = d.ls || 0;
             state.lastPlayDate = d.lpd || null;
+            // Clear expired bonus puzzle (1-hour window)
+            if (state.bonusPuzzle && state.bonusPuzzle.available && state.bonusPuzzle.awardedAt &&
+                Date.now() - state.bonusPuzzle.awardedAt > 60 * 60 * 1000) {
+                state.bonusPuzzle = null;
+            }
             // Clear stale daily data
             if (state.dailyPuzzle && state.dailyPuzzle.date !== getTodayStr()) {
                 state.dailyPuzzle = null;
@@ -655,8 +660,22 @@ function triggerBonusPuzzle(trigger) {
         coinsEarned: 0,
         completed: false,
         starCells: null,
+        awardedAt: Date.now(),
     };
     saveProgress();
+}
+
+function isBonusPuzzleExpired() {
+    if (!state.bonusPuzzle || !state.bonusPuzzle.available) return false;
+    if (!state.bonusPuzzle.awardedAt) return false;
+    return Date.now() - state.bonusPuzzle.awardedAt > 60 * 60 * 1000; // 1 hour
+}
+
+function clearExpiredBonusPuzzle() {
+    if (isBonusPuzzleExpired()) {
+        state.bonusPuzzle = null;
+        saveProgress();
+    }
 }
 
 function checkSpeedMilestone() {
@@ -1603,7 +1622,10 @@ function renderHome() {
                 return '<div class="home-daily-puzzle-row"><button class="home-daily-puzzle-btn' + (inProgress ? ' in-progress' : '') + '" id="home-daily-puzzle-btn">\uD83D\uDCC5 ' + (inProgress ? 'Continue Daily Puzzle' : 'Daily Puzzle') + '</button></div>';
             })()}
             ${(function() {
-                if (!state.bonusPuzzle || !state.bonusPuzzle.available) return '';
+                if (!state.bonusPuzzle || !state.bonusPuzzle.available || isBonusPuzzleExpired()) {
+                    clearExpiredBonusPuzzle();
+                    return '';
+                }
                 return '<div class="home-bonus-puzzle-row"><button class="home-bonus-puzzle-btn" id="home-bonus-puzzle-btn">\u2B50 Bonus Puzzle</button></div>';
             })()}
             <div class="home-center">
