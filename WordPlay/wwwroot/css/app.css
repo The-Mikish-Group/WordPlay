@@ -2264,12 +2264,13 @@ html, body {
 .admin-detail-field input, .admin-detail-field select {
     width: 100%;
     padding: 8px;
-    background: rgba(255,255,255,0.08);
+    background: #1a1030;
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 8px;
-    color: inherit;
+    color: #f0e8ff;
     font-size: 14px;
 }
+.admin-detail-field select option { background: #1a1030; color: #f0e8ff; }
 .admin-rabbit-row {
     display: flex;
     align-items: center;

@@ -4213,7 +4213,7 @@ function renderAdminUserDetail(overlay) {
             } else if (bots.length > 0) {
                 let optionsHtml = '<option value="">No rabbit assigned</option>';
                 bots.forEach(b => { optionsHtml += '<option value="' + b.id + '">' + escapeHtml(b.displayName || "Bot #" + b.id) + '</option>'; });
-                section.innerHTML = '<select id="admin-rabbit-select" style="width:100%;padding:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:inherit;font-size:14px">' + optionsHtml + '</select>' +
+                section.innerHTML = '<select id="admin-rabbit-select" style="width:100%;padding:8px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#f0e8ff;font-size:14px">' + optionsHtml + '</select>' +
                     '<button class="menu-setting-btn" id="admin-assign-rabbit" style="background:' + accent + ';color:#000;margin-top:8px;padding:6px 12px;font-size:12px">Assign Rabbit</button>';
                 document.getElementById("admin-assign-rabbit").onclick = async () => {
                     const botId = parseInt(document.getElementById("admin-rabbit-select").value);
@@ -4254,13 +4254,13 @@ function renderAdminRabbits(overlay) {
                 <label class="menu-setting-label">New Assignment</label>
                 <div class="admin-detail-field">
                     <label>Bot</label>
-                    <select id="admin-new-rabbit-bot" style="width:100%;padding:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:inherit;font-size:14px">
+                    <select id="admin-new-rabbit-bot" style="width:100%;padding:8px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#f0e8ff;font-size:14px">
                         <option value="">Select bot...</option>
                     </select>
                 </div>
                 <div class="admin-detail-field">
                     <label>Target Player</label>
-                    <select id="admin-new-rabbit-target" style="width:100%;padding:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:inherit;font-size:14px">
+                    <select id="admin-new-rabbit-target" style="width:100%;padding:8px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#f0e8ff;font-size:14px">
                         <option value="">Select player...</option>
                     </select>
                 </div>
