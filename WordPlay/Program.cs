@@ -428,13 +428,20 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         }
     }
 
-    // Sanity guard: reject grossly inflated coins (e.g. cross-user contamination).
-    // Normal play averages ~100 coins/level; 250× is extremely generous headroom.
-    if (highestLevel > 0 && totalCoinsEarned > highestLevel * 250)
+    // Sanity guards: normal play averages ~100 coins/level.
+    // Cap grossly inflated coins (e.g. cross-user contamination).
+    // Floor suspiciously low coins (e.g. first sync before tce tracking existed).
+    var originalTce = totalCoinsEarned;
+    if (highestLevel > 0)
     {
-        totalCoinsEarned = highestLevel * 100;
-        progressJson = System.Text.RegularExpressions.Regex.Replace(
-            progressJson, @"""tce"":\d+", $"\"tce\":{totalCoinsEarned}");
+        if (totalCoinsEarned > highestLevel * 250)
+            totalCoinsEarned = highestLevel * 100;
+        else if (totalCoinsEarned < highestLevel * 10)
+            totalCoinsEarned = highestLevel * 100;
+
+        if (totalCoinsEarned != originalTce)
+            progressJson = System.Text.RegularExpressions.Regex.Replace(
+                progressJson, @"""tce"":\d+", $"\"tce\":{totalCoinsEarned}");
     }
 
     progress.ProgressJson = progressJson;
