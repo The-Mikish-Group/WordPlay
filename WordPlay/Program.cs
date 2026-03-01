@@ -83,14 +83,8 @@ app.Use(async (context, next) =>
     headers["X-Frame-Options"] = "DENY";
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-    headers["Content-Security-Policy"] =
-        "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' https://accounts.google.com https://alcdn.msauth.net; " +
-        "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data:; " +
-        "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://login.microsoftonline.com; " +
-        "frame-src https://accounts.google.com https://login.microsoftonline.com; " +
-        "font-src 'self'";
+    // CSP temporarily removed to diagnose sign-in issues
+    // headers["Content-Security-Policy"] = ...;
     await next();
 });
 
