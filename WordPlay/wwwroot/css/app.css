@@ -2102,6 +2102,97 @@ html, body {
     50% { transform: scale(1.04); box-shadow: 0 6px 14px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.3); }
 }
 
+/* ---- BONUS PUZZLE BUTTON (home screen) ---- */
+.home-bonus-puzzle-row {
+    display: flex;
+    justify-content: center;
+    padding: 0 20px;
+    margin-top: 4px;
+    margin-bottom: -46px;
+    z-index: 3;
+    position: relative;
+    pointer-events: none;
+}
+
+.home-bonus-puzzle-btn {
+    pointer-events: auto;
+    background: linear-gradient(180deg, #d4a51c 0%, #a07818 100%);
+    color: #fff;
+    border: 2px solid #d4a51c;
+    border-bottom-color: #a07818;
+    border-radius: 30px;
+    padding: 10px 28px;
+    font-family: 'Nunito', system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.3);
+    animation: bonusPuzzlePulse 2s ease-in-out infinite;
+}
+
+.home-bonus-puzzle-btn:active {
+    transform: scale(0.96);
+}
+
+@keyframes bonusPuzzlePulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 4px 10px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.3); }
+    50% { transform: scale(1.04); box-shadow: 0 6px 14px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.3); }
+}
+
+/* ---- BONUS STAR DISPLAY (game header) ---- */
+.bonus-star-display {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 18px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.3);
+}
+
+.bonus-star-slot {
+    opacity: 0.3;
+    transition: opacity 0.3s, transform 0.3s;
+    font-size: 18px;
+}
+
+.bonus-star-slot.filled {
+    opacity: 1;
+    animation: starFillPulse 0.5s ease;
+}
+
+@keyframes starFillPulse {
+    0% { transform: scale(0.5); opacity: 0; }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* ---- BONUS STAR CELLS ---- */
+.bonus-star-cell {
+    position: relative;
+}
+
+.bonus-star-overlay {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+    pointer-events: none;
+}
+
+.bonus-star-overlay.unrevealed {
+    position: static;
+    filter: drop-shadow(0 1px 3px rgba(212,165,28,0.5));
+    animation: starCellPulse 2s ease-in-out infinite;
+}
+
+@keyframes starCellPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
 /* ---- DAILY COIN CELL ---- */
 .daily-coin-cell {
     position: relative;

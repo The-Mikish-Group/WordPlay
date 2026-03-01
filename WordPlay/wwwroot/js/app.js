@@ -627,6 +627,19 @@ function assignBonusStars() {
     return starCells;
 }
 
+function isStarCollected(cellKey) {
+    if (!crossword || !crossword.placements) return false;
+    for (const p of crossword.placements) {
+        if (p.standalone) continue;
+        for (const c of p.cells) {
+            if ((c.row + "," + c.col) === cellKey && state.foundWords.includes(p.word)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 function triggerBonusPuzzle(trigger) {
     if (state.bonusPuzzle && state.bonusPuzzle.available) return;
     const completedLevels = Object.keys(state.levelHistory);
@@ -1550,6 +1563,10 @@ function renderHome() {
                 const inProgress = dp && dp.date === getTodayStr() && (dp.fw || []).length > 0 && !dp.completed;
                 return '<div class="home-daily-puzzle-row"><button class="home-daily-puzzle-btn' + (inProgress ? ' in-progress' : '') + '" id="home-daily-puzzle-btn">\uD83D\uDCC5 ' + (inProgress ? 'Continue Daily Puzzle' : 'Daily Puzzle') + '</button></div>';
             })()}
+            ${(function() {
+                if (!state.bonusPuzzle || !state.bonusPuzzle.available) return '';
+                return '<div class="home-bonus-puzzle-row"><button class="home-bonus-puzzle-btn" id="home-bonus-puzzle-btn">\u2B50 Bonus Puzzle</button></div>';
+            })()}
             <div class="home-center">
                 <div class="home-title">Word<br>Play</div>
                 <button class="home-level-btn" id="home-play-btn">
@@ -1596,6 +1613,10 @@ function renderHome() {
     if (dpBtn) {
         dpBtn.onclick = () => enterDailyMode();
     }
+    const bpBtn = document.getElementById("home-bonus-puzzle-btn");
+    if (bpBtn) {
+        bpBtn.onclick = () => enterBonusMode();
+    }
 }
 
 // ---- HEADER ----
@@ -1608,7 +1629,60 @@ function renderHeader() {
         document.getElementById("app").prepend(hdr);
     }
     hdr.style.color = theme.text;
-    if (state.isDailyMode) {
+    if (state.isBonusMode) {
+        const sp = state.bonusPuzzle ? state.bonusPuzzle.starPoints : 0;
+        const starSlots = [0, 1, 2].map(i =>
+            `<span class="bonus-star-slot${i < sp ? ' filled' : ''}" id="bonus-star-${i}">${i < sp ? '\u2B50' : '\u2606'}</span>`
+        ).join('');
+        hdr.innerHTML = `
+            <button class="back-arrow-btn" id="back-home-btn" title="Back to Home">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <div class="header-center">
+                <div class="header-pack" style="color:#d4a51c">\u2B50 Bonus Puzzle</div>
+                <div class="header-level" style="color:#d4a51c">Level ${state.currentLevel}</div>
+            </div>
+            <div class="header-right">
+                <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">\uD83E\uDE99 ${state.coins.toLocaleString()}</div>
+                <div class="bonus-star-display" id="bonus-star-display">${starSlots}</div>
+            </div>
+        `;
+        document.getElementById("back-home-btn").onclick = () => {
+            if (!state.bonusPuzzle || state.bonusPuzzle.completed) {
+                exitBonusMode(false);
+                return;
+            }
+            const confirmEl = document.createElement("div");
+            confirmEl.className = "modal-overlay";
+            confirmEl.style.display = "flex";
+            confirmEl.style.zIndex = "9999";
+            confirmEl.innerHTML = `
+                <div class="modal-box" style="border:2px solid #d4a51c50;box-shadow:0 0 40px #d4a51c20">
+                    <div class="modal-emoji">\u26A0\uFE0F</div>
+                    <h2 class="modal-title" style="color:#d4a51c">Leave Bonus Puzzle?</h2>
+                    <p class="modal-subtitle">You'll lose your progress and the bonus prize.</p>
+                    <div style="display:flex;gap:10px;margin-top:12px">
+                        <button class="modal-next-btn" id="bonus-stay-btn"
+                            style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;flex:1">
+                            Stay
+                        </button>
+                        <button class="modal-next-btn" id="bonus-leave-btn"
+                            style="background:linear-gradient(180deg,#d4a51c 0%,#a07818 100%);border:2px solid #d4a51c;border-bottom-color:#a07818;color:#fff;flex:1">
+                            Leave
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.getElementById("app").appendChild(confirmEl);
+            document.getElementById("bonus-stay-btn").onclick = () => confirmEl.remove();
+            document.getElementById("bonus-leave-btn").onclick = () => {
+                confirmEl.remove();
+                exitBonusMode(true);
+            };
+        };
+    } else if (state.isDailyMode) {
         hdr.innerHTML = `
             <button class="back-arrow-btn" id="back-home-btn" title="Back to Home">
                 <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1875,6 +1949,30 @@ function renderGrid() {
                 } else {
                     const coinFs = Math.max(cs * 0.65, 10);
                     div.innerHTML = '<span class="daily-coin-icon" style="font-size:' + coinFs + 'px">\uD83E\uDE99</span>';
+                    div.style.cursor = "";
+                    div.onclick = null;
+                }
+            } else if (state.isBonusMode && _bonusStarCells.includes(k) && !isStarCollected(k)) {
+                // Bonus star cell — show star overlay
+                div.className = "grid-cell bonus-star-cell";
+                if (isR) {
+                    div.style.background = theme.accent;
+                    div.style.color = "#fff";
+                    div.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
+                    const starFs = Math.max(cs * 0.4, 10);
+                    div.innerHTML = cell + '<span class="bonus-star-overlay" style="font-size:' + starFs + 'px">\u2B50</span>';
+                } else {
+                    div.style.background = "rgba(220,215,230,1)";
+                    div.style.border = "2px solid rgba(212,165,28,0.5)";
+                    div.style.color = "";
+                    div.style.textShadow = "";
+                    const starFs = Math.max(cs * 0.55, 12);
+                    div.innerHTML = '<span class="bonus-star-overlay unrevealed" style="font-size:' + starFs + 'px">\u2B50</span>';
+                }
+                if (state.pickMode) {
+                    div.style.cursor = "pointer";
+                    div.onclick = () => handlePickCell(k);
+                } else {
                     div.style.cursor = "";
                     div.onclick = null;
                 }
