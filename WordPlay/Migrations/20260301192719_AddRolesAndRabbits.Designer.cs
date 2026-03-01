@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WordPlay.Data;
 
@@ -11,9 +12,11 @@ using WordPlay.Data;
 namespace WordPlay.Migrations
 {
     [DbContext(typeof(WordPlayDb))]
-    partial class WordPlayDbModelSnapshot : ModelSnapshot
+    [Migration("20260301192719_AddRolesAndRabbits")]
+    partial class AddRolesAndRabbits
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
