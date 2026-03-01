@@ -72,11 +72,19 @@ async function syncPull() {
         if (data.monthlyStart !== undefined) localStorage.setItem("wordplay-monthly-start", data.monthlyStart);
         if (data.monthlyCoinsStart !== undefined) localStorage.setItem("wordplay-monthly-coins-start", data.monthlyCoinsStart);
 
+        // Track which user owns the local data. If a different user
+        // signed in, discard the stale local data so it can't contaminate
+        // the new user's progress (fixes phantom level cross-user bleed).
+        const currentUid = getUser() && getUser().id;
+        const storedUid = localStorage.getItem("wordplay-uid");
+        const sameUser = storedUid && String(storedUid) === String(currentUid);
+        if (currentUid) localStorage.setItem("wordplay-uid", currentUid);
+
         const localRaw = localStorage.getItem("wordplay-save");
         const localSave = localRaw ? JSON.parse(localRaw) : null;
 
-        if (!localSave) {
-            // No local data — use server
+        if (!localSave || !sameUser) {
+            // No local data or different user — use server data as-is
             localStorage.setItem("wordplay-save", JSON.stringify(serverSave));
             return;
         }
@@ -130,28 +138,13 @@ function mergeProgress(local, server) {
         merged.ldc = local.ldc || server.ldc || null;
     }
 
-    // Level history: union — for each level, keep entry with more words
-    const lhLocal = local.lh || {};
-    const lhServer = server.lh || {};
-    merged.lh = {};
-    const allLhKeys = new Set([...Object.keys(lhLocal), ...Object.keys(lhServer)]);
-    for (const key of allLhKeys) {
-        const a = lhLocal[key];
-        const b = lhServer[key];
-        if (a && b) {
-            merged.lh[key] = (a.length >= b.length) ? a : b;
-        } else {
-            merged.lh[key] = a || b;
-        }
-    }
-
-    // In-progress: union — keep entry with more found words; skip if level in lh
+    // In-progress: union — keep entry with more found words; skip completed levels
     const ipLocal = local.ip || {};
     const ipServer = server.ip || {};
     merged.ip = {};
     const allIpKeys = new Set([...Object.keys(ipLocal), ...Object.keys(ipServer)]);
     for (const key of allIpKeys) {
-        if (merged.lh[key]) continue; // already completed
+        if (Number(key) < merged.hl) continue; // already completed
         const a = ipLocal[key];
         const b = ipServer[key];
         if (a && b) {

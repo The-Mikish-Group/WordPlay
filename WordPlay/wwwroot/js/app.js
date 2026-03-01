@@ -117,7 +117,6 @@ const state = {
     freeRockets: 0,        // accumulated free rocket hints (persists)
     levelsCompleted: 0,    // total levels completed (persists, for 10-level target reward)
     totalCoinsEarned: 0,   // lifetime coins earned (never decreases, for expertise/leaderboard)
-    levelHistory: {},      // { levelNum: [foundWords] } — answers for completed levels
     inProgress: {},        // { levelNum: { fw, bf, rc } } — partial progress for incomplete levels
     lastDailyClaim: null,  // date string of last daily coin claim
     // Transient
@@ -255,7 +254,6 @@ function resetStateToDefaults() {
     state.freeRockets = 0;
     state.levelsCompleted = 0;
     state.totalCoinsEarned = 0;
-    state.levelHistory = {};
     state.inProgress = {};
     state.lastDailyClaim = null;
     state.standaloneFound = false;
@@ -353,7 +351,6 @@ function loadProgress() {
             state.freeTargets = d.ft || 0;
             state.freeRockets = d.fr || 0;
             state.levelsCompleted = d.lc || 0;
-            state.levelHistory = d.lh || {};
             state.inProgress = d.ip || {};
             state.lastDailyClaim = d.ldc || null;
             state.soundEnabled = d.se !== undefined ? d.se : true;
@@ -393,7 +390,6 @@ function saveProgress() {
             ft: state.freeTargets,
             fr: state.freeRockets,
             lc: state.levelsCompleted,
-            lh: state.levelHistory,
             ip: state.inProgress,
             ldc: state.lastDailyClaim,
             se: state.soundEnabled,
@@ -433,43 +429,25 @@ function saveDailyState() {
 
 function restoreLevelState() {
     const lv = state.currentLevel;
-    // Completed levels take priority
-    if (state.levelHistory[lv]) {
-        const hist = state.levelHistory[lv];
-        // If history has no words (e.g. Set Progress), fill with all placed words
-        if (hist.length === 0) {
-            state.levelHistory[lv] = [...placedWords];
-        }
-        state.foundWords = placedWords.filter(w => state.levelHistory[lv].includes(w));
-        // Auto-include standalone for levels completed before the feature existed
-        if (standaloneWord && !state.foundWords.includes(standaloneWord)) {
-            state.foundWords.push(standaloneWord);
-        }
-        state.bonusFound = [];
-        state.revealedCells = [];
-        state.standaloneFound = !!standaloneWord;
-        delete state.inProgress[lv];
-        return;
-    }
-    // Restore partial progress
+    // Restore partial progress (e.g. restarted level)
     const ip = state.inProgress[lv];
     if (ip) {
         state.foundWords = (ip.fw || []).filter(w => placedWords.includes(w));
         state.bonusFound = ip.bf || [];
         state.revealedCells = ip.rc || [];
         state.standaloneFound = ip.sf || false;
-        // If standalone was found, ensure it's in foundWords
         if (state.standaloneFound && standaloneWord && !state.foundWords.includes(standaloneWord)) {
             state.foundWords.push(standaloneWord);
         }
-        // Auto-complete any words whose cells are all now visible
         while (checkAutoCompleteWords()) {}
         return;
     }
-    // Legacy: level completed before history tracking
+    // Completed level: all words found
     if (lv < state.highestLevel) {
         state.foundWords = [...placedWords];
-        state.levelHistory[lv] = [...placedWords];
+        state.bonusFound = [];
+        state.revealedCells = [];
+        state.standaloneFound = !!standaloneWord;
     }
 }
 
@@ -647,9 +625,8 @@ function isStarCollected(cellKey) {
 
 function triggerBonusPuzzle(trigger) {
     if (state.bonusPuzzle && state.bonusPuzzle.available) return;
-    const completedLevels = Object.keys(state.levelHistory);
-    if (completedLevels.length === 0) return;
-    const pick = completedLevels[Math.floor(Math.random() * completedLevels.length)];
+    if (state.highestLevel <= 1) return;
+    const pick = Math.floor(Math.random() * (state.highestLevel - 1)) + 1;
     state.bonusPuzzle = {
         available: true,
         trigger: trigger,
@@ -813,7 +790,6 @@ function handleWord(word) {
             } else if (state.isDailyMode) {
                 handleDailyCompletion();
             } else {
-                state.levelHistory[state.currentLevel] = [...state.foundWords];
                 delete state.inProgress[state.currentLevel];
                 saveProgress();
                 setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
@@ -856,7 +832,6 @@ function handleWord(word) {
             } else if (state.isDailyMode) {
                 handleDailyCompletion();
             } else {
-                state.levelHistory[state.currentLevel] = [...state.foundWords];
                 delete state.inProgress[state.currentLevel];
                 saveProgress();
                 setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
@@ -895,7 +870,6 @@ function handleWord(word) {
                     } else if (state.isDailyMode) {
                         handleDailyCompletion();
                     } else {
-                        state.levelHistory[state.currentLevel] = [...state.foundWords];
                         delete state.inProgress[state.currentLevel];
                         saveProgress();
                         setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 1200);
@@ -1387,7 +1361,6 @@ async function advanceToNextLevel() {
     // Advance level logic and return to home screen
     const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
     if (state.foundWords.length === totalRequired) {
-        state.levelHistory[state.currentLevel] = [...state.foundWords];
         delete state.inProgress[state.currentLevel];
         // Check pack completion for bonus puzzle trigger
         if (typeof getLevelPacks === "function") {
@@ -1395,11 +1368,7 @@ async function advanceToNextLevel() {
             const packs = getLevelPacks();
             for (const p of packs) {
                 if (justCompleted >= p.start && justCompleted <= p.end) {
-                    let allDone = true;
-                    for (let lv = p.start; lv <= p.end; lv++) {
-                        if (!state.levelHistory[lv]) { allDone = false; break; }
-                    }
-                    if (allDone) triggerBonusPuzzle("pack");
+                    if (state.highestLevel > p.end) triggerBonusPuzzle("pack");
                     break;
                 }
             }
@@ -1408,9 +1377,8 @@ async function advanceToNextLevel() {
     const isReplay = state.currentLevel < state.highestLevel;
     let next;
     if (isReplay) {
-        next = state.currentLevel + 1;
-        while (next <= maxLv && state.levelHistory[next]) next++;
-        next = Math.min(next, maxLv);
+        // Jump back to the frontier
+        next = Math.min(state.highestLevel, maxLv);
     } else {
         next = Math.min(state.currentLevel + 1, maxLv);
     }
@@ -1443,18 +1411,14 @@ async function handleNextLevel() {
     if (state.isBonusMode) { exitBonusMode(false); return; }
     if (state.isDailyMode) { exitDailyMode(); return; }
     const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
-    // Store completed level answers before advancing
     if (state.foundWords.length === totalRequired) {
-        state.levelHistory[state.currentLevel] = [...state.foundWords];
         delete state.inProgress[state.currentLevel];
     }
     const isReplay = state.currentLevel < state.highestLevel;
     let next;
     if (isReplay) {
-        // Find the first uncompleted level
-        next = state.currentLevel + 1;
-        while (next <= maxLv && state.levelHistory[next]) next++;
-        next = Math.min(next, maxLv);
+        // Jump back to the frontier
+        next = Math.min(state.highestLevel, maxLv);
     } else {
         next = Math.min(state.currentLevel + 1, maxLv);
     }
@@ -3642,8 +3606,7 @@ function renderMenu() {
         state.foundWords = [];
         state.bonusFound = [];
         state.revealedCells = [];
-        delete state.levelHistory[state.currentLevel];
-        delete state.inProgress[state.currentLevel];
+        state.inProgress[state.currentLevel] = { fw: [], bf: [], rc: [], sf: false };
         state.shuffleKey = 0;
         await recompute();
         saveProgress();
@@ -3738,13 +3701,7 @@ function renderMenu() {
             if (!isNaN(targets) && targets >= 0) state.freeTargets = targets;
             if (!isNaN(rockets) && rockets >= 0) state.freeRockets = rockets;
             if (!isNaN(tce) && tce >= 0) state.totalCoinsEarned = tce;
-            // Mark all levels below as completed, clear anything at or above
-            for (let lv = 1; lv < val; lv++) {
-                if (!state.levelHistory[lv]) state.levelHistory[lv] = [];
-            }
-            for (const key of Object.keys(state.levelHistory)) {
-                if (parseInt(key) >= val) delete state.levelHistory[key];
-            }
+            // Clear any in-progress entries at or above the new level
             for (const key of Object.keys(state.inProgress)) {
                 if (parseInt(key) >= val) delete state.inProgress[key];
             }
@@ -3951,7 +3908,7 @@ function renderSnakeNodes(pack, accent) {
         const rowCount = Math.min(cols, total - r * cols);
         for (let c = 0; c < rowCount; c++) {
             const lvNum = pack.start + r * cols + c;
-            const isCompleted = !!state.levelHistory[lvNum];
+            const isCompleted = lvNum < state.highestLevel;
             const isCurrent = lvNum === state.currentLevel;
             const isAvailable = lvNum <= state.highestLevel;
             let cls = 'map-node';
@@ -4033,7 +3990,7 @@ function renderMap() {
         const packTheme = typeof getThemeForGroup === "function" ? getThemeForGroup(p.group) : "sunrise";
         const accent = (THEMES[packTheme] || THEMES.sunrise).accent;
         let completed = 0;
-        for (let lv = p.start; lv <= p.end; lv++) { if (state.levelHistory[lv]) completed++; }
+        for (let lv = p.start; lv <= p.end; lv++) { if (lv < state.highestLevel) completed++; }
         const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
         const isActive = state.currentLevel >= p.start && state.currentLevel <= p.end;
         const isLocked = state.highestLevel < p.start;
@@ -4567,8 +4524,7 @@ async function init() {
 
     // Auto-complete any words whose cells are all already visible (fixes stuck levels)
     while (checkAutoCompleteWords()) {}
-    if (state.foundWords.length === totalRequired && !state.levelHistory[state.currentLevel]) {
-        state.levelHistory[state.currentLevel] = [...state.foundWords];
+    if (state.foundWords.length === totalRequired && state.currentLevel >= state.highestLevel) {
         delete state.inProgress[state.currentLevel];
     }
     saveProgress();
