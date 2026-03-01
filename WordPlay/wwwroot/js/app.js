@@ -4199,37 +4199,59 @@ function renderAdminUserDetail(overlay) {
         .then(rabbits => {
             const section = document.getElementById("admin-rabbit-section");
             if (!section) return;
-            const assignment = rabbits.find(r => r.targetUserId === u.id && r.isActive);
+            const activeRabbits = rabbits.filter(r => r.targetUserId === u.id && r.isActive);
             const bots = _adminUsers.filter(x => x.role === "bot");
+            let html = '';
 
-            if (assignment) {
-                section.innerHTML = '<div style="opacity:1;font-size:14px">Paced by: <strong>' + escapeHtml(assignment.botName || "Bot #" + assignment.botUserId) + '</strong></div>' +
-                    '<button class="menu-setting-btn" id="admin-remove-rabbit" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);margin-top:8px;padding:6px 12px;font-size:12px">Remove Rabbit</button>';
-                document.getElementById("admin-remove-rabbit").onclick = async () => {
-                    await fetch("/api/admin/rabbits/" + assignment.id, { method: "DELETE", headers: getAuthHeaders() });
+            // Show existing assignments
+            activeRabbits.forEach(a => {
+                const modeLabel = a.paceMode === "trailing" ? "trailing" : "leading";
+                html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:14px;opacity:1">' +
+                    '<span><strong>' + escapeHtml(a.botName || "Bot #" + a.botUserId) + '</strong> <span class="admin-badge admin-badge-' + (a.paceMode === "trailing" ? "bot" : "admin") + '">' + modeLabel + '</span></span>' +
+                    '<button class="admin-remove-rabbit-btn" data-rid="' + a.id + '" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer">Remove</button>' +
+                    '</div>';
+            });
+
+            // Add new assignment form
+            if (bots.length > 0) {
+                let botOpts = '<option value="">Add a rabbit...</option>';
+                bots.forEach(b => { botOpts += '<option value="' + b.id + '">' + escapeHtml(b.displayName || "Bot #" + b.id) + '</option>'; });
+                html += '<div style="display:flex;gap:6px;margin-top:8px;align-items:center">' +
+                    '<select id="admin-rabbit-select" style="flex:1;padding:6px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#f0e8ff;font-size:13px">' + botOpts + '</select>' +
+                    '<select id="admin-rabbit-mode" style="width:90px;padding:6px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#f0e8ff;font-size:13px"><option value="leading">Leading</option><option value="trailing">Trailing</option></select>' +
+                    '<button id="admin-assign-rabbit" style="background:' + accent + ';color:#000;border:none;padding:6px 10px;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap">Assign</button>' +
+                    '</div>';
+            } else if (activeRabbits.length === 0) {
+                html += '<div>No bots available. Create a bot first.</div>';
+            }
+            section.innerHTML = html;
+
+            // Wire remove buttons
+            section.querySelectorAll(".admin-remove-rabbit-btn").forEach(btn => {
+                btn.onclick = async () => {
+                    await fetch("/api/admin/rabbits/" + btn.dataset.rid, { method: "DELETE", headers: getAuthHeaders() });
                     showToast("Rabbit removed");
                     renderAdmin();
                 };
-            } else if (bots.length > 0) {
-                let optionsHtml = '<option value="">No rabbit assigned</option>';
-                bots.forEach(b => { optionsHtml += '<option value="' + b.id + '">' + escapeHtml(b.displayName || "Bot #" + b.id) + '</option>'; });
-                section.innerHTML = '<select id="admin-rabbit-select" style="width:100%;padding:8px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#f0e8ff;font-size:14px">' + optionsHtml + '</select>' +
-                    '<button class="menu-setting-btn" id="admin-assign-rabbit" style="background:' + accent + ';color:#000;margin-top:8px;padding:6px 12px;font-size:12px">Assign Rabbit</button>';
-                document.getElementById("admin-assign-rabbit").onclick = async () => {
+            });
+
+            // Wire assign button
+            const assignBtn = document.getElementById("admin-assign-rabbit");
+            if (assignBtn) {
+                assignBtn.onclick = async () => {
                     const botId = parseInt(document.getElementById("admin-rabbit-select").value);
-                    if (!botId) return;
+                    if (!botId) { showToast("Select a bot", "#ff8888"); return; }
+                    const mode = document.getElementById("admin-rabbit-mode").value;
                     try {
                         const res = await fetch("/api/admin/rabbits", {
                             method: "POST",
                             headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                            body: JSON.stringify({ botUserId: botId, targetUserId: u.id }),
+                            body: JSON.stringify({ botUserId: botId, targetUserId: u.id, paceMode: mode }),
                         });
                         if (res.ok) { showToast("Rabbit assigned"); renderAdmin(); }
                         else { const d = await res.json().catch(() => ({})); showToast(d.error || "Failed", "#ff8888"); }
                     } catch (err) { showToast("Failed", "#ff8888"); }
                 };
-            } else {
-                section.innerHTML = '<div>No bots available. Create a bot first.</div>';
             }
         });
 }
@@ -4264,6 +4286,13 @@ function renderAdminRabbits(overlay) {
                         <option value="">Select player...</option>
                     </select>
                 </div>
+                <div class="admin-detail-field">
+                    <label>Pace Mode</label>
+                    <select id="admin-new-rabbit-mode" style="width:100%;padding:8px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#f0e8ff;font-size:14px">
+                        <option value="leading">Leading (ahead of player)</option>
+                        <option value="trailing">Trailing (behind player)</option>
+                    </select>
+                </div>
                 <button class="menu-setting-btn" id="admin-new-rabbit-btn" style="background:${accent};color:#000;width:100%;padding:10px 0;margin:8px 12px">Assign Rabbit</button>
             </div>
         </div>
@@ -4294,6 +4323,7 @@ function renderAdminRabbits(overlay) {
                         <strong>${escapeHtml(r.botName || "Bot #" + r.botUserId)}</strong>
                         <span style="opacity:0.5;margin:0 6px">\u2192</span>
                         ${escapeHtml(r.targetName || "User #" + r.targetUserId)}
+                        <span style="background:${r.paceMode === 'trailing' ? '#ff6644' : '#44cc88'};color:#000;padding:1px 6px;border-radius:4px;font-size:11px;margin-left:6px">${r.paceMode || 'leading'}</span>
                         ${r.isActive ? '' : '<span style="opacity:0.4;margin-left:6px">(paused)</span>'}
                     </div>
                     <button data-rid="${r.id}">Remove</button>
@@ -4325,12 +4355,13 @@ function renderAdminRabbits(overlay) {
     document.getElementById("admin-new-rabbit-btn").onclick = async () => {
         const botId = parseInt(document.getElementById("admin-new-rabbit-bot").value);
         const targetId = parseInt(document.getElementById("admin-new-rabbit-target").value);
+        const paceMode = document.getElementById("admin-new-rabbit-mode").value;
         if (!botId || !targetId) { showToast("Select both bot and target", "#ff8888"); return; }
         try {
             const res = await fetch("/api/admin/rabbits", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                body: JSON.stringify({ botUserId: botId, targetUserId: targetId }),
+                body: JSON.stringify({ botUserId: botId, targetUserId: targetId, paceMode }),
             });
             if (res.ok) { showToast("Rabbit assigned"); _adminView = "rabbits"; renderAdmin(); }
             else { const d = await res.json().catch(() => ({})); showToast(d.error || "Failed", "#ff8888"); }

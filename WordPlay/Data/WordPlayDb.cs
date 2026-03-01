@@ -36,6 +36,7 @@ public class WordPlayDb : DbContext
             e.HasOne(r => r.BotUser).WithMany().HasForeignKey(r => r.BotUserId).OnDelete(DeleteBehavior.NoAction);
             e.HasOne(r => r.TargetUser).WithMany().HasForeignKey(r => r.TargetUserId).OnDelete(DeleteBehavior.NoAction);
             e.HasIndex(r => new { r.TargetUserId, r.IsActive });
+            e.Property(r => r.PaceMode).HasMaxLength(10).HasDefaultValue("leading");
         });
     }
 }

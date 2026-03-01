@@ -467,57 +467,99 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         // Deterministic random: stable for a given day+level+bot, shifts as target advances
         var seed = DateTime.UtcNow.DayOfYear * 1000 + highestLevel + assignment.BotUserId;
         var rng = new Random(seed);
+        var isTrailing = assignment.PaceMode == "trailing";
 
-        // Level gap distribution
-        var roll = rng.NextDouble();
         int gap;
-        if (roll < 0.08)         // 8%: target ties or briefly leads
-            gap = rng.Next(-1, 1);
-        else if (roll < 0.25)    // 17%: close race
-            gap = rng.Next(1, 3);
-        else                     // 75%: rabbit's comfortable lead
-            gap = rng.Next(3, 9);
-
-        var targetLevel = highestLevel + gap;
-
-        // Ensure rabbit stays ahead on the monthly leaderboard
-        var userMonthlyGain = highestLevel - progress.MonthlyStart;
-        var rabbitMonthlyGain = rabbit.HighestLevel - rabbit.MonthlyStart;
-        if (rabbitMonthlyGain <= userMonthlyGain)
+        if (isTrailing)
         {
-            var monthlyTarget = rabbit.MonthlyStart + userMonthlyGain + Math.Max(gap, 1);
-            targetLevel = Math.Max(targetLevel, monthlyTarget);
+            // Trailing bot: stays behind, gradually closing in but never overtaking
+            var roll = rng.NextDouble();
+            if (roll < 0.10)          // 10%: almost caught up
+                gap = rng.Next(-1, 1);
+            else if (roll < 0.30)     // 20%: close behind
+                gap = rng.Next(1, 3);
+            else                      // 70%: comfortably behind
+                gap = rng.Next(3, 8);
+
+            var trailingLevel = highestLevel - gap;
+            if (trailingLevel < 1) trailingLevel = 1;
+
+            // Only bump UP — never decrease
+            if (trailingLevel > rabbit.HighestLevel)
+            {
+                var levelIncrease = trailingLevel - rabbit.HighestLevel;
+                var coinsPerLevel = rng.Next(6, 17);
+                var coinBonus = rng.Next(30, 201);
+                var trailingCoins = rabbit.TotalCoinsEarned + levelIncrease * coinsPerLevel + coinBonus;
+                // Stay behind on coins too
+                trailingCoins = Math.Min(trailingCoins, totalCoinsEarned - rng.Next(50, 301));
+                if (trailingCoins < rabbit.TotalCoinsEarned) trailingCoins = rabbit.TotalCoinsEarned + coinBonus;
+
+                var rabbitNode = JsonNode.Parse(rabbit.ProgressJson ?? "{}")?.AsObject()
+                    ?? new JsonObject();
+                rabbitNode["hl"] = trailingLevel;
+                rabbitNode["lc"] = trailingLevel;
+                rabbitNode["tce"] = trailingCoins;
+                rabbitNode["cl"] = trailingLevel;
+
+                rabbit.ProgressJson = rabbitNode.ToJsonString();
+                rabbit.HighestLevel = trailingLevel;
+                rabbit.LevelsCompleted = trailingLevel;
+                rabbit.TotalCoinsEarned = trailingCoins;
+                rabbit.UpdatedAt = DateTime.UtcNow;
+            }
         }
-
-        // Only bump UP — never decrease rabbit's level
-        if (targetLevel > rabbit.HighestLevel)
+        else
         {
-            var levelIncrease = targetLevel - rabbit.HighestLevel;
-            var coinsPerLevel = rng.Next(6, 17);
-            var coinBonus = rng.Next(50, 301);
-            var targetCoins = Math.Max(
-                rabbit.TotalCoinsEarned + levelIncrease * coinsPerLevel + coinBonus,
-                totalCoinsEarned + rng.Next(50, 301));
+            // Leading bot: stays ahead (original behavior)
+            var roll = rng.NextDouble();
+            if (roll < 0.08)         // 8%: target ties or briefly leads
+                gap = rng.Next(-1, 1);
+            else if (roll < 0.25)    // 17%: close race
+                gap = rng.Next(1, 3);
+            else                     // 75%: rabbit's comfortable lead
+                gap = rng.Next(3, 9);
 
-            // Ensure rabbit stays ahead on monthly coins leaderboard
-            var userMonthlyCoins = totalCoinsEarned - progress.MonthlyCoinsStart;
-            var rabbitMonthlyCoins = targetCoins - rabbit.MonthlyCoinsStart;
-            if (rabbitMonthlyCoins <= userMonthlyCoins)
-                targetCoins = rabbit.MonthlyCoinsStart + userMonthlyCoins + rng.Next(50, 301);
+            var targetLevel = highestLevel + gap;
 
-            // Update ProgressJson fields
-            var rabbitNode = JsonNode.Parse(rabbit.ProgressJson ?? "{}")?.AsObject()
-                ?? new JsonObject();
-            rabbitNode["hl"] = targetLevel;
-            rabbitNode["lc"] = targetLevel;
-            rabbitNode["tce"] = targetCoins;
-            rabbitNode["cl"] = targetLevel;
+            // Ensure rabbit stays ahead on the monthly leaderboard
+            var userMonthlyGain = highestLevel - progress.MonthlyStart;
+            var rabbitMonthlyGain = rabbit.HighestLevel - rabbit.MonthlyStart;
+            if (rabbitMonthlyGain <= userMonthlyGain)
+            {
+                var monthlyTarget = rabbit.MonthlyStart + userMonthlyGain + Math.Max(gap, 1);
+                targetLevel = Math.Max(targetLevel, monthlyTarget);
+            }
 
-            rabbit.ProgressJson = rabbitNode.ToJsonString();
-            rabbit.HighestLevel = targetLevel;
-            rabbit.LevelsCompleted = targetLevel;
-            rabbit.TotalCoinsEarned = targetCoins;
-            rabbit.UpdatedAt = DateTime.UtcNow;
+            // Only bump UP — never decrease rabbit's level
+            if (targetLevel > rabbit.HighestLevel)
+            {
+                var levelIncrease = targetLevel - rabbit.HighestLevel;
+                var coinsPerLevel = rng.Next(6, 17);
+                var coinBonus = rng.Next(50, 301);
+                var targetCoins = Math.Max(
+                    rabbit.TotalCoinsEarned + levelIncrease * coinsPerLevel + coinBonus,
+                    totalCoinsEarned + rng.Next(50, 301));
+
+                // Ensure rabbit stays ahead on monthly coins leaderboard
+                var userMonthlyCoins = totalCoinsEarned - progress.MonthlyCoinsStart;
+                var rabbitMonthlyCoins = targetCoins - rabbit.MonthlyCoinsStart;
+                if (rabbitMonthlyCoins <= userMonthlyCoins)
+                    targetCoins = rabbit.MonthlyCoinsStart + userMonthlyCoins + rng.Next(50, 301);
+
+                var rabbitNode = JsonNode.Parse(rabbit.ProgressJson ?? "{}")?.AsObject()
+                    ?? new JsonObject();
+                rabbitNode["hl"] = targetLevel;
+                rabbitNode["lc"] = targetLevel;
+                rabbitNode["tce"] = targetCoins;
+                rabbitNode["cl"] = targetLevel;
+
+                rabbit.ProgressJson = rabbitNode.ToJsonString();
+                rabbit.HighestLevel = targetLevel;
+                rabbit.LevelsCompleted = targetLevel;
+                rabbit.TotalCoinsEarned = targetCoins;
+                rabbit.UpdatedAt = DateTime.UtcNow;
+            }
         }
     }
 
@@ -856,6 +898,7 @@ app.MapGet("/api/admin/rabbits", async (WordPlayDb db, ClaimsPrincipal principal
             botName = r.BotUser.DisplayName,
             targetUserId = r.TargetUserId,
             targetName = r.TargetUser.DisplayName,
+            paceMode = r.PaceMode,
             isActive = r.IsActive,
             createdAt = r.CreatedAt,
         })
@@ -882,13 +925,16 @@ app.MapPost("/api/admin/rabbits", async (HttpRequest request, WordPlayDb db, Cla
     var target = await db.Users.FindAsync(targetId);
     if (target == null) return Results.BadRequest(new { error = "Target user not found" });
 
-    // Check for existing active assignment for this target
-    var existing = await db.RabbitAssignments.FirstOrDefaultAsync(
-        r => r.TargetUserId == targetId && r.IsActive);
-    if (existing != null)
-        return Results.BadRequest(new { error = "Target already has an active rabbit. Remove it first." });
+    // Check for duplicate: same bot already assigned to same target
+    var duplicate = await db.RabbitAssignments.FirstOrDefaultAsync(
+        r => r.BotUserId == botId && r.TargetUserId == targetId && r.IsActive);
+    if (duplicate != null)
+        return Results.BadRequest(new { error = "This bot is already assigned to this target." });
 
-    var assignment = new RabbitAssignment { BotUserId = botId, TargetUserId = targetId };
+    var paceMode = body.TryGetProperty("paceMode", out var pmEl) ? pmEl.GetString() : "leading";
+    if (paceMode != "leading" && paceMode != "trailing") paceMode = "leading";
+
+    var assignment = new RabbitAssignment { BotUserId = botId, TargetUserId = targetId, PaceMode = paceMode! };
     db.RabbitAssignments.Add(assignment);
     await db.SaveChangesAsync();
 
@@ -903,14 +949,28 @@ app.MapPost("/api/admin/rabbits", async (HttpRequest request, WordPlayDb db, Cla
             db.UserProgress.Add(botProgress);
         }
 
-        // Only initialize if bot is behind the target
-        if (botProgress.HighestLevel <= targetProgress.HighestLevel)
-        {
-            var rng = new Random(DateTime.UtcNow.DayOfYear * 1000 + targetProgress.HighestLevel + botId);
-            var gap = rng.Next(3, 9);
-            var initLevel = targetProgress.HighestLevel + gap;
-            var initCoins = targetProgress.TotalCoinsEarned + rng.Next(200, 801);
+        // Initialize bot position relative to target
+        var rng = new Random(DateTime.UtcNow.DayOfYear * 1000 + targetProgress.HighestLevel + botId);
+        var gap = rng.Next(3, 9);
+        int initLevel, initCoins;
 
+        if (paceMode == "trailing")
+        {
+            // Trailing: start behind the target
+            initLevel = Math.Max(1, targetProgress.HighestLevel - gap);
+            initCoins = Math.Max(100, targetProgress.TotalCoinsEarned - rng.Next(200, 801));
+        }
+        else
+        {
+            // Leading: start ahead of the target (only if bot is behind)
+            if (botProgress.HighestLevel > targetProgress.HighestLevel) goto skipInit;
+            initLevel = targetProgress.HighestLevel + gap;
+            initCoins = targetProgress.TotalCoinsEarned + rng.Next(200, 801);
+        }
+
+        // Only bump up, never decrease
+        if (initLevel > botProgress.HighestLevel)
+        {
             var botNode = JsonNode.Parse(botProgress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
             botNode["hl"] = initLevel;
             botNode["lc"] = initLevel;
@@ -923,15 +983,16 @@ app.MapPost("/api/admin/rabbits", async (HttpRequest request, WordPlayDb db, Cla
             botProgress.TotalCoinsEarned = initCoins;
             botProgress.CurrentMonth = CentralMonth();
             botProgress.MonthlyStart = targetProgress.MonthlyStart > 0
-                ? targetProgress.MonthlyStart + gap
+                ? targetProgress.MonthlyStart + (paceMode == "trailing" ? -gap : gap)
                 : initLevel;
             botProgress.MonthlyCoinsStart = targetProgress.MonthlyCoinsStart > 0
-                ? targetProgress.MonthlyCoinsStart + rng.Next(100, 401)
+                ? targetProgress.MonthlyCoinsStart + (paceMode == "trailing" ? -rng.Next(100, 401) : rng.Next(100, 401))
                 : initCoins;
             botProgress.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
         }
+        skipInit:;
     }
 
     return Results.Ok(new { assignment.Id, assignment.BotUserId, assignment.TargetUserId });
