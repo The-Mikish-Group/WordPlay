@@ -71,29 +71,19 @@ function signInWithGoogle() {
             resolve(data.user);
         }
 
-        google.accounts.id.initialize({
+        // Go straight to OAuth popup — don't use One Tap (google.accounts.id.prompt)
+        // because One Tap has rate-limiting/cooldown that causes silent failures on mobile
+        var tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: _googleClientId,
-            callback: async (response) => {
-                try { await handleAuth({ idToken: response.credential }); }
+            scope: "openid email profile",
+            callback: async (tokenResponse) => {
+                if (tokenResponse.error) { reject(new Error(tokenResponse.error)); return; }
+                try { await handleAuth({ accessToken: tokenResponse.access_token }); }
                 catch (e) { reject(e); }
             },
+            error_callback: (err) => { reject(new Error(err.message || "Google sign-in cancelled")); },
         });
-        google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                // One Tap unavailable — open account picker popup directly
-                var tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: _googleClientId,
-                    scope: "openid email profile",
-                    callback: async (tokenResponse) => {
-                        if (tokenResponse.error) { reject(new Error(tokenResponse.error)); return; }
-                        try { await handleAuth({ accessToken: tokenResponse.access_token }); }
-                        catch (e) { reject(e); }
-                    },
-                    error_callback: (err) => { reject(new Error(err.message || "Google sign-in cancelled")); },
-                });
-                tokenClient.requestAccessToken({ prompt: "select_account" });
-            }
-        });
+        tokenClient.requestAccessToken({ prompt: "select_account" });
     });
 }
 

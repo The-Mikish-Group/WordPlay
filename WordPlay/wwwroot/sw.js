@@ -1,14 +1,14 @@
-const CACHE_NAME = 'wordplay-v68';
+const CACHE_NAME = 'wordplay-v69';
 const ASSETS = [
     '/',
     '/index.html',
-    '/css/app.css?v=19',
-    '/js/auth.js?v=19',
-    '/js/sync.js?v=19',
-    '/js/app.js?v=19',
-    '/js/levels.js?v=19',
-    '/js/level-loader.js?v=19',
-    '/js/crossword.js?v=19',
+    '/css/app.css?v=21',
+    '/js/auth.js?v=21',
+    '/js/sync.js?v=21',
+    '/js/app.js?v=21',
+    '/js/levels.js?v=21',
+    '/js/level-loader.js?v=21',
+    '/js/crossword.js?v=21',
     '/manifest.json',
     '/fonts/nunito-latin.woff2',
     '/fonts/nunito-latin-italic.woff2',
@@ -26,6 +26,10 @@ self.addEventListener('install', e => {
 
 self.addEventListener('fetch', e => {
     const url = new URL(e.request.url);
+
+    // Only handle same-origin requests — let cross-origin scripts
+    // (Google, MSAL) go straight to the network without interception
+    if (url.origin !== self.location.origin) return;
 
     // API calls: network-only, never cache. Return 503 JSON if offline.
     if (url.pathname.startsWith('/api/')) {
