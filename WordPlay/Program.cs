@@ -30,7 +30,8 @@ int? GetUserId(ClaimsPrincipal principal)
 
 string? GetUserRole(ClaimsPrincipal principal)
 {
-    return principal.FindFirst("role")?.Value;
+    return principal.FindFirst("role")?.Value
+        ?? principal.FindFirst(ClaimTypes.Role)?.Value;
 }
 
 var builder = WebApplication.CreateBuilder(args);
