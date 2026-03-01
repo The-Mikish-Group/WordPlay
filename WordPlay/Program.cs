@@ -386,6 +386,11 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         db.UserProgress.Add(progress);
     }
 
+    // Guard: reject stale client data that would lower progress.
+    // Level can only go up through the API. Corrections go through direct DB updates.
+    if (highestLevel < progress.HighestLevel)
+        return Results.Ok(new { updatedAt = progress.UpdatedAt });
+
     // Monthly rollover: if the month changed, snapshot current level and coins as the new baseline
     var nowMonth = CentralMonth();
     if (progress.CurrentMonth != nowMonth)
@@ -419,15 +424,19 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         }
     }
 
-    // Use max of client/server so server-side bonuses aren't overwritten by stale client syncs
-    var mergedCoins = Math.Max(totalCoinsEarned, progress.TotalCoinsEarned);
-    if (mergedCoins != totalCoinsEarned)
-        progressJson = progressJson.Replace($"\"tce\":{totalCoinsEarned}", $"\"tce\":{mergedCoins}");
+    // Sanity guard: reject grossly inflated coins (e.g. cross-user contamination).
+    // Normal play averages ~100 coins/level; 250× is extremely generous headroom.
+    if (highestLevel > 0 && totalCoinsEarned > highestLevel * 250)
+    {
+        totalCoinsEarned = highestLevel * 100;
+        progressJson = System.Text.RegularExpressions.Regex.Replace(
+            progressJson, @"""tce"":\d+", $"\"tce\":{totalCoinsEarned}");
+    }
 
     progress.ProgressJson = progressJson;
     progress.HighestLevel = highestLevel;
     progress.LevelsCompleted = levelsCompleted;
-    progress.TotalCoinsEarned = mergedCoins;
+    progress.TotalCoinsEarned = totalCoinsEarned;
     progress.UpdatedAt = DateTime.UtcNow;
 
     await db.SaveChangesAsync();
@@ -463,6 +472,16 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
 
             var targetLevel = highestLevel + gap;
 
+            // Also ensure Eddie stays ahead on the monthly leaderboard
+            var bridgetMonthlyGain = highestLevel - progress.MonthlyStart;
+            var eddieMonthlyGain = eddie.HighestLevel - eddie.MonthlyStart;
+            if (eddieMonthlyGain <= bridgetMonthlyGain)
+            {
+                // Eddie needs at least as many monthly levels as Bridget, plus the gap
+                var monthlyTarget = eddie.MonthlyStart + bridgetMonthlyGain + Math.Max(gap, 1);
+                targetLevel = Math.Max(targetLevel, monthlyTarget);
+            }
+
             // Only bump UP — never decrease Eddie's level
             if (targetLevel > eddie.HighestLevel)
             {
@@ -471,7 +490,13 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
                 var coinBonus = rng.Next(50, 301);
                 var targetCoins = Math.Max(
                     eddie.TotalCoinsEarned + levelIncrease * coinsPerLevel + coinBonus,
-                    mergedCoins + rng.Next(50, 301));
+                    totalCoinsEarned + rng.Next(50, 301));
+
+                // Also ensure Eddie stays ahead on monthly coins leaderboard
+                var bridgetMonthlyCoins = totalCoinsEarned - progress.MonthlyCoinsStart;
+                var eddieMonthlyCoins = targetCoins - eddie.MonthlyCoinsStart;
+                if (eddieMonthlyCoins <= bridgetMonthlyCoins)
+                    targetCoins = eddie.MonthlyCoinsStart + bridgetMonthlyCoins + rng.Next(50, 301);
 
                 // Update ProgressJson fields
                 var eddieNode = JsonNode.Parse(eddie.ProgressJson ?? "{}")?.AsObject()

@@ -3441,6 +3441,13 @@ function renderMenu() {
         const newUid = getUser()?.id;
         const lastUid = localStorage.getItem("wordplay-last-uid");
 
+        // Stash anonymous progress before sign-in overwrites it
+        if (!lastUid || !localStorage.getItem("wordplay-uid")) {
+            saveInProgressState();
+            const anonRaw = localStorage.getItem("wordplay-save");
+            if (anonRaw) localStorage.setItem("wordplay-anon-save", anonRaw);
+        }
+
         // Flush any in-game partial progress to localStorage before we read it
         saveInProgressState();
         // Write current state so localStorage is fully up-to-date
@@ -3483,9 +3490,6 @@ function renderMenu() {
             await recompute();
             if (typeof restoreLevelState === "function") restoreLevelState();
         }
-        // Push current state to server — covers first-time sign-in where
-        // syncPull found no server data, and same-user re-sign-in
-        saveProgress();
         state.showMenu = false;
         state.showHome = true;
         const app = document.getElementById("app");
@@ -3525,11 +3529,24 @@ function renderMenu() {
     const signOutBtn = document.getElementById("menu-signout-btn");
     if (signOutBtn) {
         signOutBtn.onclick = () => {
-            // Fire-and-forget sync before clearing auth
-            try { if (typeof syncPush === "function") syncPush(); } catch (e) {}
             const authRaw = localStorage.getItem("wordplay-auth");
             if (authRaw) localStorage.setItem("wordplay-last-jwt", JSON.parse(authRaw).jwt);
             signOut();
+
+            // Clear signed-in user's data and tracking
+            localStorage.removeItem("wordplay-save");
+            localStorage.removeItem("wordplay-uid");
+
+            // Restore anonymous progress that was stashed before sign-in
+            const anonSave = localStorage.getItem("wordplay-anon-save");
+            if (anonSave) {
+                localStorage.setItem("wordplay-save", anonSave);
+                localStorage.removeItem("wordplay-anon-save");
+                loadProgress();
+            } else {
+                resetStateToDefaults();
+            }
+
             state.showMenu = false;
             state.showHome = true;
             const app = document.getElementById("app");
