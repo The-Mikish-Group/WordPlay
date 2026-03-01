@@ -133,6 +133,12 @@ const state = {
     showGuide: false,
     showContact: false,
     dailyPuzzle: null,     // { date, levelNum, fw, bf, rc, sf, coinWordsFound, completed }
+    bonusPuzzle: null,         // { available, trigger, levelNum, fw, bf, rc, sf, starsCollected, starPoints, coinsEarned, completed, starCells }
+    isBonusMode: false,
+    // Achievement tracking
+    speedLevels: [],           // timestamps of recent level completions (for 10-in-an-hour)
+    loginStreak: 0,            // consecutive days played
+    lastPlayDate: null,        // "YYYY-MM-DD" of last play
     isDailyMode: false,
 };
 
@@ -144,6 +150,11 @@ let _dailyCoinWord = null;      // current word with coin (string)
 let _dailyCoinCellKey = null;   // "row,col" of the visible coin cell
 let _dailyCoinsEarned = 0;     // session accumulator for completion modal
 let _savedRegularState = null;  // snapshot of regular game state while in daily mode
+
+// ---- BONUS PUZZLE STATE ----
+let _bonusStarCells = [];        // array of "row,col" keys where stars are placed
+let _bonusCoinsEarned = 0;       // session accumulator for completion modal
+let _savedRegularStateBonus = null; // snapshot of regular game state while in bonus mode
 
 function hashStr(s) {
     let h = 0;
@@ -249,6 +260,10 @@ function resetStateToDefaults() {
     state.lastDailyClaim = null;
     state.standaloneFound = false;
     state.dailyPuzzle = null;
+    state.bonusPuzzle = null;
+    state.speedLevels = [];
+    state.loginStreak = 0;
+    state.lastPlayDate = null;
 }
 
 
@@ -345,6 +360,10 @@ function loadProgress() {
             state.standaloneFound = d.sf || false;
             state.totalCoinsEarned = d.tce || 0;
             state.dailyPuzzle = d.dp || null;
+            state.bonusPuzzle = d.bp || null;
+            state.speedLevels = d.sl || [];
+            state.loginStreak = d.ls || 0;
+            state.lastPlayDate = d.lpd || null;
             // Clear stale daily data
             if (state.dailyPuzzle && state.dailyPuzzle.date !== getTodayStr()) {
                 state.dailyPuzzle = null;
@@ -357,7 +376,7 @@ function saveProgress() {
     try {
         saveInProgressState();
         localStorage.setItem("wordplay-save", JSON.stringify({
-            v: 3,  // format version
+            v: 4,  // format version
             cl: state.currentLevel,
             fw: state.foundWords,
             bf: state.bonusFound,
@@ -376,6 +395,10 @@ function saveProgress() {
             sf: state.standaloneFound,
             tce: state.totalCoinsEarned,
             dp: state.dailyPuzzle,
+            bp: state.bonusPuzzle,
+            sl: state.speedLevels,
+            ls: state.loginStreak,
+            lpd: state.lastPlayDate,
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
     } catch (e) { /* ignore */ }
@@ -511,6 +534,152 @@ function exitDailyMode() {
     });
 }
 
+// ---- BONUS PUZZLE MODE ----
+async function enterBonusMode() {
+    if (!state.bonusPuzzle || !state.bonusPuzzle.available) return;
+    saveInProgressState();
+    _savedRegularStateBonus = {
+        currentLevel: state.currentLevel,
+        foundWords: [...state.foundWords],
+        bonusFound: [...state.bonusFound],
+        revealedCells: [...state.revealedCells],
+        standaloneFound: state.standaloneFound,
+    };
+    state.isBonusMode = true;
+    state.bonusPuzzle.available = false;
+    state.currentLevel = state.bonusPuzzle.levelNum;
+    await recompute();
+    state.foundWords = (state.bonusPuzzle.fw || []).filter(w => placedWords.includes(w));
+    state.bonusFound = state.bonusPuzzle.bf || [];
+    state.revealedCells = state.bonusPuzzle.rc || [];
+    state.standaloneFound = state.bonusPuzzle.sf || false;
+    while (checkAutoCompleteWords()) {}
+    _bonusCoinsEarned = state.bonusPuzzle.coinsEarned || 0;
+    _bonusStarCells = state.bonusPuzzle.starCells || assignBonusStars();
+    state.bonusPuzzle.starCells = _bonusStarCells;
+    state.showHome = false;
+    const app = document.getElementById("app");
+    app.innerHTML = "";
+    renderAll();
+    animateGridEntrance();
+}
+
+function exitBonusMode(forfeited) {
+    saveBonusState();
+    state.isBonusMode = false;
+    state.showComplete = false;
+    if (forfeited) {
+        state.bonusPuzzle = null;
+    }
+    if (_savedRegularStateBonus) {
+        state.currentLevel = _savedRegularStateBonus.currentLevel;
+        state.foundWords = _savedRegularStateBonus.foundWords;
+        state.bonusFound = _savedRegularStateBonus.bonusFound;
+        state.revealedCells = _savedRegularStateBonus.revealedCells;
+        state.standaloneFound = _savedRegularStateBonus.standaloneFound;
+    }
+    _bonusStarCells = [];
+    _bonusCoinsEarned = 0;
+    _savedRegularStateBonus = null;
+    saveProgress();
+    recompute().then(() => {
+        restoreLevelState();
+        state.showHome = true;
+        const app = document.getElementById("app");
+        app.innerHTML = "";
+        renderHome();
+    });
+}
+
+function saveBonusState() {
+    if (!state.bonusPuzzle) return;
+    state.bonusPuzzle.fw = [...state.foundWords];
+    state.bonusPuzzle.bf = [...state.bonusFound];
+    state.bonusPuzzle.rc = [...state.revealedCells];
+    state.bonusPuzzle.sf = state.standaloneFound;
+    state.bonusPuzzle.coinsEarned = _bonusCoinsEarned;
+    state.bonusPuzzle.starCells = _bonusStarCells;
+    saveProgress();
+}
+
+function assignBonusStars() {
+    if (!crossword || !crossword.placements) return [];
+    const words = crossword.placements.filter(p => !p.standalone);
+    if (words.length === 0) return [];
+    const starCells = [];
+    let remaining = 9;
+    const shuffled = [...words].sort((a, b) => {
+        const ha = hashStr(state.bonusPuzzle.levelNum + ":" + a.word);
+        const hb = hashStr(state.bonusPuzzle.levelNum + ":" + b.word);
+        return ha - hb;
+    });
+    for (const w of shuffled) {
+        if (remaining <= 0) break;
+        const count = (w.word.length >= 5 && remaining >= 2) ? 2 : 1;
+        const available = w.cells.filter(c => !starCells.includes(c.row + "," + c.col));
+        const seed = hashStr(state.bonusPuzzle.levelNum + ":star:" + w.word);
+        for (let i = 0; i < count && i < available.length && remaining > 0; i++) {
+            const c = available[(seed + i) % available.length];
+            starCells.push(c.row + "," + c.col);
+            remaining--;
+        }
+    }
+    return starCells;
+}
+
+function triggerBonusPuzzle(trigger) {
+    if (state.bonusPuzzle && state.bonusPuzzle.available) return;
+    const completedLevels = Object.keys(state.levelHistory);
+    if (completedLevels.length === 0) return;
+    const pick = completedLevels[Math.floor(Math.random() * completedLevels.length)];
+    state.bonusPuzzle = {
+        available: true,
+        trigger: trigger,
+        levelNum: parseInt(pick),
+        fw: [], bf: [], rc: [], sf: false,
+        starsCollected: 0,
+        starPoints: 0,
+        coinsEarned: 0,
+        completed: false,
+        starCells: null,
+    };
+    saveProgress();
+}
+
+function checkSpeedMilestone() {
+    const now = Date.now();
+    state.speedLevels.push(now);
+    const oneHourAgo = now - 60 * 60 * 1000;
+    state.speedLevels = state.speedLevels.filter(t => t >= oneHourAgo);
+    if (state.speedLevels.length >= 10) {
+        state.speedLevels = [];
+        triggerBonusPuzzle("speed");
+    }
+}
+
+function checkLoginStreak() {
+    const today = getTodayStr();
+    if (state.lastPlayDate === today) return;
+    if (state.lastPlayDate) {
+        const last = new Date(state.lastPlayDate + "T00:00:00");
+        const now = new Date(today + "T00:00:00");
+        const diffDays = Math.round((now - last) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+            state.loginStreak++;
+        } else {
+            state.loginStreak = 1;
+        }
+    } else {
+        state.loginStreak = 1;
+    }
+    state.lastPlayDate = today;
+    if (state.loginStreak >= 3) {
+        state.loginStreak = 0;
+        triggerBonusPuzzle("streak");
+    }
+    saveProgress();
+}
+
 // ---- TOAST ----
 let toastTimer = null;
 function showToast(msg, color, fast, bg) {
@@ -569,6 +738,7 @@ function handleDailyCompletion() {
     _dailyCoinsEarned += 100;
     state.dailyPuzzle.completed = true;
     saveDailyState();
+    triggerBonusPuzzle("daily");
     setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
 }
 
@@ -1149,6 +1319,21 @@ async function advanceToNextLevel() {
     if (state.foundWords.length === totalRequired) {
         state.levelHistory[state.currentLevel] = [...state.foundWords];
         delete state.inProgress[state.currentLevel];
+        // Check pack completion for bonus puzzle trigger
+        if (typeof getLevelPacks === "function") {
+            const justCompleted = state.currentLevel;
+            const packs = getLevelPacks();
+            for (const p of packs) {
+                if (justCompleted >= p.start && justCompleted <= p.end) {
+                    let allDone = true;
+                    for (let lv = p.start; lv <= p.end; lv++) {
+                        if (!state.levelHistory[lv]) { allDone = false; break; }
+                    }
+                    if (allDone) triggerBonusPuzzle("pack");
+                    break;
+                }
+            }
+        }
     }
     const isReplay = state.currentLevel < state.highestLevel;
     let next;
@@ -1170,6 +1355,7 @@ async function advanceToNextLevel() {
         state.coins += 1;
         state.totalCoinsEarned += 1;
         state.levelsCompleted++;
+        checkSpeedMilestone();
         if (state.levelsCompleted % 10 === 0) state.freeHints++;
         if (state.levelsCompleted % 10 === 0) state.freeTargets++;
         if (state.levelsCompleted % 10 === 0) state.freeRockets++;
@@ -4017,6 +4203,7 @@ async function init() {
     await loadBgManifest();
 
     loadProgress();
+    checkLoginStreak();
 
     // Auth init + sync pull
     if (typeof initAuth === "function") initAuth();
