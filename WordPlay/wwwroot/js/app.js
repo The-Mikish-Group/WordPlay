@@ -1626,7 +1626,7 @@ function renderHome() {
                     clearExpiredBonusPuzzle();
                     return '';
                 }
-                return '<div class="home-bonus-puzzle-row"><button class="home-bonus-puzzle-btn" id="home-bonus-puzzle-btn">\u2B50 Bonus Puzzle</button></div>';
+                return '<div class="home-bonus-puzzle-row"><button class="home-bonus-puzzle-btn" id="home-bonus-puzzle-btn"><span style="font-size:22px;vertical-align:middle;margin-right:4px">\u2B50</span>Bonus Puzzle</button></div>';
             })()}
             <div class="home-center">
                 <div class="home-title">Word<br>Play</div>
