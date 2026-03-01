@@ -13,6 +13,11 @@ using WordPlay.Data;
 using WordPlay.Models;
 using WordPlay.Services;
 
+// Helper: Central Time for monthly rollovers
+var _centralTz = TimeZoneInfo.FindSystemTimeZoneById(
+    OperatingSystem.IsWindows() ? "Central Standard Time" : "America/Chicago");
+string CentralMonth() => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _centralTz).ToString("yyyy-MM");
+
 var _jsonIndented = new JsonSerializerOptions { WriteIndented = true };
 var _alphanumericRegex = new Regex(@"^[a-zA-Z0-9 ]+$", RegexOptions.Compiled);
 var _contactRateLimit = new ConcurrentDictionary<string, List<DateTime>>();
@@ -368,7 +373,7 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
     }
 
     // Monthly rollover: if the month changed, snapshot current level and coins as the new baseline
-    var nowMonth = DateTime.UtcNow.ToString("yyyy-MM");
+    var nowMonth = CentralMonth();
     if (progress.CurrentMonth != nowMonth)
     {
         progress.MonthlyStart = progress.HighestLevel;
@@ -420,7 +425,7 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         if (eddie != null)
         {
             // Monthly rollover for Eddie
-            var eddieMonth = DateTime.UtcNow.ToString("yyyy-MM");
+            var eddieMonth = CentralMonth();
             if (eddie.CurrentMonth != eddieMonth)
             {
                 eddie.MonthlyStart = eddie.HighestLevel;
@@ -483,7 +488,7 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
 app.MapGet("/api/leaderboard", async (WordPlayDb db, int? top, string? period, string? rankType) =>
 {
     var count = Math.Clamp(top ?? 50, 1, 100);
-    var nowMonth = DateTime.UtcNow.ToString("yyyy-MM");
+    var nowMonth = CentralMonth();
     var isMonthly = period == "month";
     var byPoints = rankType == "points";
 
