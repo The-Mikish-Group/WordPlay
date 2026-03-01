@@ -15,8 +15,8 @@ document.addEventListener("visibilitychange", () => {
 
 async function syncPullAndReload() {
     if (_syncPulling) return;
-    // Don't clobber active daily puzzle session
-    if (typeof state !== "undefined" && state.isDailyMode) return;
+    // Don't clobber active daily or bonus puzzle session
+    if (typeof state !== "undefined" && (state.isDailyMode || state.isBonusMode)) return;
     _syncPulling = true;
     try {
         await syncPull();
@@ -99,7 +99,7 @@ async function syncPull() {
 }
 
 function mergeProgress(local, server) {
-    const merged = { v: Math.max(local.v || 3, server.v || 3) };
+    const merged = { v: Math.max(local.v || 4, server.v || 4) };
 
     // Scalar max fields
     merged.hl = Math.max(local.hl || 1, server.hl || 1);
@@ -177,6 +177,24 @@ function mergeProgress(local, server) {
     } else {
         merged.dp = dpL || dpS || null;
     }
+
+    // Bonus puzzle: prefer completed > more stars > available > null
+    const bpL = local.bp || null;
+    const bpS = server.bp || null;
+    if (bpL && bpS) {
+        if (bpL.completed && !bpS.completed) merged.bp = bpL;
+        else if (bpS.completed && !bpL.completed) merged.bp = bpS;
+        else if (bpL.available && !bpS.available) merged.bp = bpL;
+        else if (bpS.available && !bpL.available) merged.bp = bpS;
+        else merged.bp = ((bpL.starsCollected || 0) >= (bpS.starsCollected || 0)) ? bpL : bpS;
+    } else {
+        merged.bp = bpL || bpS || null;
+    }
+
+    // Achievement tracking: max values
+    merged.sl = (local.sl && local.sl.length > (server.sl || []).length) ? local.sl : (server.sl || []);
+    merged.ls = Math.max(local.ls || 0, server.ls || 0);
+    merged.lpd = (local.lpd && server.lpd) ? (local.lpd > server.lpd ? local.lpd : server.lpd) : (local.lpd || server.lpd || null);
 
     return merged;
 }

@@ -405,7 +405,7 @@ function saveProgress() {
 }
 
 function saveInProgressState() {
-    if (state.isDailyMode) return;
+    if (state.isDailyMode || state.isBonusMode) return;
     const lv = state.currentLevel;
     if (state.foundWords.length > 0 || state.revealedCells.length > 0 || state.bonusFound.length > 0 || state.standaloneFound) {
         state.inProgress[lv] = {
@@ -780,7 +780,7 @@ function handleWord(word) {
         if (!state.foundWords.includes(w)) state.foundWords.push(w);
         state.coins += 100;
         state.totalCoinsEarned += 100;
-        if (state.isDailyMode) { _dailyCoinsEarned += 100; saveDailyState(); } else saveProgress();
+        if (state.isDailyMode) { _dailyCoinsEarned += 100; saveDailyState(); } else if (state.isBonusMode) saveBonusState(); else saveProgress();
         renderGrid();
         highlightWord(w);
         renderCoins();
@@ -813,7 +813,7 @@ function handleWord(word) {
         while (checkAutoCompleteWords()) {}
         state.coins += 1;
         state.totalCoinsEarned += 1;
-        if (state.isDailyMode) saveDailyState(); else saveProgress();
+        if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
         renderGrid();
         highlightWord(w);
         playSound("wordFound");
@@ -852,7 +852,7 @@ function handleWord(word) {
             if (cell) {
                 state.revealedCells.push(cell);
                 checkAutoCompleteWords();
-                if (state.isDailyMode) saveDailyState(); else saveProgress();
+                if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
                 renderGrid();
                 renderCoins();
                         renderHintBtn();
@@ -864,7 +864,9 @@ function handleWord(word) {
                 setTimeout(() => flashHintCell(cell), 100);
                 checkDailyCoinWord();
                 if (state.foundWords.length === totalRequired) {
-                    if (state.isDailyMode) {
+                    if (state.isBonusMode) {
+                        handleBonusCompletion();
+                    } else if (state.isDailyMode) {
                         handleDailyCompletion();
                     } else {
                         state.levelHistory[state.currentLevel] = [...state.foundWords];
@@ -874,12 +876,12 @@ function handleWord(word) {
                     }
                 }
             } else {
-                if (state.isDailyMode) saveDailyState(); else saveProgress();
+                if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
                 renderCoins();
                         showToast("⭐ All letters revealed!", theme.accent);
             }
         } else {
-            if (state.isDailyMode) saveDailyState(); else saveProgress();
+            if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
             renderCoins();
                 renderBonusStar();
             // Pulse animation on the star
@@ -931,7 +933,14 @@ function pickRandomUnrevealedCell() {
         }
     }
     // Fall back to standalone cells if no regular cells remain
-    const pool = candidates.length ? candidates : standaloneCandidates;
+    let pool;
+    if (state.isBonusMode && _bonusStarCells.length > 0 && candidates.length > 0) {
+        // In bonus mode, prefer non-starred cells
+        const nonStarred = candidates.filter(k => !_bonusStarCells.includes(k));
+        pool = nonStarred.length > 0 ? nonStarred : candidates;
+    } else {
+        pool = candidates.length ? candidates : standaloneCandidates;
+    }
     if (!pool.length) return null;
     // Deduplicate (cells shared by multiple words)
     const unique = [...new Set(pool)];
@@ -1203,7 +1212,7 @@ function handleHint() {
     }
     state.revealedCells.push(cell);
     checkAutoCompleteWords();
-    if (state.isDailyMode) saveDailyState(); else saveProgress();
+    if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
     showToast(hasFree ? "💡 Free hint used!" : "💡 Letter revealed  −100 🪙");
     renderGrid();
     flashHintCell(cell);
@@ -1213,7 +1222,9 @@ function handleHint() {
     renderSpinBtn();
     checkDailyCoinWord();
     if (state.foundWords.length === totalRequired) {
-        if (state.isDailyMode) {
+        if (state.isBonusMode) {
+            handleBonusCompletion();
+        } else if (state.isDailyMode) {
             handleDailyCompletion();
         } else {
             setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
@@ -1246,7 +1257,7 @@ function handlePickCell(key) {
     }
     state.revealedCells.push(key);
     checkAutoCompleteWords();
-    if (state.isDailyMode) saveDailyState(); else saveProgress();
+    if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
     showToast(wasFree ? "🎯 Free target used!" : "🎯 Letter placed!  −200 🪙");
     renderGrid();
     flashHintCell(key);
@@ -1257,7 +1268,9 @@ function handlePickCell(key) {
     renderSpinBtn();
     checkDailyCoinWord();
     if (state.foundWords.length === totalRequired) {
-        if (state.isDailyMode) {
+        if (state.isBonusMode) {
+            handleBonusCompletion();
+        } else if (state.isDailyMode) {
             handleDailyCompletion();
         } else {
             setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
@@ -2601,7 +2614,7 @@ function handleRocketHint() {
         state.revealedCells.push(cell);
         checkAutoCompleteWords();
     }
-    if (state.isDailyMode) saveDailyState(); else saveProgress();
+    if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
     showToast(hasFree ? "🚀 Free rocket used! " + revealed.length + " letters!" : "🚀 " + revealed.length + " letters revealed  −300 🪙");
     renderGrid();
     revealed.forEach((cell, i) => setTimeout(() => flashHintCell(cell), i * 400));
@@ -2612,7 +2625,9 @@ function handleRocketHint() {
     renderSpinBtn();
     checkDailyCoinWord();
     if (state.foundWords.length === totalRequired) {
-        if (state.isDailyMode) {
+        if (state.isBonusMode) {
+            handleBonusCompletion();
+        } else if (state.isDailyMode) {
             handleDailyCompletion();
         } else {
             setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700 + revealed.length * 400);
@@ -4082,6 +4097,7 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83C\uDFB0", title: "Rescue Spin", body: "Completely stuck with no coins and no hints? A prize wheel appears! Spin to win free hints, targets, rockets, or coins. It\u2019s your lifeline!" },
     { icon: "\uD83C\uDF81", title: "Daily Bonus", body: "Tap the FREE button at the top of the screen once a day to claim 100 free coins. Come back every day \u2014 it resets at midnight!" },
     { icon: "\uD83D\uDCC5", title: "Daily Puzzle", body: "A fresh puzzle every day! Tap the green Daily Puzzle button on the home screen to play. A coin (\uD83E\uDE99) appears on one word in the grid \u2014 find it for 25 bonus coins, then the coin moves to a new word. Keep chasing the coin to rack up rewards! Complete the entire puzzle for a 100-coin bonus. The same puzzle is shared by all players each day. Your regular progress is saved and waiting when you return." },
+    { icon: "\u2B50", title: "Bonus Puzzle", body: "Earn bonus puzzles through achievements \u2014 complete a level pack, finish 10 levels in an hour, maintain a 3-day play streak, or beat the daily puzzle. A gold <b>\u2B50 Bonus Puzzle</b> button appears on the home screen. Inside, 9 stars are scattered across the grid. Find starred words to collect stars and earn 10 coins each! Every 3 stars fills one of your 3 star slots. Collect all 9 stars for a <b>500-coin grand prize</b>. But be careful \u2014 leaving the puzzle forfeits your progress!" },
     { icon: "\uD83D\uDD00", title: "Shuffle", body: "Tap the shuffle button to rearrange the letters on the wheel. Same letters, fresh perspective \u2014 sometimes that\u2019s all you need to spot a hidden word!" },
     { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the Level Map from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },
     { icon: "\uD83C\uDFA8", title: "Themes", body: "The game features 16 beautiful color themes \u2014 Sunrise, Forest, Ocean, Aurora, and more. Themes change as you progress through different level groups." },
