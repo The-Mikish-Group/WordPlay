@@ -270,7 +270,7 @@ app.MapPost("/api/auth/google", async (HttpRequest request, WordPlayDb db, AuthS
         return Results.Ok(new
         {
             token = jwt,
-            user = new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard, user.Role }
+            user = new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard, user.Role, user.AvatarData }
         });
     }
     catch
@@ -295,7 +295,7 @@ app.MapPost("/api/auth/microsoft", async (HttpRequest request, WordPlayDb db, Au
         return Results.Ok(new
         {
             token = jwt,
-            user = new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard, user.Role }
+            user = new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard, user.Role, user.AvatarData }
         });
     }
     catch
@@ -325,7 +325,7 @@ app.MapPost("/api/auth/set-name", async (HttpRequest request, WordPlayDb db, Cla
     user.DisplayName = name;
     await db.SaveChangesAsync();
 
-    return Results.Ok(new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard, user.Role });
+    return Results.Ok(new { user.Id, user.DisplayName, user.Email, user.ShowOnLeaderboard, user.Role, user.AvatarData });
 }).RequireAuthorization();
 
 app.MapPost("/api/auth/set-leaderboard", async (HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
@@ -344,6 +344,64 @@ app.MapPost("/api/auth/set-leaderboard", async (HttpRequest request, WordPlayDb 
     await db.SaveChangesAsync();
 
     return Results.Ok(new { user.ShowOnLeaderboard });
+}).RequireAuthorization();
+
+var allowedEmoji = new HashSet<string> {
+    "dog","cat","fox","unicorn","bear","panda","owl","frog",
+    "lion","monkey","robot","alien","ghost","octopus","butterfly","dragon"
+};
+
+app.MapPost("/api/auth/set-avatar", async (HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
+
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+    if (!body.TryGetProperty("avatarData", out var avatarEl))
+        return Results.BadRequest(new { error = "avatarData required" });
+
+    var avatarData = avatarEl.GetString()?.Trim() ?? "";
+
+    if (avatarData.StartsWith("emoji:"))
+    {
+        var key = avatarData[6..];
+        if (!allowedEmoji.Contains(key))
+            return Results.BadRequest(new { error = "Invalid emoji key" });
+    }
+    else if (avatarData.StartsWith("data:image"))
+    {
+        var commaIdx = avatarData.IndexOf(',');
+        if (commaIdx < 0) return Results.BadRequest(new { error = "Invalid image data" });
+        var base64Part = avatarData[(commaIdx + 1)..];
+        if (base64Part.Length > 140_000)
+            return Results.BadRequest(new { error = "Image too large (max 100KB)" });
+    }
+    else
+    {
+        return Results.BadRequest(new { error = "avatarData must start with 'emoji:' or 'data:image'" });
+    }
+
+    var user = await db.Users.FindAsync(userId);
+    if (user == null) return Results.NotFound();
+
+    user.AvatarData = avatarData;
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { user.AvatarData });
+}).RequireAuthorization();
+
+app.MapDelete("/api/auth/avatar", async (WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
+
+    var user = await db.Users.FindAsync(userId);
+    if (user == null) return Results.NotFound();
+
+    user.AvatarData = null;
+    await db.SaveChangesAsync();
+
+    return Results.Ok();
 }).RequireAuthorization();
 
 // ============================================================
@@ -598,6 +656,7 @@ app.MapGet("/api/leaderboard", async (WordPlayDb db, int? top, string? period, s
     {
         userId = p.UserId,
         name = p.User.DisplayName,
+        avatarData = p.User.AvatarData,
         highestLevel = p.HighestLevel,
         levelsCompleted = p.LevelsCompleted,
         totalCoinsEarned = p.TotalCoinsEarned,
@@ -747,6 +806,7 @@ app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal) 
             email = x.u.Email,
             role = x.u.Role,
             showOnLeaderboard = x.u.ShowOnLeaderboard,
+            avatarData = x.u.AvatarData,
             provider = x.u.Provider,
             lastLoginAt = x.u.LastLoginAt,
             highestLevel = x.p != null ? x.p.HighestLevel : 0,

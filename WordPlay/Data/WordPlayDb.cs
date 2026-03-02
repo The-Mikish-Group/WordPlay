@@ -21,6 +21,7 @@ public class WordPlayDb : DbContext
             e.Property(u => u.ProviderSubject).HasMaxLength(256);
             e.Property(u => u.Email).HasMaxLength(256);
             e.Property(u => u.Role).HasMaxLength(10).HasDefaultValue("user");
+            e.Property(u => u.AvatarData).HasColumnType("nvarchar(max)");
             e.Property(u => u.ShowOnLeaderboard).HasDefaultValue(true);
         });
 

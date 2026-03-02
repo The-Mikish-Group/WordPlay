@@ -7,6 +7,7 @@ public class User
     public required string ProviderSubject { get; set; } // sub claim from provider
     public string? Email { get; set; }
     public string? DisplayName { get; set; }             // max 20 chars
+    public string? AvatarData { get; set; }              // "emoji:fox" or "data:image/jpeg;base64,..."
     public bool ShowOnLeaderboard { get; set; } = true;
     public string Role { get; set; } = "user";             // "user", "admin", or "bot"
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
