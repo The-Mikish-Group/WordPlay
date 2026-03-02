@@ -4076,7 +4076,7 @@ function renderAdminUserList() {
     list.innerHTML = filtered.map(u => `
         <div class="admin-user-row" data-uid="${u.id}">
             <div class="admin-user-info">
-                <div class="admin-user-name">${escapeHtml(u.displayName || "\u2014")} ${roleBadge(u.role)}</div>
+                <div class="admin-user-name" style="display:flex;align-items:center;gap:6px">${renderAvatar(u.avatarData, u.displayName, 24)} ${escapeHtml(u.displayName || "\u2014")} ${roleBadge(u.role)}</div>
                 <div class="admin-user-meta">Lv ${u.highestLevel.toLocaleString()} \u00b7 ${u.totalCoinsEarned.toLocaleString()} pts \u00b7 +${u.monthlyGain} this mo</div>
             </div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.4;flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>

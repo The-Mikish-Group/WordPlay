@@ -87,9 +87,9 @@ app.Use(async (context, next) =>
     headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
     headers["Content-Security-Policy"] =
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' https://accounts.google.com https://alcdn.msauth.net; " +
-        "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data:; " +
+        "script-src 'self' 'unsafe-inline' https://accounts.google.com https://alcdn.msauth.net https://cdnjs.cloudflare.com; " +
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
+        "img-src 'self' data: blob:; " +
         "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://login.microsoftonline.com; " +
         "frame-src https://accounts.google.com https://login.microsoftonline.com; " +
         "font-src 'self'";
