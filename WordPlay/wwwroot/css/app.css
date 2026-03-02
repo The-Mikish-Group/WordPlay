@@ -1537,7 +1537,7 @@ html, body {
     top: 0;
     z-index: 2;
     background: linear-gradient(180deg, #1a0a30 0%, #150826 100%);
-    padding-bottom: 4px;
+    padding-bottom: 2px;
 }
 
 .lb-sticky-top::before {
@@ -1553,7 +1553,7 @@ html, body {
 
 .lb-divider {
     height: 1px;
-    margin: 4px 20px 6px;
+    margin: 2px 20px 3px;
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
 }
 

@@ -4861,7 +4861,7 @@ function renderLeaderboard() {
                 if (meRow && sticky) {
                     const stickyBottom = sticky.getBoundingClientRect().bottom;
                     const meTop = meRow.getBoundingClientRect().top;
-                    const scrollNeeded = meTop - stickyBottom - 12;
+                    const scrollNeeded = meTop - stickyBottom - 4;
                     if (scrollNeeded > 4) {
                         list.scrollTop += scrollNeeded;
                     }
