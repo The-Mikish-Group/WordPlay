@@ -4855,10 +4855,18 @@ function renderLeaderboard() {
 
             // Auto-scroll: position user's row just below the sticky top-3
             setTimeout(() => {
-                const anchor = document.getElementById("lb-scroll-anchor") || document.getElementById("lb-me-row");
+                const meRow = document.getElementById("lb-me-row");
                 const sticky = list.querySelector(".lb-sticky-top");
-                if (anchor && sticky) {
-                    list.scrollTop = anchor.offsetTop - sticky.offsetHeight - 8;
+                if (meRow && sticky) {
+                    const listRect = list.getBoundingClientRect();
+                    const meRect = meRow.getBoundingClientRect();
+                    const stickyH = sticky.getBoundingClientRect().height;
+                    const visibleTop = listRect.top + stickyH;
+                    const visibleBottom = listRect.bottom;
+                    // Only scroll if the user's row isn't already visible below the sticky section
+                    if (meRect.top < visibleTop || meRect.bottom > visibleBottom) {
+                        list.scrollTop += meRect.top - visibleTop - 8;
+                    }
                 }
             }, 350);
 
