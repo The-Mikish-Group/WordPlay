@@ -156,6 +156,13 @@ let _bonusStarCells = [];        // array of "row,col" keys where stars are plac
 let _bonusCoinsEarned = 0;       // session accumulator for completion modal
 let _savedRegularStateBonus = null; // snapshot of regular game state while in bonus mode
 
+const AVATAR_EMOJI = {
+    dog:"\uD83D\uDC36", cat:"\uD83D\uDC31", fox:"\uD83E\uDD8A", unicorn:"\uD83E\uDD84",
+    bear:"\uD83D\uDC3B", panda:"\uD83D\uDC3C", owl:"\uD83E\uDD89", frog:"\uD83D\uDC38",
+    lion:"\uD83E\uDD81", monkey:"\uD83D\uDC35", robot:"\uD83E\uDD16", alien:"\uD83D\uDC7D",
+    ghost:"\uD83D\uDC7B", octopus:"\uD83D\uDC19", butterfly:"\uD83E\uDD8B", dragon:"\uD83D\uDC32"
+};
+
 function hashStr(s) {
     let h = 0;
     for (let i = 0; i < s.length; i++) {
@@ -4679,6 +4686,22 @@ function getInitials(name) {
     return name.substring(0, 2).toUpperCase();
 }
 
+function renderAvatar(avatarData, name, size) {
+    size = size || 34;
+    var s = 'width:' + size + 'px;height:' + size + 'px;';
+    if (avatarData && avatarData.startsWith('emoji:')) {
+        var key = avatarData.substring(6);
+        var emoji = AVATAR_EMOJI[key] || '\u2753';
+        return '<div class="lb-avatar" style="background:' + getAvatarColor(name) + ';' + s + 'font-size:' + Math.round(size * 0.55) + 'px">' + emoji + '</div>';
+    }
+    if (avatarData && avatarData.startsWith('data:image')) {
+        return '<img class="lb-avatar" src="' + avatarData + '" style="' + s + 'object-fit:cover" alt="">';
+    }
+    var initials = getInitials(name);
+    var fontSize = size < 40 ? 13 : Math.round(size * 0.35);
+    return '<div class="lb-avatar" style="background:' + getAvatarColor(name) + ';' + s + 'font-size:' + fontSize + 'px">' + initials + '</div>';
+}
+
 function renderLeaderboard() {
     if (_lbCountdownTimer) { clearInterval(_lbCountdownTimer); _lbCountdownTimer = null; }
 
@@ -4819,7 +4842,7 @@ function renderLeaderboard() {
                 const row = `
                     <div class="lb-row${isMe ? " lb-me" : ""}${isTop3 ? " lb-top3" : ""}" ${rowId} style="animation-delay:${i * 40}ms">
                         <span class="lb-rank${isTop3 ? " lb-rank-top" : ""}">${medal || (i + 1)}</span>
-                        <div class="lb-avatar" style="background:${avatarColor}">${initials}</div>
+                        ${renderAvatar(entry.avatarData, entry.name, 34)}
                         <span class="lb-name">${escapeHtml(entry.name || "???")}</span>
                         <span class="lb-score" style="background:${isTop3 ? accent : "rgba(255,255,255,0.08)"};color:${isTop3 ? "#000" : accent}">${scoreText}</span>
                     </div>
