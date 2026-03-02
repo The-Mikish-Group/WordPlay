@@ -84,7 +84,7 @@ app.Use(async (context, next) =>
     headers["X-Content-Type-Options"] = "nosniff";
     headers["X-Frame-Options"] = "DENY";
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=()";
     headers["Content-Security-Policy"] =
         "default-src 'self'; " +
         "script-src 'self' 'unsafe-inline' https://accounts.google.com https://alcdn.msauth.net https://cdnjs.cloudflare.com; " +
@@ -793,11 +793,14 @@ app.MapPost("/api/contact", async (HttpRequest request, IConfiguration config) =
 // Admin endpoints (require admin role)
 // ============================================================
 
-app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal) =>
+app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal, int page = 1, int pageSize = 30, string? search = null) =>
 {
     if (GetUserRole(principal) != "admin") return Results.Forbid();
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 30;
+    if (pageSize > 100) pageSize = 100;
 
-    var users = await db.Users
+    var query = db.Users
         .GroupJoin(db.UserProgress, u => u.Id, p => p.UserId, (u, ps) => new { u, p = ps.FirstOrDefault() })
         .Select(x => new
         {
@@ -812,11 +815,21 @@ app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal) 
             highestLevel = x.p != null ? x.p.HighestLevel : 0,
             totalCoinsEarned = x.p != null ? x.p.TotalCoinsEarned : 0,
             monthlyGain = x.p != null ? x.p.HighestLevel - x.p.MonthlyStart : 0,
-        })
-        .OrderByDescending(x => x.highestLevel)
-        .ToListAsync();
+        });
 
-    return Results.Ok(users);
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+        var term = search.ToLower();
+        query = query.Where(x => (x.displayName != null && x.displayName.ToLower().Contains(term))
+                                || (x.email != null && x.email.ToLower().Contains(term)));
+    }
+
+    query = query.OrderByDescending(x => x.highestLevel);
+
+    var total = await query.CountAsync();
+    var users = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+    return Results.Ok(new { users, total, page, pageSize });
 }).RequireAuthorization();
 
 app.MapPut("/api/admin/users/{id}/role", async (int id, HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
@@ -890,6 +903,55 @@ app.MapPut("/api/admin/users/{id}/progress", async (int id, HttpRequest request,
     return Results.Ok(new { progress.HighestLevel, progress.TotalCoinsEarned });
 }).RequireAuthorization();
 
+app.MapPut("/api/admin/users/{id}/profile", async (int id, HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+
+    var user = await db.Users.FindAsync(id);
+    if (user == null) return Results.NotFound();
+
+    if (body.TryGetProperty("displayName", out var nameEl))
+    {
+        var name = nameEl.GetString()?.Trim() ?? "";
+        if (name.Length < 3 || name.Length > 20)
+            return Results.BadRequest(new { error = "Name must be 3-20 characters" });
+        user.DisplayName = name;
+    }
+
+    if (body.TryGetProperty("avatarData", out var avatarEl))
+    {
+        var raw = avatarEl.ValueKind == JsonValueKind.Null ? null : avatarEl.GetString()?.Trim();
+        if (string.IsNullOrEmpty(raw))
+        {
+            user.AvatarData = null;
+        }
+        else if (raw.StartsWith("emoji:"))
+        {
+            var key = raw[6..];
+            if (!allowedEmoji.Contains(key))
+                return Results.BadRequest(new { error = "Invalid emoji key" });
+            user.AvatarData = raw;
+        }
+        else if (raw.StartsWith("data:image"))
+        {
+            var commaIdx = raw.IndexOf(',');
+            if (commaIdx < 0) return Results.BadRequest(new { error = "Invalid image data" });
+            var base64Part = raw[(commaIdx + 1)..];
+            if (base64Part.Length > 140_000)
+                return Results.BadRequest(new { error = "Image too large (max 100KB)" });
+            user.AvatarData = raw;
+        }
+        else
+        {
+            return Results.BadRequest(new { error = "avatarData must start with 'emoji:' or 'data:image'" });
+        }
+    }
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new { user.Id, user.DisplayName, user.AvatarData });
+}).RequireAuthorization();
+
 app.MapPut("/api/admin/users/{id}/visibility", async (int id, HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
 {
     if (GetUserRole(principal) != "admin") return Results.Forbid();
@@ -916,6 +978,23 @@ app.MapDelete("/api/admin/users/{id}", async (int id, WordPlayDb db, ClaimsPrinc
     var progress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == id);
     if (progress != null) db.UserProgress.Remove(progress);
     var assignments = await db.RabbitAssignments.Where(r => r.BotUserId == id || r.TargetUserId == id).ToListAsync();
+    db.RabbitAssignments.RemoveRange(assignments);
+    db.Users.Remove(user);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { deleted = true });
+}).RequireAuthorization();
+
+app.MapDelete("/api/auth/delete-account", async (WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
+
+    var user = await db.Users.FindAsync(userId);
+    if (user == null) return Results.NotFound();
+
+    var progress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == userId);
+    if (progress != null) db.UserProgress.Remove(progress);
+    var assignments = await db.RabbitAssignments.Where(r => r.BotUserId == userId || r.TargetUserId == userId).ToListAsync();
     db.RabbitAssignments.RemoveRange(assignments);
     db.Users.Remove(user);
     await db.SaveChangesAsync();

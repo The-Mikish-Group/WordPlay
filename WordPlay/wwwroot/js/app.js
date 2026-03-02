@@ -134,12 +134,41 @@ const state = {
     showAdmin: false,
     dailyPuzzle: null,     // { date, levelNum, fw, bf, rc, sf, coinWordsFound, completed }
     bonusPuzzle: null,         // { available, trigger, levelNum, fw, bf, rc, sf, starsCollected, starPoints, coinsEarned, completed, starCells }
+    bonusStarsTotal: 0,        // cumulative bonus stars across rounds (0-9, resets on grand prize)
     isBonusMode: false,
     // Achievement tracking
     speedLevels: [],           // timestamps of recent level completions (for 10-in-an-hour)
     loginStreak: 0,            // consecutive days played
     lastPlayDate: null,        // "YYYY-MM-DD" of last play
     isDailyMode: false,
+};
+
+// ---- DEBUG: BONUS TESTING ----
+// Usage: open browser console, run  debugBonus()  or  debugBonus(5)  to preset bonusStarsTotal
+window.debugBonus = function(presetStars) {
+    if (typeof presetStars === "number") {
+        state.bonusStarsTotal = Math.max(0, Math.min(9, presetStars));
+    }
+    // Force a bonus puzzle using level 1 (small level, has short words like DOG)
+    state.bonusPuzzle = {
+        available: true,
+        trigger: "debug",
+        levelNum: 1,
+        fw: [], bf: [], rc: [], sf: false,
+        starsCollected: 0,
+        starPoints: Math.floor(state.bonusStarsTotal / 3),
+        coinsEarned: 0,
+        completed: false,
+        starCells: null,
+        awardedAt: Date.now(),
+    };
+    saveProgress();
+    console.log("Bonus puzzle ready! bonusStarsTotal=" + state.bonusStarsTotal + ". Click the ⭐ Bonus Puzzle button on the home screen.");
+    // Re-render home if we're on it
+    if (state.showHome) {
+        const app = document.getElementById("app");
+        if (app) { app.innerHTML = ""; renderHome(); }
+    }
 };
 
 // ---- MENU SECRET ----
@@ -267,6 +296,7 @@ function resetStateToDefaults() {
     state.standaloneFound = false;
     state.dailyPuzzle = null;
     state.bonusPuzzle = null;
+    state.bonusStarsTotal = 0;
     state.speedLevels = [];
     state.loginStreak = 0;
     state.lastPlayDate = null;
@@ -326,6 +356,11 @@ function rebuildWheelLetters() {
     wheelLetters = a;
 }
 
+function applyPendingUpdate() {
+    if (window._updatePending) { window.location.reload(); return true; }
+    return false;
+}
+
 // ---- PERSISTENCE ----
 // Migrate old save key from pre-rename
 const _oldSave = localStorage.getItem("wordscapes-save");
@@ -367,6 +402,7 @@ function loadProgress() {
             state.totalCoinsEarned = d.tce || 0;
             state.dailyPuzzle = d.dp || null;
             state.bonusPuzzle = d.bp || null;
+            state.bonusStarsTotal = d.bst || 0;
             state.speedLevels = d.sl || [];
             state.loginStreak = d.ls || 0;
             state.lastPlayDate = d.lpd || null;
@@ -406,6 +442,7 @@ function saveProgress() {
             tce: state.totalCoinsEarned,
             dp: state.dailyPuzzle,
             bp: state.bonusPuzzle,
+            bst: state.bonusStarsTotal,
             sl: state.speedLevels,
             ls: state.loginStreak,
             lpd: state.lastPlayDate,
@@ -417,12 +454,13 @@ function saveProgress() {
 function saveInProgressState() {
     if (state.isDailyMode || state.isBonusMode) return;
     const lv = state.currentLevel;
-    if (state.foundWords.length > 0 || state.revealedCells.length > 0 || state.bonusFound.length > 0 || state.standaloneFound) {
+    if (state.foundWords.length > 0 || state.revealedCells.length > 0 || state.bonusFound.length > 0 || state.standaloneFound || (wheelLetters && wheelLetters.length > 0)) {
         state.inProgress[lv] = {
             fw: [...state.foundWords],
             bf: [...state.bonusFound],
             rc: [...state.revealedCells],
             sf: state.standaloneFound,
+            wo: wheelLetters ? [...wheelLetters] : null,
         };
     }
 }
@@ -433,6 +471,7 @@ function saveDailyState() {
     state.dailyPuzzle.bf = [...state.bonusFound];
     state.dailyPuzzle.rc = [...state.revealedCells];
     state.dailyPuzzle.sf = state.standaloneFound;
+    state.dailyPuzzle.wo = wheelLetters ? [...wheelLetters] : null;
     saveProgress();
 }
 
@@ -445,6 +484,10 @@ function restoreLevelState() {
         state.bonusFound = ip.bf || [];
         state.revealedCells = ip.rc || [];
         state.standaloneFound = ip.sf || false;
+        if (ip.wo && ip.wo.length === level.letters.length &&
+            [...ip.wo].sort().join('') === level.letters.split('').sort().join('')) {
+            wheelLetters = [...ip.wo];
+        }
         if (state.standaloneFound && standaloneWord && !state.foundWords.includes(standaloneWord)) {
             state.foundWords.push(standaloneWord);
         }
@@ -462,6 +505,7 @@ function restoreLevelState() {
 
 // ---- DAILY MODE ENTRY/EXIT ----
 async function enterDailyMode() {
+    if (applyPendingUpdate()) return;
     saveInProgressState();
     _savedRegularState = {
         currentLevel: state.currentLevel,
@@ -490,6 +534,10 @@ async function enterDailyMode() {
     if (state.standaloneFound && standaloneWord && !state.foundWords.includes(standaloneWord)) {
         state.foundWords.push(standaloneWord);
     }
+    if (state.dailyPuzzle.wo && state.dailyPuzzle.wo.length === level.letters.length &&
+        [...state.dailyPuzzle.wo].sort().join('') === level.letters.split('').sort().join('')) {
+        wheelLetters = [...state.dailyPuzzle.wo];
+    }
     while (checkAutoCompleteWords()) {}
     _dailyCoinsEarned = 0;
     assignDailyCoinWord();
@@ -502,6 +550,7 @@ async function enterDailyMode() {
 
 function exitDailyMode() {
     saveDailyState();
+    if (applyPendingUpdate()) return;
     state.isDailyMode = false;
     state.showComplete = false;
     if (_savedRegularState) {
@@ -528,6 +577,7 @@ function exitDailyMode() {
 
 // ---- BONUS PUZZLE MODE ----
 async function enterBonusMode() {
+    if (applyPendingUpdate()) return;
     if (!state.bonusPuzzle || !state.bonusPuzzle.available) return;
     saveInProgressState();
     _savedRegularStateBonus = {
@@ -545,10 +595,15 @@ async function enterBonusMode() {
     state.bonusFound = state.bonusPuzzle.bf || [];
     state.revealedCells = state.bonusPuzzle.rc || [];
     state.standaloneFound = state.bonusPuzzle.sf || false;
+    if (state.bonusPuzzle.wo && state.bonusPuzzle.wo.length === level.letters.length &&
+        [...state.bonusPuzzle.wo].sort().join('') === level.letters.split('').sort().join('')) {
+        wheelLetters = [...state.bonusPuzzle.wo];
+    }
     while (checkAutoCompleteWords()) {}
     _bonusCoinsEarned = state.bonusPuzzle.coinsEarned || 0;
     _bonusStarCells = state.bonusPuzzle.starCells || assignBonusStars();
     state.bonusPuzzle.starCells = _bonusStarCells;
+    state.bonusPuzzle.starPoints = Math.floor(state.bonusStarsTotal / 3);
     state.showHome = false;
     const app = document.getElementById("app");
     app.innerHTML = "";
@@ -558,6 +613,7 @@ async function enterBonusMode() {
 
 function exitBonusMode(forfeited) {
     saveBonusState();
+    if (applyPendingUpdate()) return;
     state.isBonusMode = false;
     state.showComplete = false;
     if (forfeited) {
@@ -589,6 +645,7 @@ function saveBonusState() {
     state.bonusPuzzle.bf = [...state.bonusFound];
     state.bonusPuzzle.rc = [...state.revealedCells];
     state.bonusPuzzle.sf = state.standaloneFound;
+    state.bonusPuzzle.wo = wheelLetters ? [...wheelLetters] : null;
     state.bonusPuzzle.coinsEarned = _bonusCoinsEarned;
     state.bonusPuzzle.starCells = _bonusStarCells;
     saveProgress();
@@ -599,7 +656,10 @@ function assignBonusStars() {
     const words = crossword.placements.filter(p => !p.standalone);
     if (words.length === 0) return [];
     const starCells = [];
-    let remaining = 9;
+    const starCountOptions = [3, 4, 5];
+    const starSeed = hashStr(state.bonusPuzzle.levelNum + ":starcount:" + (state.bonusPuzzle.awardedAt || 0));
+    const starCount = starCountOptions[starSeed % 3];
+    let remaining = starCount;
     const shuffled = [...words].sort((a, b) => {
         const ha = hashStr(state.bonusPuzzle.levelNum + ":" + a.word);
         const hb = hashStr(state.bonusPuzzle.levelNum + ":" + b.word);
@@ -607,7 +667,7 @@ function assignBonusStars() {
     });
     for (const w of shuffled) {
         if (remaining <= 0) break;
-        const count = (w.word.length >= 5 && remaining >= 2) ? 2 : 1;
+        const count = 1;
         const available = w.cells.filter(c => !starCells.includes(c.row + "," + c.col));
         const seed = hashStr(state.bonusPuzzle.levelNum + ":star:" + w.word);
         for (let i = 0; i < count && i < available.length && remaining > 0; i++) {
@@ -642,7 +702,7 @@ function triggerBonusPuzzle(trigger) {
         levelNum: parseInt(pick),
         fw: [], bf: [], rc: [], sf: false,
         starsCollected: 0,
-        starPoints: 0,
+        starPoints: Math.floor(state.bonusStarsTotal / 3),
         coinsEarned: 0,
         completed: false,
         starCells: null,
@@ -761,14 +821,17 @@ function handleDailyCompletion() {
 }
 
 function handleBonusCompletion() {
-    if (!state.bonusPuzzle) return;
+    if (!state.bonusPuzzle || state.bonusPuzzle.completed) return;
     state.bonusPuzzle.completed = true;
-    if (state.bonusPuzzle.starsCollected >= 9) {
+    if (state.bonusStarsTotal >= 9) {
         state.coins += 500;
         state.totalCoinsEarned += 500;
         _bonusCoinsEarned += 500;
+        state.bonusPuzzle._grandPrizeAwarded = true;
+        state.bonusStarsTotal = 0;
     }
     saveBonusState();
+    saveProgress();
     setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
 }
 
@@ -1308,6 +1371,8 @@ function handleShuffle() {
     state.shuffleKey++;
     const oldLetters = [...wheelLetters];
     rebuildWheelLetters();
+    saveInProgressState();
+    saveProgress();
 
     // Try to animate in-place if letter divs exist
     const lettersDiv = document.getElementById("wheel-letters");
@@ -1367,6 +1432,7 @@ function handleShuffle() {
 
 async function advanceToNextLevel() {
     if (state.isDailyMode) { exitDailyMode(); return; }
+    if (applyPendingUpdate()) return;
     // Advance level logic and return to home screen
     const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
     if (state.foundWords.length === totalRequired) {
@@ -1419,6 +1485,7 @@ async function advanceToNextLevel() {
 async function handleNextLevel() {
     if (state.isBonusMode) { exitBonusMode(false); return; }
     if (state.isDailyMode) { exitDailyMode(); return; }
+    if (applyPendingUpdate()) return;
     const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
     if (state.foundWords.length === totalRequired) {
         delete state.inProgress[state.currentLevel];
@@ -1461,6 +1528,7 @@ async function handleNextLevel() {
 }
 
 async function goToLevel(num) {
+    if (applyPendingUpdate()) return;
     if (num < 1 || num > state.highestLevel) return;
     if (num === state.currentLevel) {
         state.showMap = false;
@@ -1561,18 +1629,13 @@ function renderHome() {
     }
 
     const claimed = state.lastDailyClaim === getTodayStr();
-    const dailyBtnHtml = claimed ? '' : `
-        <button class="home-daily-btn" id="home-daily-btn">
-            <span class="daily-text">FREE</span>
-            <svg class="daily-coins" width="16" height="22" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg>
-        </button>`;
 
     app.innerHTML = `
         <div class="home-screen" id="home-screen" style="background:${bgStyle}">
             <div class="home-top-bar">
                 <div class="home-top-right">
                     <div class="home-coin-display" id="home-coin-display">🪙 ${state.coins.toLocaleString()}</div>
-                    ${dailyBtnHtml}
+                    ${state.bonusStarsTotal > 0 ? `<div class="home-star-display">${[0,1,2].map(i => i < Math.floor(state.bonusStarsTotal / 3) ? '\u2B50' : '\u2606').join('')}</div>` : ''}
                 </div>
             </div>
             <div class="home-expertise-row">
@@ -1599,7 +1662,7 @@ function renderHome() {
                     clearExpiredBonusPuzzle();
                     return '';
                 }
-                return '<div class="home-bonus-puzzle-row"><button class="home-bonus-puzzle-btn" id="home-bonus-puzzle-btn"><span style="font-size:22px;vertical-align:middle;margin-right:4px">\u2B50</span>Bonus Puzzle</button></div>';
+                return '<div class="home-bonus-puzzle-row"><button class="home-bonus-puzzle-btn" id="home-bonus-puzzle-btn"><span style="font-size:22px;line-height:0;vertical-align:middle;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.4))">\u2B50</span> Bonus Puzzle</button></div>';
             })()}
             <div class="home-center">
                 <div class="home-title">Word<br>Play</div>
@@ -1607,6 +1670,11 @@ function renderHome() {
                     <span class="home-level-label">Level</span>
                     <span class="home-level-num" style="font-size:${state.currentLevel >= 100000 ? 22 : state.currentLevel >= 10000 ? 26 : 36}px">${state.currentLevel.toLocaleString()}</span>
                 </button>
+                ${claimed ? '' : `<button class="home-daily-btn" id="home-daily-btn">
+                    <span>FREE</span>
+                    <svg class="daily-coins" width="16" height="22" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg>
+                    <span>COINS</span>
+                </button>`}
             </div>
             <div class="home-bottom">
                 <div class="home-bottom-btns">
@@ -1631,9 +1699,12 @@ function renderHome() {
         renderLeaderboard();
     };
     document.getElementById("home-play-btn").onclick = async () => {
+        if (applyPendingUpdate()) return;
         state.showHome = false;
         await recompute();
         restoreLevelState();
+        saveInProgressState();
+        saveProgress();
         app.innerHTML = "";
         renderAll();
         animateGridEntrance();
@@ -1745,17 +1816,15 @@ function renderHeader() {
             </div>
             <div class="header-right">
                 <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">\uD83E\uDE99 ${state.coins.toLocaleString()}</div>
-                <button class="daily-btn" id="daily-btn"><span class="daily-text">FREE</span><svg class="daily-coins" width="16" height="22" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg></button>
             </div>
         `;
         document.getElementById("back-home-btn").onclick = () => {
+            if (applyPendingUpdate()) return;
             state.showHome = true;
             const app = document.getElementById("app");
             app.innerHTML = "";
             renderHome();
         };
-        document.getElementById("daily-btn").onclick = () => renderDailyModal(true);
-        renderDailyBtn();
     }
 }
 
@@ -1806,19 +1875,9 @@ function renderDailyModal(show) {
         state.lastDailyClaim = getTodayStr();
         saveProgress();
         renderDailyModal(false);
-        if (state.showHome) {
-            renderHome();
-        } else {
-            renderDailyBtn();
-            renderCoins();
-            renderHintBtn();
-            renderTargetBtn();
-            renderRocketBtn();
-            renderSpinBtn();
-        }
+        renderHome();
         showToast("🪙 +100 daily coins!", theme.accent);
         playSound("spinPrize");
-        if (!state.showHome) setTimeout(() => animateCoinGain(100), 200);
     };
     overlay.onclick = (e) => {
         if (e.target === overlay) renderDailyModal(false);
@@ -2207,6 +2266,7 @@ function checkBonusStars(word) {
     const starsInWord = wordStarCells.length;
     const coinReward = starsInWord * 10;
     state.bonusPuzzle.starsCollected += starsInWord;
+    state.bonusStarsTotal = Math.min(9, state.bonusStarsTotal + starsInWord);
     state.coins += coinReward;
     state.totalCoinsEarned += coinReward;
     _bonusCoinsEarned += coinReward;
@@ -2217,7 +2277,7 @@ function checkBonusStars(word) {
         animateBonusCoinFly(wordStarCells[0], coinReward);
     }, wordStarCells.length * 200 + 400);
     const oldPoints = state.bonusPuzzle.starPoints;
-    const newPoints = Math.floor(state.bonusPuzzle.starsCollected / 3);
+    const newPoints = Math.floor(state.bonusStarsTotal / 3);
     if (newPoints > oldPoints) {
         state.bonusPuzzle.starPoints = newPoints;
         setTimeout(() => {
@@ -2226,7 +2286,11 @@ function checkBonusStars(word) {
         }, wordStarCells.length * 200 + 600);
     }
     saveBonusState();
+    saveProgress();
     renderCoins();
+    if (state.bonusStarsTotal >= 9) {
+        setTimeout(() => handleBonusCompletion(), wordStarCells.length * 200 + 800);
+    }
 }
 
 function animateStarFly(cellKey) {
@@ -3156,15 +3220,18 @@ function renderCompleteModal() {
     overlay.style.display = "flex";
     if (state.isBonusMode) {
         const bp = state.bonusPuzzle;
-        const allStars = bp && bp.starsCollected >= 9;
-        const starDisplay = [0, 1, 2].map(i => i < (bp ? bp.starPoints : 0) ? '\u2B50' : '\u2606').join(' ');
+        const grandPrize = bp && bp._grandPrizeAwarded;
+        const totalStars = grandPrize ? 9 : state.bonusStarsTotal;
+        const starSlots = [0, 1, 2].map(i => i < Math.floor(totalStars / 3) ? '\u2B50' : '\u2606').join(' ');
+        const roundStars = bp ? bp.starsCollected : 0;
         overlay.innerHTML = `
             <div class="modal-box" style="border:2px solid #d4a51c50;box-shadow:0 0 40px #d4a51c20">
-                <div class="modal-emoji">${allStars ? '\uD83C\uDF1F' : '\u2B50'}</div>
-                <h2 class="modal-title" style="color:#d4a51c">${allStars ? 'Bonus Complete!' : 'Puzzle Done'}</h2>
-                <p class="modal-subtitle" style="font-size:24px">${starDisplay}</p>
-                <p class="modal-subtitle">${bp ? bp.starsCollected : 0}/9 stars collected</p>
-                ${allStars ? '<p class="modal-coins" style="color:#d4a51c;font-size:18px;font-weight:700">Grand Prize: +500 \uD83E\uDE99</p>' : ''}
+                <div class="modal-emoji">${grandPrize ? '\uD83C\uDF1F' : '\u2B50'}</div>
+                <h2 class="modal-title" style="color:#d4a51c">${grandPrize ? 'Grand Prize!' : 'Bonus Round Done'}</h2>
+                <p class="modal-subtitle" style="font-size:24px">${starSlots}</p>
+                <p class="modal-subtitle">${roundStars} star${roundStars !== 1 ? 's' : ''} found this round</p>
+                ${!grandPrize ? '<p class="modal-subtitle" style="font-size:13px;opacity:0.7">' + totalStars + '/9 total stars</p>' : ''}
+                ${grandPrize ? '<p class="modal-coins" style="color:#d4a51c;font-size:18px;font-weight:700">Grand Prize: +500 \uD83E\uDE99</p>' : ''}
                 <p class="modal-coins" style="color:${theme.text}">+${_bonusCoinsEarned} \uD83E\uDE99 total earned</p>
                 <button class="modal-next-btn" id="next-btn"
                     style="background:linear-gradient(180deg,#d4a51c 0%,#a07818 100%);border:2px solid #d4a51c;border-bottom-color:#a07818;box-shadow:0 4px 14px #d4a51c60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
@@ -3232,6 +3299,7 @@ function renderMenu() {
                 </svg>
             </button>
             <h2 class="menu-title" style="color:${theme.accent}">⚙️ Settings</h2>
+            <button class="back-arrow-btn" id="sound-toggle-btn" title="Toggle sound" style="position:absolute;right:12px;font-size:20px">${state.soundEnabled ? '🔊' : '🔇'}</button>
         </div>
         <div class="menu-scroll">
     `;
@@ -3241,18 +3309,19 @@ function renderMenu() {
         const user = getUser();
         html += `
             <div class="menu-setting" style="text-align:center">
-                <div id="menu-avatar-edit" style="position:relative;display:inline-block;cursor:pointer;margin-bottom:8px">
+                <div id="menu-profile-edit" style="display:inline-flex;flex-direction:column;align-items:center;cursor:pointer;margin-bottom:8px">
                     ${renderAvatar(user.avatarData, user.displayName, 60)}
-                    <div style="position:absolute;bottom:-2px;right:-2px;background:${theme.accent};border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid #140f1e">✏️</div>
+                    <div style="font-size:15px;margin-top:8px">${escapeHtml(user.displayName || "Player")} <span style="font-size:11px">✏️</span></div>
                 </div>
-                <div id="menu-display-name" style="font-size:15px;margin-bottom:2px;cursor:pointer">${escapeHtml(user.displayName || "Player")} <span style="font-size:11px">✏️</span></div>
-                <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
-                    <button class="menu-setting-btn" id="menu-signout-btn" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);flex:1;padding:8px 0;font-size:13px">Sign Out</button>
-                </div>
-                <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer;opacity:0.7">
+                <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;font-size:13px;cursor:pointer;opacity:0.7">
                     <input type="checkbox" id="menu-lb-checkbox" ${user.showOnLeaderboard !== false ? "checked" : ""} style="width:18px;height:18px;accent-color:${theme.accent};cursor:pointer">
                     Show me on leaderboard
                 </label>
+                <div style="margin-top:10px"></div>
+                <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
+                    <button class="menu-setting-btn" id="menu-signout-btn" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);flex:1;padding:8px 0;font-size:13px">Sign Out</button>
+                </div>
+                <button class="menu-setting-btn" id="menu-delete-account-btn" style="background:rgba(255,50,50,0.15);color:#ff6666;border:1px solid rgba(255,50,50,0.25);width:100%;padding:8px 0;font-size:12px;margin-top:8px">Delete Account</button>
             </div>
         `;
     } else if (typeof isSignedIn === "function") {
@@ -3305,18 +3374,6 @@ function renderMenu() {
         <button class="menu-map-btn" id="menu-map-btn" style="background:linear-gradient(135deg,${theme.accent},${theme.accentDark});color:#000">
             <span style="font-size:24px;vertical-align:middle">🗺️</span> Level Map
         </button>
-    `;
-
-    // Go to a past level
-    html += `
-        <div class="menu-setting">
-            <label class="menu-setting-label">Go to a past Level:</label>
-            <div class="menu-setting-row">
-                <input type="number" id="goto-level-input" value="${state.currentLevel}" min="1" max="${state.highestLevel}" class="menu-setting-input">
-                <button class="menu-setting-btn" id="goto-level-btn" style="background:${theme.accent};color:#000">Go</button>
-            </div>
-            <div class="menu-setting-hint">Enter any past level number (1 – ${state.highestLevel.toLocaleString()})</div>
-        </div>
     `;
 
     // Set progress + Reset (hidden until easter egg)
@@ -3384,39 +3441,6 @@ function renderMenu() {
 
     html += `</div>`;
 
-    // Sound toggle
-    html += `
-        <div class="menu-setting">
-            <label class="menu-setting-label">Sound</label>
-            <button class="menu-setting-btn" id="sound-toggle-btn" style="background:${state.soundEnabled ? theme.accent : 'rgba(255,255,255,0.1)'};color:${state.soundEnabled ? '#000' : 'rgba(255,255,255,0.6)'};width:100%;padding:10px 0;font-size:14px">${state.soundEnabled ? '<span style="font-size:24px;vertical-align:middle">🔊</span> On' : '<span style="font-size:24px;vertical-align:middle">🔇</span> Off'}</button>
-        </div>
-    `;
-
-    // Check for Updates
-    html += `
-        <div class="menu-setting">
-            <label class="menu-setting-label">App</label>
-            <button class="menu-setting-btn" id="check-update-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px"><span style="font-size:24px;vertical-align:middle;margin-right:6px">✨</span>Check for Updates</button>
-        </div>
-    `;
-
-    // Install App
-    html += `<div class="menu-setting">`;
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    if (isStandalone) {
-        html += `<div style="text-align:center;opacity:0.4;font-size:14px;padding:4px 0">Installed \u2713</div>`;
-    } else if (window._inAppBrowser) {
-        html += `<div style="text-align:center;opacity:0.5;font-size:13px;padding:4px 0">Open in your browser to install</div>`;
-    } else if (window._installPrompt) {
-        html += `<button class="menu-setting-btn" id="install-app-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M12 3v12"/><polyline points="8 11 12 15 16 11"/><path d="M20 21H4"/></svg>Install App</button>`;
-    } else if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.navigator.standalone) {
-        html += `<label class="menu-setting-label">Install App</label>`;
-        html += `<div style="font-size:13px;opacity:0.6;line-height:1.5">Tap Share (\u25A1\u2191) then &ldquo;Add to Home Screen&rdquo;</div>`;
-    } else {
-        html += `<div style="text-align:center;opacity:0.4;font-size:13px;padding:4px 0">Install not available in this browser</div>`;
-    }
-    html += `</div>`;
-
     // Contact Support
     html += `
         <div class="menu-setting">
@@ -3425,12 +3449,30 @@ function renderMenu() {
         </div>
     `;
 
+    // App card (Install / Check for Updates / Uninstall)
+    html += `<div class="menu-setting"><label class="menu-setting-label">App</label>`;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isStandalone) {
+        html += `<div style="text-align:center;opacity:0.4;font-size:14px;padding:4px 0">Installed \u2713</div>`;
+    } else if (window._inAppBrowser) {
+        html += `<div style="text-align:center;opacity:0.5;font-size:13px;padding:4px 0">Open in your browser to install</div>`;
+    } else if (window._installPrompt) {
+        html += `<button class="menu-setting-btn" id="install-app-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;font-size:14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M12 3v12"/><polyline points="8 11 12 15 16 11"/><path d="M20 21H4"/></svg>Install App</button>`;
+    } else if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.navigator.standalone) {
+        html += `<div style="font-size:14px;opacity:0.7;line-height:1.5">Tap Share (\u25A1\u2191) then &ldquo;Add to Home Screen&rdquo;</div>`;
+    } else {
+        html += `<div style="text-align:center;opacity:0.4;font-size:14px;padding:4px 0">Installed \u2713</div>`;
+    }
+    html += `<button class="menu-setting-btn" id="check-update-btn" style="background:rgba(255,255,255,0.12);color:${theme.accent};border:1px solid ${theme.accent}44;width:100%;padding:10px 0;font-size:14px;margin-top:8px"><span style="font-size:24px;vertical-align:middle;margin-right:6px">✨</span>Check for Updates</button>`;
+    html += `<button class="menu-setting-btn" id="uninstall-app-btn" style="background:rgba(255,50,50,0.15);color:#ff6666;border:1px solid rgba(255,50,50,0.25);width:100%;padding:10px 0;font-size:14px;margin-top:8px">Uninstall App</button>`;
+    html += `</div>`;
+
     // Admin panel (visible only to admins)
     if (typeof isAdmin === "function" && isAdmin()) {
         html += `
             <div class="menu-setting">
                 <label class="menu-setting-label">Administration</label>
-                <button class="menu-setting-btn" id="admin-panel-btn" style="background:linear-gradient(135deg,#ff6b35,#d63384);color:#fff;width:100%;padding:10px 0;font-size:14px;border:none">Admin Panel</button>
+                <button class="menu-setting-btn" id="admin-panel-btn" style="background:linear-gradient(135deg,#ff6b35,#d63384);color:#fff;width:100%;padding:10px 0;font-size:14px;border:none"><span style="font-size:20px;vertical-align:middle;margin-right:6px">🛡️</span>Admin Panel</button>
             </div>
         `;
     }
@@ -3578,21 +3620,61 @@ function renderMenu() {
             showToast("Signed out");
         };
     }
-    const displayNameEl = document.getElementById("menu-display-name");
-    if (displayNameEl) {
-        displayNameEl.onclick = () => {
-            state.showMenu = false;
-            renderMenu();
-            renderDisplayNamePrompt();
+    const deleteAccountBtn = document.getElementById("menu-delete-account-btn");
+    if (deleteAccountBtn) {
+        deleteAccountBtn.onclick = () => {
+            const modal = document.createElement("div");
+            modal.className = "modal-overlay";
+            modal.style.display = "flex";
+            modal.style.zIndex = "9999";
+            modal.innerHTML = `
+                <div class="modal-box" style="border:2px solid rgba(255,50,50,0.5);box-shadow:0 0 40px rgba(255,50,50,0.2)">
+                    <div class="modal-emoji">\u26A0\uFE0F</div>
+                    <h2 class="modal-title" style="color:#ff6666">Delete Account?</h2>
+                    <p class="modal-subtitle" style="opacity:1;font-size:14px;color:#ffbbbb">This will permanently delete your account and all progress, including levels, coins, and scores. This cannot be undone.</p>
+                    <div style="display:flex;gap:10px;margin-top:12px">
+                        <button class="modal-next-btn" id="delete-cancel-btn"
+                            style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;flex:1">
+                            Cancel
+                        </button>
+                        <button class="modal-next-btn" id="delete-confirm-btn"
+                            style="background:rgba(255,50,50,0.3);border:1px solid rgba(255,50,50,0.5);color:#ff6666;flex:1">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.getElementById("app").appendChild(modal);
+            document.getElementById("delete-cancel-btn").onclick = () => modal.remove();
+            document.getElementById("delete-confirm-btn").onclick = async () => {
+                try {
+                    const res = await fetch("/api/auth/delete-account", {
+                        method: "DELETE",
+                        headers: getAuthHeaders(),
+                    });
+                    if (!res.ok) throw new Error("Delete failed");
+                } catch (e) {
+                    modal.remove();
+                    showToast("Failed to delete account", "#ff8888");
+                    return;
+                }
+                modal.remove();
+                signOut();
+                // Clear all wordplay localStorage keys
+                Object.keys(localStorage).filter(k => k.startsWith("wordplay-")).forEach(k => localStorage.removeItem(k));
+                resetStateToDefaults();
+                state.showMenu = false;
+                state.showHome = true;
+                const app = document.getElementById("app");
+                app.innerHTML = "";
+                renderHome();
+                showToast("Account deleted");
+            };
         };
     }
-    const avatarEditEl = document.getElementById("menu-avatar-edit");
-    if (avatarEditEl) {
-        avatarEditEl.onclick = () => {
-            state.showMenu = false;
-            renderMenu();
-            renderAvatarEditor();
-        };
+    const profileEditEl = document.getElementById("menu-profile-edit");
+    if (profileEditEl) {
+        profileEditEl.onclick = () => renderProfileEditChooser();
     }
     const lbCheckbox = document.getElementById("menu-lb-checkbox");
     if (lbCheckbox) {
@@ -3623,6 +3705,7 @@ function renderMenu() {
     };
 
     document.getElementById("menu-prev").onclick = async () => {
+        if (applyPendingUpdate()) return;
         if (state.currentLevel <= 1) return;
         saveInProgressState();
         state.currentLevel--;
@@ -3637,6 +3720,7 @@ function renderMenu() {
         renderMenu();
     };
     document.getElementById("menu-next").onclick = async () => {
+        if (applyPendingUpdate()) return;
         if (state.currentLevel >= state.highestLevel) return;
         saveInProgressState();
         state.currentLevel++;
@@ -3651,6 +3735,7 @@ function renderMenu() {
         renderMenu();
     };
     document.getElementById("menu-restart").onclick = async () => {
+        if (applyPendingUpdate()) return;
         state.foundWords = [];
         state.bonusFound = [];
         state.revealedCells = [];
@@ -3666,29 +3751,6 @@ function renderMenu() {
         showToast("Level restarted");
     };
     
-    document.getElementById("goto-level-btn").onclick = async () => {
-        const input = document.getElementById("goto-level-input");
-        const val = parseInt(input.value);
-        if (val >= 1 && val <= state.highestLevel && !isNaN(val)) {
-            saveInProgressState();
-            state.currentLevel = val;
-            state.foundWords = [];
-            state.bonusFound = [];
-            state.revealedCells = [];
-            state.shuffleKey = 0;
-            await recompute();
-            restoreLevelState();
-            saveProgress();
-            state.showMenu = false;
-            state.showHome = false;
-            const app = document.getElementById("app");
-            app.innerHTML = "";
-            renderAll();
-        } else {
-            showToast("Level " + val + " not available", "#ff8888");
-        }
-    };
-
     document.getElementById("check-update-btn").onclick = function() {
         const btn = this;
         btn.disabled = true;
@@ -3725,6 +3787,83 @@ function renderMenu() {
         state.showContact = true;
         renderMenu();
         renderContact();
+    };
+
+    document.getElementById("uninstall-app-btn").onclick = () => {
+        const modal = document.createElement("div");
+        modal.className = "modal-overlay";
+        modal.style.display = "flex";
+        modal.style.zIndex = "9999";
+        modal.innerHTML = `
+            <div class="modal-box" style="border:2px solid rgba(255,50,50,0.5);box-shadow:0 0 40px rgba(255,50,50,0.2)">
+                <div class="modal-emoji">\u26A0\uFE0F</div>
+                <h2 class="modal-title" style="color:#ff6666">Uninstall App?</h2>
+                <p class="modal-subtitle" style="opacity:1;font-size:14px;color:#ffbbbb">This will clear all local app data including cached levels, service workers, and saved preferences.</p>
+                <div style="display:flex;gap:10px;margin-top:12px">
+                    <button class="modal-next-btn" id="uninstall-cancel-btn"
+                        style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;flex:1">
+                        Cancel
+                    </button>
+                    <button class="modal-next-btn" id="uninstall-confirm-btn"
+                        style="background:rgba(255,50,50,0.3);border:1px solid rgba(255,50,50,0.5);color:#ff6666;flex:1">
+                        Uninstall
+                    </button>
+                </div>
+            </div>
+        `;
+        document.getElementById("app").appendChild(modal);
+        document.getElementById("uninstall-cancel-btn").onclick = () => modal.remove();
+        document.getElementById("uninstall-confirm-btn").onclick = async () => {
+            try {
+                // Unregister all service workers
+                if ("serviceWorker" in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(regs.map(r => r.unregister()));
+                }
+                // Clear all caches
+                if ("caches" in window) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(k => caches.delete(k)));
+                }
+            } catch (e) { /* best effort */ }
+            // Clear all wordplay localStorage and sessionStorage
+            Object.keys(localStorage).filter(k => k.startsWith("wordplay-")).forEach(k => localStorage.removeItem(k));
+            Object.keys(sessionStorage).filter(k => k.startsWith("wordplay-")).forEach(k => sessionStorage.removeItem(k));
+
+            // Detect platform for removal instructions
+            const ua = navigator.userAgent;
+            let instructions;
+            if (/iPad|iPhone|iPod/.test(ua)) {
+                instructions = "Long-press the app icon on your home screen, then tap <b>Remove App</b>.";
+            } else if (/Android/.test(ua)) {
+                instructions = "Open your browser menu \u2192 <b>App info</b> \u2192 <b>Uninstall</b>.";
+            } else {
+                instructions = "The app data has been cleared. You can remove the shortcut from your desktop.";
+            }
+
+            modal.innerHTML = `
+                <div class="modal-box" style="border:2px solid rgba(255,50,50,0.5);box-shadow:0 0 40px rgba(255,50,50,0.2)">
+                    <div class="modal-emoji">\u2705</div>
+                    <h2 class="modal-title" style="color:#ff6666">App Data Cleared</h2>
+                    <p class="modal-subtitle" style="opacity:1;font-size:14px;color:#ffbbbb">${instructions}</p>
+                    <button class="modal-next-btn" id="uninstall-done-btn"
+                        style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;width:100%;margin-top:12px">
+                        OK
+                    </button>
+                </div>
+            `;
+            document.getElementById("uninstall-done-btn").onclick = () => {
+                modal.remove();
+                // Reset state and go home
+                signOut();
+                resetStateToDefaults();
+                state.showMenu = false;
+                state.showHome = true;
+                const app = document.getElementById("app");
+                app.innerHTML = "";
+                renderHome();
+            };
+        };
     };
 
     const adminPanelBtn = document.getElementById("admin-panel-btn");
@@ -3960,6 +4099,12 @@ let _adminSearch = "";
 let _adminSelectedUser = null;
 let _adminRabbits = [];
 let _adminView = "users"; // "users" | "user-detail" | "rabbits"
+let _adminPage = 1;
+let _adminTotal = 0;
+let _adminHasMore = true;
+let _adminLoading = false;
+let _adminSearchTimer = null;
+let _adminObserver = null;
 
 function renderAdmin() {
     let overlay = document.getElementById("admin-overlay");
@@ -4016,7 +4161,13 @@ function renderAdmin() {
 
     document.getElementById("admin-search").oninput = (e) => {
         _adminSearch = e.target.value;
-        renderAdminUserList();
+        clearTimeout(_adminSearchTimer);
+        _adminSearchTimer = setTimeout(() => {
+            _adminPage = 1;
+            _adminUsers = [];
+            _adminHasMore = true;
+            loadAdminUsers();
+        }, 250);
     };
 
     document.getElementById("admin-create-bot-btn").onclick = () => {
@@ -4026,8 +4177,24 @@ function renderAdmin() {
             method: "POST",
             headers: { "Content-Type": "application/json", ...getAuthHeaders() },
             body: JSON.stringify({ displayName: name.trim() }),
-        }).then(r => r.json()).then(() => {
+        }).then(r => {
+            if (!r.ok) throw new Error("Failed");
+            return r.json();
+        }).then(bot => {
             showToast("Bot created");
+            _adminSelectedUser = {
+                id: bot.id ?? bot.Id,
+                displayName: bot.displayName ?? bot.DisplayName ?? name.trim(),
+                role: bot.role ?? bot.Role ?? "bot",
+                avatarData: null,
+                highestLevel: 0,
+                totalCoinsEarned: 0,
+                monthlyGain: 0,
+                showOnLeaderboard: true,
+            };
+            _adminView = "user-detail";
+            renderAdmin();
+            _adminPage = 1; _adminUsers = []; _adminHasMore = true;
             loadAdminUsers();
         }).catch(() => showToast("Failed to create bot", "#ff8888"));
     };
@@ -4037,17 +4204,31 @@ function renderAdmin() {
         renderAdmin();
     };
 
+    _adminPage = 1; _adminUsers = []; _adminHasMore = true;
     loadAdminUsers();
 }
 
-function loadAdminUsers() {
-    fetch("/api/admin/users", { headers: getAuthHeaders() })
+function loadAdminUsers(opts) {
+    const append = opts && opts.append;
+    _adminLoading = true;
+    if (!append) renderAdminUserList();
+
+    const url = `/api/admin/users?page=${_adminPage}&pageSize=30&search=${encodeURIComponent(_adminSearch)}`;
+    fetch(url, { headers: getAuthHeaders() })
         .then(r => r.json())
-        .then(users => {
-            _adminUsers = users;
+        .then(data => {
+            if (append) {
+                _adminUsers = _adminUsers.concat(data.users);
+            } else {
+                _adminUsers = data.users;
+            }
+            _adminTotal = data.total;
+            _adminHasMore = _adminUsers.length < data.total;
+            _adminLoading = false;
             renderAdminUserList();
         })
         .catch(() => {
+            _adminLoading = false;
             const list = document.getElementById("admin-user-list");
             if (list) list.innerHTML = '<div style="text-align:center;padding:30px;opacity:0.5">Failed to load users</div>';
         });
@@ -4057,12 +4238,9 @@ function renderAdminUserList() {
     const list = document.getElementById("admin-user-list");
     if (!list) return;
 
-    const search = _adminSearch.toLowerCase();
-    const filtered = _adminUsers.filter(u =>
-        !search || (u.displayName || "").toLowerCase().includes(search) || (u.email || "").toLowerCase().includes(search)
-    );
+    if (_adminObserver) { _adminObserver.disconnect(); _adminObserver = null; }
 
-    if (filtered.length === 0) {
+    if (_adminUsers.length === 0 && !_adminLoading) {
         list.innerHTML = '<div style="text-align:center;padding:30px;opacity:0.5">No users found</div>';
         return;
     }
@@ -4073,7 +4251,11 @@ function renderAdminUserList() {
         return '';
     };
 
-    list.innerHTML = filtered.map(u => `
+    const countLabel = _adminTotal > 0
+        ? `<div style="text-align:center;padding:4px 0 8px;opacity:0.45;font-size:12px">${_adminUsers.length} of ${_adminTotal} users</div>`
+        : '';
+
+    const rows = _adminUsers.map(u => `
         <div class="admin-user-row" data-uid="${u.id}">
             <div class="admin-user-info">
                 <div class="admin-user-name" style="display:flex;align-items:center;gap:6px">${renderAvatar(u.avatarData, u.displayName, 24)} ${escapeHtml(u.displayName || "\u2014")} ${roleBadge(u.role)}</div>
@@ -4083,6 +4265,12 @@ function renderAdminUserList() {
         </div>
     `).join("");
 
+    const sentinel = _adminHasMore
+        ? `<div id="admin-load-more" style="text-align:center;padding:20px;opacity:0.5">${_adminLoading ? 'Loading...' : ''}</div>`
+        : '';
+
+    list.innerHTML = countLabel + rows + sentinel;
+
     list.querySelectorAll(".admin-user-row").forEach(row => {
         row.onclick = () => {
             const uid = parseInt(row.dataset.uid);
@@ -4091,6 +4279,17 @@ function renderAdminUserList() {
             renderAdmin();
         };
     });
+
+    const sentinelEl = document.getElementById("admin-load-more");
+    if (sentinelEl) {
+        _adminObserver = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !_adminLoading && _adminHasMore) {
+                _adminPage++;
+                loadAdminUsers({ append: true });
+            }
+        });
+        _adminObserver.observe(sentinelEl);
+    }
 }
 
 function renderAdminUserDetail(overlay) {
@@ -4107,6 +4306,18 @@ function renderAdminUserDetail(overlay) {
             <h2 class="menu-title" style="color:${accent}">${escapeHtml(u.displayName || "User #" + u.id)}</h2>
         </div>
         <div class="menu-scroll">
+            <div class="menu-setting" style="display:flex;align-items:center;gap:14px;padding:12px">
+                <div id="admin-profile-avatar" style="position:relative;cursor:pointer;flex-shrink:0" title="Change avatar">
+                    ${renderAvatar(u.avatarData, u.displayName, 60)}
+                    <div style="position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;border-radius:50%;background:${accent};display:flex;align-items:center;justify-content:center">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </div>
+                </div>
+                <div style="flex:1;min-width:0;display:flex;gap:6px;align-items:center">
+                    <input type="text" id="admin-profile-name" class="menu-setting-input" value="${escapeHtml(u.displayName || "")}" maxlength="20" placeholder="Display name" style="flex:1;min-width:0;padding:8px 10px;font-size:15px">
+                    <button class="menu-setting-btn" id="admin-save-name" style="background:${accent};color:#000;padding:8px 14px;font-size:13px;font-weight:700;white-space:nowrap;flex-shrink:0">Save</button>
+                </div>
+            </div>
             <div class="menu-setting">
                 <div class="admin-detail-field">
                     <label>Role</label>
@@ -4153,6 +4364,39 @@ function renderAdminUserDetail(overlay) {
         renderAdmin();
     };
 
+    document.getElementById("admin-profile-avatar").onclick = () => {
+        renderAvatarEditor({
+            targetUser: { displayName: u.displayName, avatarData: u.avatarData },
+            onSave: async (avatarData) => {
+                const res = await fetch("/api/admin/users/" + u.id + "/profile", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                    body: JSON.stringify({ avatarData: avatarData }),
+                });
+                if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || "Failed"); }
+                const data = await res.json();
+                u.avatarData = data.avatarData ?? data.AvatarData ?? avatarData;
+            },
+            onClose: () => { renderAdmin(); },
+        });
+    };
+
+    document.getElementById("admin-save-name").onclick = async () => {
+        const name = document.getElementById("admin-profile-name").value.trim();
+        if (name.length < 3 || name.length > 20) { showToast("Name must be 3-20 characters", "#ff8888"); return; }
+        try {
+            const res = await fetch("/api/admin/users/" + u.id + "/profile", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                body: JSON.stringify({ displayName: name }),
+            });
+            if (!res.ok) { const d = await res.json().catch(() => ({})); showToast(d.error || "Failed", "#ff8888"); return; }
+            u.displayName = name;
+            showToast("Name saved");
+            renderAdmin();
+        } catch (err) { showToast("Failed", "#ff8888"); }
+    };
+
     document.getElementById("admin-role-select").onchange = async (e) => {
         try {
             await fetch("/api/admin/users/" + u.id + "/role", {
@@ -4193,7 +4437,7 @@ function renderAdminUserDetail(overlay) {
     };
 
     document.getElementById("admin-delete-user").onclick = async () => {
-        if (!confirm("Delete " + (u.displayName || "User #" + u.id) + "? This cannot be undone.")) return;
+        if (!confirm("Delete " + (u.displayName || "User #" + u.id) + "? All progress, scores, and data for this user will be permanently removed. This cannot be undone.")) return;
         try {
             const res = await fetch("/api/admin/users/" + u.id, {
                 method: "DELETE",
@@ -4597,6 +4841,9 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDD04", title: "Sync Across Devices", body: "Sign in with Google or Microsoft in Settings to save your progress to the cloud. Switch phones, play on your tablet \u2014 your progress follows you automatically!" },
     { icon: "\uD83C\uDFC6", title: "Expertise & Leaderboard", body: "Your Expertise score on the home screen tracks every coin you\u2019ve ever earned \u2014 it only goes up! Tap it to open the leaderboard and compete with other players. Rank by levels completed or total points, and filter by this month or all time. Opt in or out in Settings." },
     { icon: "\uD83D\uDCF1", title: "Play Anywhere", body: "WordPlay works offline! Install it to your home screen for a full app experience \u2014 no app store needed. Your progress is always saved locally." },
+    { icon: "\uD83D\uDE00", title: "Avatar", body: "Personalize your profile with a custom avatar! Open Settings and tap the avatar circle next to your name. Choose an emoji, upload an image, or take a photo with your camera. Your avatar appears on the leaderboard so other players can recognize you." },
+    { icon: "\u2709\uFE0F", title: "Contact Support", body: "Need help or want to report a bug? Open Settings and tap <b>Contact Support</b>. This opens your email app with a pre-filled message to the WordPlay team. Include as much detail as you can \u2014 we read every message!" },
+    { icon: "\uD83D\uDDD1\uFE0F", title: "Account & Uninstall", body: "<b>Delete Account</b> \u2014 Open Settings, scroll to your account section, and tap <b>Delete Account</b>. This permanently removes your account, progress, coins, and scores from the server. This cannot be undone.<br><br><b>Uninstall App</b> \u2014 In Settings, scroll to the App section and tap <b>Uninstall App</b>. This clears all local data (cached levels, service workers, saved preferences) and gives you instructions to remove the app from your device. Uninstalling does not delete your server account \u2014 use Delete Account first if you want to remove everything." },
 ];
 
 function renderGuide() {
@@ -4931,6 +5178,41 @@ function escapeHtml(str) {
 }
 
 // ---- DISPLAY NAME PROMPT ----
+function renderProfileEditChooser() {
+    let overlay = document.getElementById("profile-chooser-overlay");
+    if (overlay) overlay.remove();
+
+    overlay = document.createElement("div");
+    overlay.id = "profile-chooser-overlay";
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+    document.getElementById("app").appendChild(overlay);
+
+    overlay.innerHTML = `
+        <div class="modal-box" style="max-width:280px">
+            <h3 style="color:${theme.accent};margin-bottom:16px">Edit Profile</h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+                <button id="profile-choose-avatar" class="menu-setting-btn" style="padding:12px;font-size:14px;background:rgba(255,255,255,0.1);color:${theme.text};border:1px solid ${theme.accent}40;border-radius:8px">Change Avatar</button>
+                <button id="profile-choose-name" class="menu-setting-btn" style="padding:12px;font-size:14px;background:rgba(255,255,255,0.1);color:${theme.text};border:1px solid ${theme.accent}40;border-radius:8px">Change Name</button>
+            </div>
+        </div>
+    `;
+
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+
+    document.getElementById("profile-choose-avatar").onclick = () => {
+        overlay.remove();
+        renderAvatarEditor();
+    };
+
+    document.getElementById("profile-choose-name").onclick = () => {
+        overlay.remove();
+        renderDisplayNamePrompt();
+    };
+}
+
 function renderDisplayNamePrompt() {
     let overlay = document.getElementById("name-prompt-overlay");
     if (overlay) overlay.remove();
@@ -4994,11 +5276,12 @@ function renderDisplayNamePrompt() {
 }
 
 // ---- AVATAR EDITOR ----
-function renderAvatarEditor() {
+function renderAvatarEditor(options) {
+    options = options || {};
     let overlay = document.getElementById("avatar-editor-overlay");
     if (overlay) overlay.remove();
 
-    const currentUser = typeof getUser === "function" ? getUser() : null;
+    const currentUser = options.targetUser || (typeof getUser === "function" ? getUser() : null);
     const accent = theme.accent;
     let selectedTab = "emoji";
     let selectedEmoji = null;
@@ -5024,23 +5307,14 @@ function renderAvatarEditor() {
     function closeEditor() {
         cleanup();
         overlay.remove();
-        state.showMenu = true;
-        renderMenu();
+        if (options.onClose) { options.onClose(); }
+        else { state.showMenu = true; renderMenu(); }
     }
 
     function render() {
         cleanup();
 
-        let previewHtml;
-        if (selectedEmoji) {
-            previewHtml = renderAvatar("emoji:" + selectedEmoji, currentUser?.displayName, 60);
-        } else if (currentUser && currentUser.avatarData && currentUser.avatarData.startsWith("data:image")) {
-            previewHtml = renderAvatar(currentUser.avatarData, currentUser?.displayName, 60);
-        } else {
-            previewHtml = renderAvatar(null, currentUser?.displayName, 60);
-        }
-
-        let content = '<div style="text-align:center;margin-bottom:12px">' + previewHtml + '</div>';
+        let content = '';
 
         content += '<div class="avatar-editor-tabs" style="--tab-accent:' + accent + '">';
         content += '<button class="avatar-editor-tab' + (selectedTab === "emoji" ? " active" : "") + '" data-tab="emoji">Presets</button>';
@@ -5097,8 +5371,6 @@ function renderAvatarEditor() {
                 selectedEmoji = opt.dataset.emoji;
                 overlay.querySelectorAll(".avatar-emoji-option").forEach(function(o) { o.classList.remove("selected"); });
                 opt.classList.add("selected");
-                var pc = overlay.querySelector('.modal-box > div:first-child');
-                if (pc) pc.innerHTML = renderAvatar("emoji:" + selectedEmoji, currentUser?.displayName, 60);
             };
         });
 
@@ -5111,7 +5383,8 @@ function renderAvatarEditor() {
         if (removeBtn) {
             removeBtn.onclick = async function() {
                 try {
-                    await deleteAvatar();
+                    if (options.onSave) { await options.onSave(null); }
+                    else { await deleteAvatar(); }
                     showToast("Avatar removed");
                     closeEditor();
                 } catch (e) { showToast("Failed to remove", "#ff8888"); }
@@ -5133,7 +5406,8 @@ function renderAvatarEditor() {
         }
         if (!avatarData) { showToast("Select an avatar first", "#ff8888"); return; }
         try {
-            await setAvatar(avatarData);
+            if (options.onSave) { await options.onSave(avatarData); }
+            else { await setAvatar(avatarData); }
             showToast("Avatar saved!");
             closeEditor();
         } catch (e) { showToast(e.message || "Failed to save", "#ff8888"); }
