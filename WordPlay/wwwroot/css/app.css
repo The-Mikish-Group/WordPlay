@@ -1502,6 +1502,112 @@ html, body {
     border: 2px solid rgba(255,255,255,0.15);
 }
 
+.avatar-editor-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 2px;
+}
+
+.avatar-editor-tab {
+    flex: 1;
+    padding: 8px 4px;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.4);
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.avatar-editor-tab.active {
+    background: var(--tab-accent, #f4a535);
+    color: #000;
+}
+
+.avatar-emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 4px;
+}
+
+.avatar-emoji-option {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+}
+
+.avatar-emoji-option:active {
+    transform: scale(0.92);
+}
+
+.avatar-emoji-option.selected {
+    border-color: var(--tab-accent, #f4a535);
+    box-shadow: 0 0 12px rgba(244,165,53,0.3);
+}
+
+.avatar-cropper-container {
+    width: 100%;
+    max-height: 250px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #000;
+    margin-bottom: 12px;
+}
+
+.avatar-cropper-container img {
+    display: block;
+    max-width: 100%;
+}
+
+.avatar-preview-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 12px 0;
+}
+
+.avatar-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+    justify-content: center;
+}
+
+.avatar-zoom-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.avatar-zoom-slider {
+    flex: 1;
+    max-width: 140px;
+    accent-color: var(--tab-accent, #f4a535);
+}
+
 .lb-name {
     flex: 1;
     font-size: 15px;

@@ -3241,6 +3241,10 @@ function renderMenu() {
         const user = getUser();
         html += `
             <div class="menu-setting" style="text-align:center">
+                <div id="menu-avatar-edit" style="position:relative;display:inline-block;cursor:pointer;margin-bottom:8px">
+                    ${renderAvatar(user.avatarData, user.displayName, 60)}
+                    <div style="position:absolute;bottom:-2px;right:-2px;background:${theme.accent};border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid #140f1e">✏️</div>
+                </div>
                 <div id="menu-display-name" style="font-size:15px;margin-bottom:2px;cursor:pointer">${escapeHtml(user.displayName || "Player")} <span style="font-size:11px">✏️</span></div>
                 <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
                     <button class="menu-setting-btn" id="menu-signout-btn" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);flex:1;padding:8px 0;font-size:13px">Sign Out</button>
@@ -3580,6 +3584,14 @@ function renderMenu() {
             state.showMenu = false;
             renderMenu();
             renderDisplayNamePrompt();
+        };
+    }
+    const avatarEditEl = document.getElementById("menu-avatar-edit");
+    if (avatarEditEl) {
+        avatarEditEl.onclick = () => {
+            state.showMenu = false;
+            renderMenu();
+            renderAvatarEditor();
         };
     }
     const lbCheckbox = document.getElementById("menu-lb-checkbox");
@@ -4979,6 +4991,308 @@ function renderDisplayNamePrompt() {
     });
 
     input.focus();
+}
+
+// ---- AVATAR EDITOR ----
+function renderAvatarEditor() {
+    let overlay = document.getElementById("avatar-editor-overlay");
+    if (overlay) overlay.remove();
+
+    const currentUser = typeof getUser === "function" ? getUser() : null;
+    const accent = theme.accent;
+    let selectedTab = "emoji";
+    let selectedEmoji = null;
+    let cropper = null;
+    let cameraStream = null;
+    let cropperReady = false;
+
+    if (currentUser && currentUser.avatarData && currentUser.avatarData.startsWith("emoji:")) {
+        selectedEmoji = currentUser.avatarData.substring(6);
+    }
+
+    overlay = document.createElement("div");
+    overlay.id = "avatar-editor-overlay";
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+    document.getElementById("app").appendChild(overlay);
+
+    function cleanup() {
+        if (cropper) { cropper.destroy(); cropper = null; cropperReady = false; }
+        if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+    }
+
+    function closeEditor() {
+        cleanup();
+        overlay.remove();
+        state.showMenu = true;
+        renderMenu();
+    }
+
+    function render() {
+        cleanup();
+
+        let previewHtml;
+        if (selectedEmoji) {
+            previewHtml = renderAvatar("emoji:" + selectedEmoji, currentUser?.displayName, 60);
+        } else if (currentUser && currentUser.avatarData && currentUser.avatarData.startsWith("data:image")) {
+            previewHtml = renderAvatar(currentUser.avatarData, currentUser?.displayName, 60);
+        } else {
+            previewHtml = renderAvatar(null, currentUser?.displayName, 60);
+        }
+
+        let content = '<div style="text-align:center;margin-bottom:12px">' + previewHtml + '</div>';
+
+        content += '<div class="avatar-editor-tabs" style="--tab-accent:' + accent + '">';
+        content += '<button class="avatar-editor-tab' + (selectedTab === "emoji" ? " active" : "") + '" data-tab="emoji">Presets</button>';
+        content += '<button class="avatar-editor-tab' + (selectedTab === "upload" ? " active" : "") + '" data-tab="upload">Upload</button>';
+        content += '<button class="avatar-editor-tab' + (selectedTab === "camera" ? " active" : "") + '" data-tab="camera">Camera</button>';
+        content += '</div>';
+
+        if (selectedTab === "emoji") {
+            content += '<div class="avatar-emoji-grid">';
+            Object.keys(AVATAR_EMOJI).forEach(function(key) {
+                content += '<div class="avatar-emoji-option' + (selectedEmoji === key ? ' selected' : '') + '" data-emoji="' + key + '" style="background:' + getAvatarColor(currentUser?.displayName) + ';--tab-accent:' + accent + '">' + AVATAR_EMOJI[key] + '</div>';
+            });
+            content += '</div>';
+        } else if (selectedTab === "upload") {
+            content += '<div id="avatar-upload-area" style="text-align:center;padding:16px 0">';
+            content += '<div id="avatar-cropper-wrap" style="display:none"><div class="avatar-cropper-container"><img id="avatar-crop-img"></div>';
+            content += '<div class="avatar-zoom-controls"><button class="avatar-zoom-btn" id="avatar-zoom-out">\u2212</button><input type="range" id="avatar-zoom-slider" class="avatar-zoom-slider" min="0.1" max="3" step="0.05" value="1"><button class="avatar-zoom-btn" id="avatar-zoom-in">+</button></div>';
+            content += '<div class="avatar-preview-row"><span style="opacity:0.5;font-size:12px">Preview:</span><div id="avatar-crop-preview" style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid ' + accent + '"></div></div></div>';
+            content += '<label style="display:inline-block;padding:10px 20px;background:' + accent + ';color:#000;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px">Choose Photo<input type="file" id="avatar-file-input" accept="image/jpeg,image/png,image/webp" style="display:none"></label>';
+            content += '<div style="font-size:11px;opacity:0.4;margin-top:8px">JPEG, PNG or WebP \u00b7 Max 5MB</div>';
+            content += '</div>';
+        } else if (selectedTab === "camera") {
+            content += '<div id="avatar-camera-area" style="text-align:center;padding:8px 0">';
+            content += '<div id="avatar-camera-preview" style="width:100%;max-height:250px;border-radius:12px;overflow:hidden;background:#000;margin-bottom:8px"><video id="avatar-camera-video" autoplay playsinline style="width:100%;display:block;transform:scaleX(-1)"></video></div>';
+            content += '<div style="display:flex;gap:8px;justify-content:center;margin:8px 0">';
+            content += '<button id="avatar-camera-capture" class="menu-setting-btn" style="background:' + accent + ';color:#000;padding:10px 24px;font-size:14px">Capture</button>';
+            content += '<button id="avatar-camera-flip" class="menu-setting-btn" style="background:rgba(255,255,255,0.1);color:#fff;padding:10px 16px;font-size:14px">Flip</button>';
+            content += '</div>';
+            content += '<div id="avatar-camera-cropper-wrap" style="display:none"><div class="avatar-cropper-container"><img id="avatar-camera-crop-img"></div>';
+            content += '<div class="avatar-zoom-controls"><button class="avatar-zoom-btn" id="avatar-cam-zoom-out">\u2212</button><input type="range" id="avatar-cam-zoom-slider" class="avatar-zoom-slider" min="0.1" max="3" step="0.05" value="1"><button class="avatar-zoom-btn" id="avatar-cam-zoom-in">+</button></div>';
+            content += '<div class="avatar-preview-row"><span style="opacity:0.5;font-size:12px">Preview:</span><div id="avatar-cam-crop-preview" style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid ' + accent + '"></div></div></div>';
+            content += '</div>';
+        }
+
+        content += '<div style="display:flex;gap:8px;margin-top:12px">';
+        if (currentUser && currentUser.avatarData) {
+            content += '<button id="avatar-remove-btn" class="menu-setting-btn" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);flex:0 0 auto;padding:8px 12px;font-size:13px">Remove</button>';
+        }
+        content += '<button id="avatar-cancel-btn" class="menu-setting-btn" style="background:rgba(255,255,255,0.08);color:#fff;flex:1;padding:8px 0;font-size:13px">Cancel</button>';
+        content += '<button id="avatar-save-btn" class="menu-setting-btn" style="background:' + accent + ';color:#000;flex:1;padding:8px 0;font-size:13px;font-weight:700">Save</button>';
+        content += '</div>';
+
+        overlay.innerHTML = '<div class="modal-box" style="max-width:340px;max-height:90vh;overflow-y:auto">' +
+            '<h3 style="color:' + accent + ';margin-bottom:12px">Choose Avatar</h3>' + content + '</div>';
+
+        // Wire tabs
+        overlay.querySelectorAll(".avatar-editor-tab").forEach(function(btn) {
+            btn.onclick = function() { selectedTab = btn.dataset.tab; render(); initTabContent(); };
+        });
+
+        // Wire emoji
+        overlay.querySelectorAll(".avatar-emoji-option").forEach(function(opt) {
+            opt.onclick = function() {
+                selectedEmoji = opt.dataset.emoji;
+                overlay.querySelectorAll(".avatar-emoji-option").forEach(function(o) { o.classList.remove("selected"); });
+                opt.classList.add("selected");
+                var pc = overlay.querySelector('.modal-box > div:first-child');
+                if (pc) pc.innerHTML = renderAvatar("emoji:" + selectedEmoji, currentUser?.displayName, 60);
+            };
+        });
+
+        // Wire cancel
+        var cancelBtn = document.getElementById("avatar-cancel-btn");
+        if (cancelBtn) cancelBtn.onclick = closeEditor;
+
+        // Wire remove
+        var removeBtn = document.getElementById("avatar-remove-btn");
+        if (removeBtn) {
+            removeBtn.onclick = async function() {
+                try {
+                    await deleteAvatar();
+                    showToast("Avatar removed");
+                    closeEditor();
+                } catch (e) { showToast("Failed to remove", "#ff8888"); }
+            };
+        }
+
+        // Wire save
+        var saveBtn = document.getElementById("avatar-save-btn");
+        if (saveBtn) saveBtn.onclick = saveAvatar;
+    }
+
+    async function saveAvatar() {
+        var avatarData = null;
+        if (selectedTab === "emoji" && selectedEmoji) {
+            avatarData = "emoji:" + selectedEmoji;
+        } else if ((selectedTab === "upload" || selectedTab === "camera") && cropper && cropperReady) {
+            var canvas = cropper.getCroppedCanvas({ width: 256, height: 256, imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
+            avatarData = canvas.toDataURL('image/jpeg', 0.85);
+        }
+        if (!avatarData) { showToast("Select an avatar first", "#ff8888"); return; }
+        try {
+            await setAvatar(avatarData);
+            showToast("Avatar saved!");
+            closeEditor();
+        } catch (e) { showToast(e.message || "Failed to save", "#ff8888"); }
+    }
+
+    function initTabContent() {
+        if (selectedTab === "upload") initUploadTab();
+        if (selectedTab === "camera") initCameraTab();
+    }
+
+    function initUploadTab() {
+        var fileInput = document.getElementById("avatar-file-input");
+        if (!fileInput) return;
+        fileInput.onchange = function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) { showToast("Image too large (max 5MB)", "#ff8888"); return; }
+            var reader = new FileReader();
+            reader.onload = function(ev) { loadImageIntoCropper(ev.target.result, "avatar-crop-img", "avatar-cropper-wrap", "avatar-crop-preview", "avatar-zoom-slider", "avatar-zoom-in", "avatar-zoom-out"); };
+            reader.readAsDataURL(file);
+        };
+    }
+
+    var currentFacingMode = 'user';
+
+    function initCameraTab() {
+        startCamera();
+        var captureBtn = document.getElementById("avatar-camera-capture");
+        var flipBtn = document.getElementById("avatar-camera-flip");
+        if (captureBtn) captureBtn.onclick = capturePhoto;
+        if (flipBtn) flipBtn.onclick = function() { currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user'; startCamera(); };
+    }
+
+    function startCamera() {
+        if (cameraStream) { cameraStream.getTracks().forEach(function(t) { t.stop(); }); }
+        var video = document.getElementById("avatar-camera-video");
+        if (!video) return;
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } })
+            .then(function(stream) { cameraStream = stream; video.srcObject = stream; })
+            .catch(function() { showToast("Camera not available", "#ff8888"); });
+    }
+
+    function capturePhoto() {
+        var video = document.getElementById("avatar-camera-video");
+        if (!video || !video.videoWidth) return;
+        var canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        var ctx = canvas.getContext('2d');
+        if (currentFacingMode === 'user') {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+        }
+        ctx.drawImage(video, 0, 0);
+        if (cameraStream) { cameraStream.getTracks().forEach(function(t) { t.stop(); }); cameraStream = null; }
+        var videoWrap = document.getElementById("avatar-camera-preview");
+        if (videoWrap) videoWrap.style.display = "none";
+        var captureBtn = document.getElementById("avatar-camera-capture");
+        var flipBtn = document.getElementById("avatar-camera-flip");
+        if (captureBtn) captureBtn.style.display = "none";
+        if (flipBtn) flipBtn.style.display = "none";
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        loadImageIntoCropper(dataUrl, "avatar-camera-crop-img", "avatar-camera-cropper-wrap", "avatar-cam-crop-preview", "avatar-cam-zoom-slider", "avatar-cam-zoom-in", "avatar-cam-zoom-out");
+    }
+
+    function loadImageIntoCropper(dataUrl, imgId, wrapId, previewId, sliderId, zoomInId, zoomOutId) {
+        var tempImg = new Image();
+        tempImg.onload = function() {
+            var maxDim = 2048;
+            var w = tempImg.width, h = tempImg.height;
+            if (w > maxDim || h > maxDim) {
+                var scale = maxDim / Math.max(w, h);
+                var c = document.createElement('canvas');
+                c.width = Math.round(w * scale);
+                c.height = Math.round(h * scale);
+                c.getContext('2d').drawImage(tempImg, 0, 0, c.width, c.height);
+                dataUrl = c.toDataURL('image/jpeg', 0.95);
+            }
+            initCropperInstance(dataUrl, imgId, wrapId, previewId, sliderId, zoomInId, zoomOutId);
+        };
+        tempImg.src = dataUrl;
+    }
+
+    function initCropperInstance(dataUrl, imgId, wrapId, previewId, sliderId, zoomInId, zoomOutId) {
+        if (!document.getElementById("cropperjs-css")) {
+            var link = document.createElement("link");
+            link.id = "cropperjs-css";
+            link.rel = "stylesheet";
+            link.href = "https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css";
+            document.head.appendChild(link);
+        }
+
+        function start() {
+            var wrap = document.getElementById(wrapId);
+            var img = document.getElementById(imgId);
+            if (!wrap || !img) return;
+            wrap.style.display = "block";
+            img.src = dataUrl;
+            if (cropper) cropper.destroy();
+            cropperReady = false;
+            cropper = new Cropper(img, {
+                aspectRatio: 1,
+                viewMode: 1,
+                dragMode: 'move',
+                cropBoxMovable: false,
+                cropBoxResizable: false,
+                minCropBoxWidth: 100,
+                minCropBoxHeight: 100,
+                checkOrientation: true,
+                zoomOnWheel: true,
+                wheelZoomRatio: 0.1,
+                zoomOnTouch: true,
+                ready: function() {
+                    cropperReady = true;
+                    updateCropPreview(previewId);
+                    // Apply circular mask
+                    var vb = wrap.querySelector('.cropper-view-box');
+                    var fc = wrap.querySelector('.cropper-face');
+                    if (vb) vb.style.borderRadius = '50%';
+                    if (fc) fc.style.borderRadius = '50%';
+                },
+                crop: function() { updateCropPreview(previewId); }
+            });
+
+            var slider = document.getElementById(sliderId);
+            var zoomIn = document.getElementById(zoomInId);
+            var zoomOut = document.getElementById(zoomOutId);
+            if (slider) slider.oninput = function() { if (cropper) cropper.zoomTo(parseFloat(slider.value)); };
+            if (zoomIn) zoomIn.onclick = function() { if (cropper) cropper.zoom(0.1); };
+            if (zoomOut) zoomOut.onclick = function() { if (cropper) cropper.zoom(-0.1); };
+        }
+
+        if (typeof Cropper === 'undefined') {
+            var script = document.createElement("script");
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js";
+            script.onload = start;
+            document.head.appendChild(script);
+        } else {
+            start();
+        }
+    }
+
+    function updateCropPreview(previewId) {
+        if (!cropper || !cropperReady) return;
+        try {
+            var canvas = cropper.getCroppedCanvas({ width: 60, height: 60, imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
+            var previewEl = document.getElementById(previewId);
+            if (previewEl && canvas) {
+                previewEl.innerHTML = '';
+                previewEl.appendChild(canvas);
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                canvas.style.borderRadius = '50%';
+            }
+        } catch (e) { /* cropper not ready yet */ }
+    }
+
+    render();
+    initTabContent();
 }
 
 // ============================================================
