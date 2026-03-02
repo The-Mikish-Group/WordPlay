@@ -4858,14 +4858,12 @@ function renderLeaderboard() {
                 const meRow = document.getElementById("lb-me-row");
                 const sticky = list.querySelector(".lb-sticky-top");
                 if (meRow && sticky) {
-                    const listRect = list.getBoundingClientRect();
-                    const meRect = meRow.getBoundingClientRect();
-                    const stickyH = sticky.getBoundingClientRect().height;
-                    const visibleTop = listRect.top + stickyH;
-                    const visibleBottom = listRect.bottom;
-                    // Only scroll if the user's row isn't already visible below the sticky section
-                    if (meRect.top < visibleTop || meRect.bottom > visibleBottom) {
-                        list.scrollTop += meRect.top - visibleTop - 8;
+                    const stickyBottom = sticky.getBoundingClientRect().bottom;
+                    const meTop = meRow.getBoundingClientRect().top;
+                    // Only scroll down if user row is far enough below the sticky section
+                    const scrollNeeded = meTop - stickyBottom - 12;
+                    if (scrollNeeded > 4) {
+                        list.scrollTop += scrollNeeded;
                     }
                 }
             }, 350);
