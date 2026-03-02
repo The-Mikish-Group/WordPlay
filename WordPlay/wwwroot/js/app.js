@@ -4854,19 +4854,19 @@ function renderLeaderboard() {
             }
 
             // Auto-scroll: position user's row just below the sticky top-3
-            setTimeout(() => {
+            // Use rAF to set scroll before first paint (avoids visible flash)
+            requestAnimationFrame(() => {
                 const meRow = document.getElementById("lb-me-row");
                 const sticky = list.querySelector(".lb-sticky-top");
                 if (meRow && sticky) {
                     const stickyBottom = sticky.getBoundingClientRect().bottom;
                     const meTop = meRow.getBoundingClientRect().top;
-                    // Only scroll down if user row is far enough below the sticky section
                     const scrollNeeded = meTop - stickyBottom - 12;
                     if (scrollNeeded > 4) {
                         list.scrollTop += scrollNeeded;
                     }
                 }
-            }, 350);
+            });
 
             // Visibility toggle handler
             const visCb = document.getElementById("lb-vis-cb");
