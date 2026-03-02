@@ -1482,8 +1482,9 @@ html, body {
 }
 
 .lb-rank-top {
-    font-size: 22px;
+    font-size: 30px;
     color: #fff;
+    width: 36px;
 }
 
 .lb-avatar {
@@ -1537,6 +1538,17 @@ html, body {
     z-index: 2;
     background: linear-gradient(180deg, #1a0a30 0%, #150826 100%);
     padding-bottom: 4px;
+}
+
+.lb-sticky-top::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #1a0a30;
+    z-index: 3;
 }
 
 .lb-divider {
