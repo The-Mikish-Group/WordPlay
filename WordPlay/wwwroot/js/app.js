@@ -4853,11 +4853,12 @@ function renderLeaderboard() {
                 list.innerHTML = topHtml + restHtml + visToggle;
             }
 
-            // Auto-scroll: show 3 competitors above the user at the top of the scrollable area
+            // Auto-scroll: position user's row just below the sticky top-3
             setTimeout(() => {
-                const anchor = document.getElementById("lb-scroll-anchor");
-                if (anchor) {
-                    anchor.scrollIntoView({ block: "start", behavior: "smooth" });
+                const anchor = document.getElementById("lb-scroll-anchor") || document.getElementById("lb-me-row");
+                const sticky = list.querySelector(".lb-sticky-top");
+                if (anchor && sticky) {
+                    list.scrollTop = anchor.offsetTop - sticky.offsetHeight - 8;
                 }
             }, 350);
 
