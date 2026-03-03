@@ -13,7 +13,6 @@ let _maxLevel = 0;
 let _useBuiltIn = false;
 
 // ---- THEME ASSIGNMENT ----
-// Semantic mapping of group names to visually matching themes
 const THEME_LIST = [
     "sunrise", "forest", "canyon", "sky",
     "ocean", "lavender", "autumn", "midnight",
@@ -22,79 +21,52 @@ const THEME_LIST = [
 ];
 
 const GROUP_THEMES = {
-    // sunrise — warm gold/orange/purple gradients
-    "Sunrise": "sunrise", "Vista": "sunrise", "Bluff": "sunrise",
-    // forest — deep greens
-    "Forest": "forest", "Woodland": "forest", "Foliage": "forest",
-    "Jungle": "forest", "Wildwood": "forest", "Rain forest": "forest", "Green": "forest",
-    // canyon — warm brown/terracotta
-    "Canyon": "canyon", "Ravine": "canyon", "Stone": "canyon",
-    "Passage": "canyon", "Formation": "canyon",
-    // sky — blue sky tones
-    "Sky": "sky", "Air": "sky", "Cloud": "sky", "Wind": "sky",
-    // ocean — deep teal/cyan
-    "Ocean": "ocean", "High seas": "ocean", "Tide": "ocean", "Lake": "ocean",
-    // lavender — purple florals
-    "Flora": "lavender", "Bloom": "lavender", "Flourish": "lavender", "Botanical": "lavender",
-    // autumn — warm orange/red-brown
-    "Autumn": "autumn", "Fall": "autumn", "Marsh": "autumn", "Woods": "autumn",
-    // midnight — deep indigo/cosmic
-    "Celestial": "midnight", "Galaxy": "midnight", "Astral": "midnight",
-    "Sublime": "midnight", "Starlight": "midnight", "Majesty": "midnight",
-    // arctic — icy blue
-    "Arctic": "arctic", "Ice": "arctic", "Frost": "arctic",
-    "Frigid": "arctic", "Winter": "arctic",
-    // volcano — fiery red
-    "Tower": "volcano", "Crest": "volcano", "Bare": "volcano",
-    // meadow — bright yellow-green
-    "Meadow": "meadow", "Rows": "meadow", "Field": "meadow", "Thrive": "meadow",
-    // storm — grey-blue moody
-    "Mist": "storm", "Fog": "storm", "Timberland": "storm",
-    "Hills": "storm", "Placid": "storm",
-    // coral — warm pink/coastal
-    "Beach": "coral", "Shore": "coral", "Coast": "coral",
-    "Lagoon": "coral", "Strand": "coral", "Tropic": "coral",
-    // aurora — green/teal glow
-    "Aurora": "aurora", "Reflect": "aurora", "Tarn": "aurora",
-    // desert — sandy gold/brown
-    "Desert": "desert", "Arid": "desert", "Outback": "desert",
-    "Parched": "desert", "West": "desert",
-    // twilight — purple dusk/mountain
-    "Twilight": "twilight", "Cliff": "twilight", "Peak": "twilight",
-    "Summit": "twilight", "Mountain": "twilight", "Basin": "twilight",
-    "View": "twilight", "Precipice": "twilight",
+    // sunrise
+    "Daybreak": "sunrise", "Kindling": "sunrise", "Solstice": "sunrise", "Radiance": "sunrise", "Ember": "sunrise",
+    // forest
+    "Thicket": "forest", "Canopy": "forest", "Glade": "forest", "Fernwood": "forest", "Mossglen": "forest",
+    // canyon
+    "Gorge": "canyon", "Sandstone": "canyon", "Terrace": "canyon", "Bluffside": "canyon", "Escarpment": "canyon",
+    // sky
+    "Cirrus": "sky", "Zephyr": "sky", "Altair": "sky", "Windswept": "sky", "Loftward": "sky",
+    // ocean
+    "Seagrass": "ocean", "Riptide": "ocean", "Shallows": "ocean", "Undertow": "ocean", "Mariner": "ocean",
+    // lavender
+    "Wisteria": "lavender", "Orchid": "lavender", "Petal": "lavender", "Thistle": "lavender", "Foxglove": "lavender",
+    // autumn
+    "Copper": "autumn", "Harvest": "autumn", "Russet": "autumn", "Bracken": "autumn", "Goldenrod": "autumn",
+    // midnight
+    "Nebula": "midnight", "Eclipse": "midnight", "Cosmos": "midnight", "Eventide": "midnight", "Stardust": "midnight",
+    // arctic
+    "Permafrost": "arctic", "Glacier": "arctic", "Snowfield": "arctic", "Tundra": "arctic", "Icefall": "arctic",
+    // volcano
+    "Caldera": "volcano", "Obsidian": "volcano", "Magma": "volcano", "Basalt": "volcano", "Ashfall": "volcano",
+    // meadow
+    "Clover": "meadow", "Hayfield": "meadow", "Prairie": "meadow", "Pasture": "meadow", "Wildflower": "meadow",
+    // storm
+    "Nimbus": "storm", "Squall": "storm", "Overcast": "storm", "Tempest": "storm", "Cloudburst": "storm",
+    // coral
+    "Atoll": "coral", "Sandbar": "coral", "Tideline": "coral", "Driftwood": "coral", "Saltmarsh": "coral",
+    // aurora
+    "Boreal": "aurora", "Glimmer": "aurora", "Phosphor": "aurora", "Shimmer": "aurora", "Verdant": "aurora",
+    // desert
+    "Mirage": "desert", "Sagebrush": "desert", "Dustbowl": "desert", "Badlands": "desert", "Mesa": "desert",
+    // twilight
+    "Pinnacle": "twilight", "Ridgeline": "twilight", "Timberline": "twilight", "Cairn": "twilight", "Alpenglow": "twilight",
 };
 
 function getThemeForGroup(group) {
     return GROUP_THEMES[group] || "sunrise";
 }
 
-// ---- MASTER/UNKNOWN SYNTHETIC NAMING ----
-// Levels 6002–156000 are all "Master/Unknown" in the scraped data.
-// Give them rotating themed names so the header and visuals change.
-const _MASTER_START = 6002;
-const _MASTER_BAND = 500; // levels per synthetic group
-const _SYNTH_GROUPS = [
-    { group: "Horizon",  packs: ["Dawn", "Glow", "Crest", "Vista", "Blaze"] },
-    { group: "Depths",   packs: ["Abyss", "Coral", "Tide", "Drift", "Surge"] },
-    { group: "Summit",   packs: ["Ridge", "Peak", "Ascent", "Spire", "Apex"] },
-    { group: "Twilight", packs: ["Dusk", "Ember", "Shade", "Haze", "Veil"] },
-];
-
-function _synthNameForLevel(levelNum) {
-    const offset = levelNum - _MASTER_START;
-    const bandIdx = Math.floor(offset / _MASTER_BAND);
-    const sg = _SYNTH_GROUPS[bandIdx % _SYNTH_GROUPS.length];
-    const packIdx = Math.floor((offset % _MASTER_BAND) / (_MASTER_BAND / sg.packs.length));
-    return { group: sg.group, pack: sg.packs[Math.min(packIdx, sg.packs.length - 1)] };
+// Theme cycles per pack (every 25 levels) through all 16 themes
+function getThemeForLevel(levelNum) {
+    const packIdx = Math.floor((levelNum - 1) / 25);
+    return THEME_LIST[packIdx % THEME_LIST.length];
 }
 
-function _synthThemeForLevel(levelNum) {
-    const offset = levelNum - _MASTER_START;
-    const bandIdx = Math.floor(offset / _MASTER_BAND);
-    const sg = _SYNTH_GROUPS[bandIdx % _SYNTH_GROUPS.length];
-    const packIdx = Math.floor((offset % _MASTER_BAND) / (_MASTER_BAND / sg.packs.length));
-    return THEME_LIST[packIdx % THEME_LIST.length];
+function getThemeForPackStart(packStart) {
+    return getThemeForLevel(packStart);
 }
 
 // ---- INITIALIZATION ----
@@ -104,7 +76,7 @@ async function initLevelLoader() {
         const resp = await fetch("data/chunk-manifest.json");
         if (!resp.ok) throw new Error("No manifest");
         _manifest = await resp.json();
-        
+
         // Load the level index (group/pack structure)
         const idxResp = await fetch("data/level-index.json");
         if (idxResp.ok) {
@@ -121,13 +93,13 @@ async function initLevelLoader() {
     } catch (e) {
         console.log("Level loader: No scraped data found, using built-in levels");
         _useBuiltIn = true;
-        
+
         // Fall back to built-in levels (from levels.js if it exists)
         if (typeof ALL_LEVELS !== "undefined" && ALL_LEVELS.length > 0) {
             _maxLevel = ALL_LEVELS.length;
             return true;
         }
-        
+
         console.error("No levels available! Run the scraper first.");
         return false;
     }
@@ -146,7 +118,7 @@ function findChunkForLevel(levelNum) {
 
 async function loadChunk(chunkInfo) {
     if (_chunkCache[chunkInfo.file]) return _chunkCache[chunkInfo.file];
-    
+
     try {
         const resp = await fetch("data/" + chunkInfo.file);
         if (!resp.ok) throw new Error(`Failed to load ${chunkInfo.file}`);
@@ -165,7 +137,7 @@ async function getLevel(levelNum) {
     // Built-in fallback
     if (_useBuiltIn) {
         if (typeof ALL_LEVELS !== "undefined" && levelNum >= 0 && levelNum < ALL_LEVELS.length) {
-            return ALL_LEVELS[levelNum]; // already in the old format
+            return ALL_LEVELS[levelNum];
         }
         return null;
     }
@@ -173,28 +145,22 @@ async function getLevel(levelNum) {
     // Dynamic loading
     const chunk = findChunkForLevel(levelNum);
     if (!chunk) return null;
-    
+
     const data = await loadChunk(chunk);
     if (!data || !data[levelNum]) return null;
-    
+
     const entry = data[levelNum];
     const [letters, words, group, pack] = entry;
-    const bonus = entry[4] || [];  // 5th element if present (backwards-compatible)
-
-    // Synthetic naming for the giant Master/Unknown range
-    const isMasterUnknown = group === "Master" && (pack === "Unknown" || levelNum >= _MASTER_START);
-    const displayGroup = isMasterUnknown ? _synthNameForLevel(levelNum).group : group;
-    const displayPack = isMasterUnknown ? _synthNameForLevel(levelNum).pack : pack;
-    const levelTheme = isMasterUnknown ? _synthThemeForLevel(levelNum) : getThemeForGroup(group);
+    const bonus = entry[4] || [];
 
     return {
         levelNumber: levelNum,
         letters: letters.toLowerCase(),
         words: words.map(w => w.toUpperCase()),
         bonus: bonus.map(w => w.toUpperCase()),
-        group: displayGroup,
-        pack: displayPack,
-        theme: levelTheme
+        group,
+        pack,
+        theme: getThemeForLevel(levelNum)
     };
 }
 
@@ -202,10 +168,10 @@ async function getLevel(levelNum) {
 // Preloads the current + next chunk so transitions are instant
 async function preloadAround(levelNum) {
     if (_useBuiltIn || !_manifest) return;
-    
+
     const chunk = findChunkForLevel(levelNum);
     if (chunk) await loadChunk(chunk);
-    
+
     // Also preload next chunk
     const nextChunk = findChunkForLevel(levelNum + CHUNK_SIZE);
     if (nextChunk) loadChunk(nextChunk); // fire and forget
@@ -221,28 +187,10 @@ function getLevelPacks() {
     if (!_levelIndex) return [];
     if (_cachedPacks) return _cachedPacks;
 
-    // Split the Master/Unknown mega-entry into synthetic packs of 100 levels
-    const packSize = _MASTER_BAND / _SYNTH_GROUPS[0].packs.length; // 100
-    const result = [];
-    for (const entry of _levelIndex) {
-        if (entry.group === "Master" && entry.pack === "Unknown") {
-            let lvStart = entry.start;
-            while (lvStart <= entry.end) {
-                const bandEnd = Math.min(lvStart + packSize - 1, entry.end);
-                const synth = _synthNameForLevel(lvStart);
-                result.push({ group: synth.group, pack: synth.pack, start: lvStart, end: bandEnd });
-                lvStart = bandEnd + 1;
-            }
-        } else {
-            result.push(entry);
-        }
-    }
-
-    _cachedPacks = result;
-    return result;
+    _cachedPacks = _levelIndex;
+    return _cachedPacks;
 }
 
 function getMaxLevel() {
     return _maxLevel;
 }
-

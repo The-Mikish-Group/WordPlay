@@ -250,11 +250,11 @@ function assignDailyCoinWord() {
 }
 
 // ---- MAP STATE ----
-let _mapExpandedPacks = {};       // { "group/pack": true }
+let _mapExpandedPacks = {};       // { "group/pack/start": true }
 let _mapAutoExpanded = false;     // only auto-expand the active pack once per open
 let _mapHasScrolled = false;      // only auto-scroll to current level on first render
 let _mapScrollTarget = null;      // pack key to scroll to after toggle
-const PACK_MAX_EXPANDABLE = 100;  // giant packs won't expand to show nodes
+let _mapSelectedGroup = null;     // null = show group list, string = show packs in that group
 
 // ---- BACKGROUND IMAGE MANIFEST ----
 let _bgManifest = null; // Set of available background image keys (e.g. "sunrise-rise")
@@ -391,19 +391,28 @@ function loadProgress() {
                 state.currentLevel = oldStart + oldIdx;
                 state.highestLevel = oldStart + (d.hl || 0);
             }
-            state.foundWords = d.fw || [];
-            state.bonusFound = d.bf || [];
+            // v4→v5 migration: levels were reshuffled, clear stale puzzle state
+            if (d.v && d.v < 5) {
+                state.foundWords = [];
+                state.bonusFound = [];
+                state.revealedCells = [];
+                state.inProgress = {};
+                state.standaloneFound = false;
+            } else {
+                state.foundWords = d.fw || [];
+                state.bonusFound = d.bf || [];
+                state.revealedCells = d.rc || [];
+                state.inProgress = d.ip || {};
+                state.standaloneFound = d.sf || false;
+            }
             state.coins = d.co ?? 50;
             state.bonusCounter = d.bc || 0;
-            state.revealedCells = d.rc || [];
             state.freeHints = Math.min(d.fh || 0, MAX_FREE_HINTS);
             state.freeTargets = Math.min(d.ft || 0, MAX_FREE_TARGETS);
             state.freeRockets = Math.min(d.fr || 0, MAX_FREE_ROCKETS);
             state.levelsCompleted = d.lc || 0;
-            state.inProgress = d.ip || {};
             state.lastDailyClaim = d.ldc || null;
             state.soundEnabled = d.se !== undefined ? d.se : true;
-            state.standaloneFound = d.sf || false;
             state.totalCoinsEarned = d.tce || 0;
             state.dailyPuzzle = d.dp || null;
             state.bonusPuzzle = d.bp || null;
@@ -428,7 +437,7 @@ function saveProgress() {
     try {
         saveInProgressState();
         localStorage.setItem("wordplay-save", JSON.stringify({
-            v: 4,  // format version
+            v: 5,  // format version
             cl: state.currentLevel,
             fw: state.foundWords,
             bf: state.bonusFound,
@@ -4660,51 +4669,159 @@ function renderAdminRabbits(overlay) {
 }
 
 // ---- LEVEL MAP ----
+// Multiple winding trail patterns (x%, y%) — cycle to keep scenes feeling fresh
+const TRAIL_PATTERNS = [
+    // Pattern 0: Classic S-curve, left start
+    [
+        [22, 3], [42, 6], [65, 9], [80, 13], [68, 17],
+        [45, 19], [22, 22], [15, 26], [32, 30], [55, 32],
+        [75, 35], [82, 39], [62, 42], [38, 44], [18, 47],
+        [15, 51], [35, 55], [55, 57], [75, 60], [78, 64],
+        [58, 67], [35, 69], [18, 73], [32, 77], [50, 80],
+    ],
+    // Pattern 1: Right start, wider meander
+    [
+        [78, 3], [60, 7], [38, 9], [20, 13], [15, 17],
+        [30, 21], [52, 23], [75, 26], [82, 30], [65, 34],
+        [42, 36], [20, 39], [15, 43], [35, 47], [58, 49],
+        [78, 52], [80, 56], [60, 60], [38, 62], [18, 66],
+        [22, 70], [45, 73], [68, 76], [75, 80], [50, 83],
+    ],
+    // Pattern 2: Zigzag down the center
+    [
+        [50, 3], [72, 7], [28, 11], [68, 15], [32, 19],
+        [65, 23], [35, 27], [62, 31], [38, 35], [60, 39],
+        [40, 43], [58, 47], [42, 51], [65, 55], [35, 59],
+        [70, 63], [30, 67], [62, 71], [38, 75], [55, 79],
+        [45, 83], [70, 87], [30, 91], [55, 94], [50, 97],
+    ],
+    // Pattern 3: Cascade from top-left
+    [
+        [15, 3], [35, 5], [55, 9], [75, 12], [82, 16],
+        [68, 20], [48, 22], [28, 25], [15, 29], [25, 33],
+        [48, 35], [70, 38], [82, 42], [65, 46], [42, 48],
+        [22, 51], [15, 55], [30, 59], [52, 61], [72, 64],
+        [80, 68], [62, 72], [40, 74], [20, 78], [38, 82],
+    ],
+    // Pattern 4: Tight switchbacks
+    [
+        [20, 3], [55, 5], [80, 8], [60, 12], [25, 15],
+        [15, 19], [45, 22], [78, 25], [72, 29], [38, 32],
+        [18, 35], [25, 39], [58, 42], [82, 45], [68, 49],
+        [35, 52], [15, 55], [28, 59], [60, 62], [80, 65],
+        [70, 69], [42, 72], [18, 75], [35, 79], [58, 83],
+    ],
+    // Pattern 5: River meander
+    [
+        [40, 3], [25, 7], [18, 11], [28, 15], [50, 18],
+        [72, 21], [82, 25], [70, 29], [50, 32], [30, 35],
+        [18, 39], [22, 43], [42, 46], [65, 49], [80, 53],
+        [75, 57], [55, 60], [32, 63], [18, 67], [25, 71],
+        [48, 74], [70, 77], [78, 81], [58, 85], [40, 88],
+    ],
+];
+
 function renderSnakeNodes(pack, accent) {
-    const cols = 5;
     const total = pack.end - pack.start + 1;
-    const rows = Math.ceil(total / cols);
-    let html = '';
-    for (let r = 0; r < rows; r++) {
-        const reverse = r % 2 === 1;
-        html += `<div class="map-snake-row${reverse ? ' reverse' : ''}">`;
-        const rowCount = Math.min(cols, total - r * cols);
-        for (let c = 0; c < rowCount; c++) {
-            const lvNum = pack.start + r * cols + c;
-            const isCompleted = lvNum < state.highestLevel;
-            const isCurrent = lvNum === state.currentLevel;
-            const isAvailable = lvNum <= state.highestLevel;
-            let cls = 'map-node';
-            if (isCompleted) cls += ' completed';
-            else if (isCurrent) cls += ' current';
-            else if (isAvailable) cls += ' available';
-            else cls += ' locked';
-            // Horizontal connector before this node (not on first of row)
-            if (c > 0) html += `<div class="map-hconnector" style="background:${isAvailable ? accent : 'rgba(255,255,255,0.1)'}"></div>`;
-            html += `<div class="${cls}" data-lv="${lvNum}" style="--accent:${accent}">`;
-            html += `<span class="map-node-num">${lvNum}</span>`;
-            html += `</div>`;
-        }
-        html += `</div>`;
-        // Vertical connector between rows
-        if (r < rows - 1) {
-            const nextRowFirst = pack.start + (r + 1) * cols;
-            const connectorDone = nextRowFirst <= state.highestLevel;
-            const side = r % 2 === 0 ? 'right' : 'left';
-            html += `<div class="map-vconnector ${side}" style="background:${connectorDone ? accent : 'rgba(255,255,255,0.1)'}"></div>`;
+    const bgKey = `${pack.group}-${pack.pack}`.toLowerCase().replace(/\s+/g, '-');
+    const hasBg = _bgManifest && _bgManifest.has(bgKey);
+
+    // Pick a trail pattern based on pack start level (cycles through 6 patterns)
+    const patIdx = Math.floor((pack.start - 1) / 25) % TRAIL_PATTERNS.length;
+    const trailCoords = TRAIL_PATTERNS[patIdx];
+
+    // Build SVG path through trail points (with padding so nodes aren't clipped)
+    const W = 300, H = 520;
+    const padX = 30, padY = 22;
+    const pts = [];
+    for (let i = 0; i < total && i < trailCoords.length; i++) {
+        pts.push({
+            x: padX + trailCoords[i][0] * (W - padX * 2) / 100,
+            y: padY + trailCoords[i][1] * (H - padY * 2) / 100
+        });
+    }
+
+    // Smooth path through points
+    let pathD = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+        const prev = pts[i - 1];
+        const cur = pts[i];
+        const cpx = (prev.x + cur.x) / 2;
+        const cpy = (prev.y + cur.y) / 2;
+        pathD += ` Q ${prev.x + (cpx - prev.x) * 0.3} ${cpy}, ${cpx} ${cpy}`;
+        pathD += ` Q ${cpx + (cur.x - cpx) * 0.7} ${cpy + (cur.y - cpy) * 0.5}, ${cur.x} ${cur.y}`;
+    }
+
+    // Build the trail as an SVG overlay on the bg image
+    let html = `<div class="map-trail" style="position:relative;width:100%;max-width:${W}px;margin:0 auto;height:${H}px;border-radius:16px;overflow:hidden">`;
+    if (hasBg) {
+        html += `<div style="position:absolute;inset:0;background:url('images/bg/${bgKey}.webp') center/cover no-repeat"></div>`;
+    }
+    html += `<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0.35) 0%,rgba(0,0,0,0.15) 40%,rgba(0,0,0,0.3) 100%)"></div>`;
+    html += `<svg viewBox="0 0 ${W} ${H}" style="position:absolute;inset:0;width:100%;height:100%">`;
+
+    // Draw path segments colored by progress
+    for (let i = 1; i < pts.length; i++) {
+        const prev = pts[i - 1];
+        const cur = pts[i];
+        const lvNum = pack.start + i;
+        const done = lvNum <= state.highestLevel;
+        const col = done ? accent : 'rgba(255,255,255,0.2)';
+        const cpx = (prev.x + cur.x) / 2;
+        const cpy = (prev.y + cur.y) / 2;
+        let seg = `M ${prev.x} ${prev.y}`;
+        seg += ` Q ${prev.x + (cpx - prev.x) * 0.3} ${cpy}, ${cpx} ${cpy}`;
+        seg += ` Q ${cpx + (cur.x - cpx) * 0.7} ${cpy + (cur.y - cpy) * 0.5}, ${cur.x} ${cur.y}`;
+        html += `<path d="${seg}" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${done ? 'none' : '6 4'}"/>`;
+    }
+
+    // Draw nodes as pill-shaped banners (adapts to digit count)
+    for (let i = 0; i < pts.length; i++) {
+        const lvNum = pack.start + i;
+        const isCompleted = lvNum < state.highestLevel;
+        const isCurrent = lvNum === state.currentLevel;
+        const isAvailable = lvNum <= state.highestLevel;
+        const p = pts[i];
+        const digits = String(lvNum).length;
+        const fs = digits > 5 ? 8 : digits > 4 ? 9 : 10;
+        const bh = isCurrent ? 20 : 18;
+        const bw = Math.max(28, digits * 8 + (isCurrent ? 10 : 6));
+        const rx = bh / 2;
+
+        if (isCompleted) {
+            html += `<rect x="${p.x - bw/2}" y="${p.y - bh/2}" width="${bw}" height="${bh}" rx="${rx}" fill="${accent}" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>`;
+            html += `<text x="${p.x}" y="${p.y + fs/3}" text-anchor="middle" fill="#000" font-size="${fs}" font-weight="700">${lvNum}</text>`;
+        } else if (isCurrent) {
+            html += `<rect x="${p.x - (bw+6)/2}" y="${p.y - (bh+6)/2}" width="${bw + 6}" height="${bh + 6}" rx="${(bh+6)/2}" fill="none" stroke="${accent}" stroke-width="2.5" opacity="0.4"><animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite"/></rect>`;
+            html += `<rect x="${p.x - bw/2}" y="${p.y - bh/2}" width="${bw}" height="${bh}" rx="${rx}" fill="rgba(0,0,0,0.5)" stroke="${accent}" stroke-width="2.5"/>`;
+            html += `<text x="${p.x}" y="${p.y + fs/3}" text-anchor="middle" fill="${accent}" font-size="${fs + 1}" font-weight="700">${lvNum}</text>`;
+        } else if (isAvailable) {
+            html += `<rect x="${p.x - bw/2}" y="${p.y - bh/2}" width="${bw}" height="${bh}" rx="${rx}" fill="rgba(0,0,0,0.4)" stroke="${accent}" stroke-width="1.5" opacity="0.7"/>`;
+            html += `<text x="${p.x}" y="${p.y + fs/3}" text-anchor="middle" fill="${accent}" font-size="${fs}" font-weight="600" opacity="0.7">${lvNum}</text>`;
+        } else {
+            html += `<rect x="${p.x - (bw-4)/2}" y="${p.y - (bh-4)/2}" width="${bw - 4}" height="${bh - 4}" rx="${(bh-4)/2}" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>`;
+            html += `<text x="${p.x}" y="${p.y + (fs-1)/3}" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="${fs - 1}">${lvNum}</text>`;
         }
     }
+
+    html += `</svg>`;
+
+    // Invisible hit targets for tapping nodes (overlaid divs)
+    for (let i = 0; i < pts.length; i++) {
+        const lvNum = pack.start + i;
+        const isAvailable = lvNum <= state.highestLevel;
+        const p = pts[i];
+        const digits = String(lvNum).length;
+        const hitW = Math.max(40, digits * 8 + 16);
+        const cls = isAvailable ? (lvNum < state.highestLevel ? 'map-node completed' : (lvNum === state.currentLevel ? 'map-node current' : 'map-node available')) : 'map-node locked';
+        html += `<div class="${cls}" data-lv="${lvNum}" style="--accent:${accent};position:absolute;left:${p.x * 100 / W}%;top:${p.y * 100 / H}%;width:${hitW}px;height:28px;transform:translate(-50%,-50%);border-radius:14px;background:transparent;border:none"></div>`;
+    }
+
+    html += `</div>`;
     return html;
 }
 
-function renderGiantPackView(pack, accent, completed, total, pct) {
-    return `
-        <div class="map-giant-stats">
-            <div class="map-giant-count" style="color:${accent}">${completed.toLocaleString()} <span class="map-giant-of">of</span> ${total.toLocaleString()}</div>
-            <div class="map-giant-pct">${pct}% complete</div>
-        </div>
-    `;
-}
+// renderGiantPackView removed — all packs are now ≤25 levels
 
 function renderMap() {
     let overlay = document.getElementById("map-overlay");
@@ -4727,30 +4844,119 @@ function renderMap() {
         return;
     }
 
-    // Auto-expand the active pack only on first open
+    // Auto-select the current group on first open
     if (!_mapAutoExpanded) {
         _mapAutoExpanded = true;
-        _mapExpandedPacks = {};
         for (const p of packs) {
             if (state.currentLevel >= p.start && state.currentLevel <= p.end) {
+                _mapSelectedGroup = p.group;
                 const key = p.group + "/" + p.pack + "/" + p.start;
-                if ((p.end - p.start + 1) <= PACK_MAX_EXPANDABLE) {
-                    _mapExpandedPacks[key] = true;
-                }
+                _mapExpandedPacks = {};
+                _mapExpandedPacks[key] = true;
                 break;
             }
         }
     }
 
-    let html = `<div class="map-header" style="justify-content:center;position:relative"><button class="back-arrow-btn" id="map-close-btn" title="Back" style="position:absolute;left:12px"><svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h2 class="map-title" style="color:${theme.accent}">Level Map</h2></div><div class="map-scroll" id="map-scroll">`;
+    if (_mapSelectedGroup) {
+        _renderMapPackView(overlay, packs);
+    } else {
+        _renderMapGroupView(overlay, packs);
+    }
+}
 
-    let lastGroup = "";
+// ---- MAP: Group list view ----
+function _renderMapGroupView(overlay, packs) {
+    // Build group summaries
+    const groups = [];
+    const groupMap = {};
     for (const p of packs) {
+        if (!groupMap[p.group]) {
+            const g = { group: p.group, start: p.end + 1, end: 0, packCount: 0 };
+            groupMap[p.group] = g;
+            groups.push(g);
+        }
+        const g = groupMap[p.group];
+        g.start = Math.min(g.start, p.start);
+        g.end = Math.max(g.end, p.end);
+        g.packCount++;
+    }
+
+    const backSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>`;
+    let html = `<div class="map-header" style="justify-content:center;position:relative"><button class="back-arrow-btn" id="map-close-btn" title="Back" style="position:absolute;left:12px">${backSvg}</button><h2 class="map-title" style="color:${theme.accent}">Level Map</h2></div><div class="map-scroll" id="map-scroll">`;
+
+    for (const g of groups) {
+        if (g.start > state.highestLevel) continue;
+        const gTheme = typeof getThemeForPackStart === "function" ? getThemeForPackStart(g.start) : "sunrise";
+        const accent = (THEMES[gTheme] || THEMES.sunrise).accent;
+        let completed = 0;
+        const total = g.end - g.start + 1;
+        for (let lv = g.start; lv <= g.end; lv++) { if (lv < state.highestLevel) completed++; }
+        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const isActive = state.currentLevel >= g.start && state.currentLevel <= g.end;
+        const isDone = completed === total;
+
+        html += `<div class="map-pack${isActive ? ' active' : ''}${isDone ? ' done' : ''}" data-map-group="${g.group}">`;
+        html += `<div class="map-pack-header expandable" data-map-group="${g.group}">`;
+        html += `<div class="map-pack-info">`;
+        if (isDone) html += `<span class="map-pack-icon" style="color:${accent}">✓</span>`;
+        else if (isActive) html += `<span class="map-pack-icon active-dot" style="background:${accent}"></span>`;
+        html += `<div><div class="map-pack-name" style="font-size:15px">${g.group}</div>`;
+        html += `<div class="map-pack-range">Levels ${g.start.toLocaleString()} – ${g.end.toLocaleString()} · ${g.packCount} packs</div></div></div>`;
+        html += `<div class="map-pack-right">`;
+        html += `<div class="map-progress-bar"><div class="map-progress-fill" style="width:${pct}%;background:${accent}"></div></div>`;
+        html += `<span class="map-chevron">▸</span>`;
+        html += `</div></div></div>`;
+    }
+
+    html += `</div>`;
+    overlay.innerHTML = html;
+
+    document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); if (!state.showHome) renderWheel(); };
+
+    overlay.querySelectorAll(".map-pack-header[data-map-group]").forEach(hdr => {
+        hdr.onclick = () => {
+            _mapSelectedGroup = hdr.getAttribute("data-map-group");
+            _mapExpandedPacks = {};
+            _mapHasScrolled = false;
+            // Auto-expand current pack within this group
+            const packs = typeof getLevelPacks === "function" ? getLevelPacks() : [];
+            for (const p of packs) {
+                if (p.group === _mapSelectedGroup && state.currentLevel >= p.start && state.currentLevel <= p.end) {
+                    _mapExpandedPacks[p.group + "/" + p.pack + "/" + p.start] = true;
+                    break;
+                }
+            }
+            renderMap();
+        };
+    });
+
+    // Auto-scroll to active group
+    if (!_mapHasScrolled) {
+        _mapHasScrolled = true;
+        setTimeout(() => {
+            const active = overlay.querySelector(".map-pack.active");
+            if (active) active.scrollIntoView({ block: "center", behavior: "smooth" });
+        }, 100);
+    }
+}
+
+// ---- MAP: Pack list view (within a group) ----
+function _renderMapPackView(overlay, packs) {
+    const groupPacks = packs.filter(p => p.group === _mapSelectedGroup);
+    // Use first pack's theme for the header accent
+    const headerTheme = groupPacks.length > 0 && typeof getThemeForPackStart === "function" ? getThemeForPackStart(groupPacks[0].start) : "sunrise";
+    const headerAccent = (THEMES[headerTheme] || THEMES.sunrise).accent;
+
+    const backSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>`;
+    let html = `<div class="map-header" style="justify-content:center;position:relative"><button class="back-arrow-btn" id="map-back-btn" title="Back" style="position:absolute;left:12px">${backSvg}</button><h2 class="map-title" style="color:${headerAccent}">${_mapSelectedGroup}</h2></div><div class="map-scroll" id="map-scroll">`;
+
+    for (let pi = 0; pi < groupPacks.length; pi++) {
+        const p = groupPacks[pi];
         if (p.start > state.highestLevel) continue;
         const key = p.group + "/" + p.pack + "/" + p.start;
         const total = p.end - p.start + 1;
-        const isGiant = total > PACK_MAX_EXPANDABLE;
-        const packTheme = typeof getThemeForGroup === "function" ? getThemeForGroup(p.group) : "sunrise";
+        const packTheme = typeof getThemeForPackStart === "function" ? getThemeForPackStart(p.start) : "sunrise";
         const accent = (THEMES[packTheme] || THEMES.sunrise).accent;
         let completed = 0;
         for (let lv = p.start; lv <= p.end; lv++) { if (lv < state.highestLevel) completed++; }
@@ -4758,55 +4964,43 @@ function renderMap() {
         const isActive = state.currentLevel >= p.start && state.currentLevel <= p.end;
         const isLocked = state.highestLevel < p.start;
         const isDone = completed === total;
-        const isExpanded = !isGiant && _mapExpandedPacks[key];
+        const isExpanded = _mapExpandedPacks[key];
+        const packLabel = `${p.pack} ${pi + 1}`;
 
-        // Group divider
-        if (p.group !== lastGroup) {
-            lastGroup = p.group;
-            html += `<div class="map-group-divider" style="color:${accent}"><span class="map-group-name">${p.group}</span></div>`;
-        }
-
-        // Pack section
         html += `<div class="map-pack${isActive ? ' active' : ''}${isLocked ? ' locked' : ''}${isDone ? ' done' : ''}">`;
-
-        // Pack header
-        const expandable = !isGiant;
-        html += `<div class="map-pack-header${expandable ? ' expandable' : ''}" data-pack-key="${key}" ${isGiant ? '' : ''}>`;
+        html += `<div class="map-pack-header expandable" data-pack-key="${key}">`;
         html += `<div class="map-pack-info">`;
         if (isDone) html += `<span class="map-pack-icon" style="color:${accent}">✓</span>`;
         else if (isActive) html += `<span class="map-pack-icon active-dot" style="background:${accent}"></span>`;
         else if (isLocked) html += `<span class="map-pack-icon locked-icon">🔒</span>`;
-        html += `<div><div class="map-pack-name">${p.pack}</div>`;
+        html += `<div><div class="map-pack-name">${packLabel}</div>`;
         html += `<div class="map-pack-range">Levels ${p.start.toLocaleString()} – ${p.end.toLocaleString()}</div></div></div>`;
-        // Progress bar
         html += `<div class="map-pack-right">`;
         html += `<div class="map-progress-bar"><div class="map-progress-fill" style="width:${pct}%;background:${accent}"></div></div>`;
-        if (expandable) html += `<span class="map-chevron${isExpanded ? ' open' : ''}">▸</span>`;
-        html += `</div>`;
-        html += `</div>`; // close pack header
+        html += `<span class="map-chevron${isExpanded ? ' open' : ''}">▸</span>`;
+        html += `</div></div>`;
 
-        // Expanded content
         if (isExpanded) {
             html += `<div class="map-snake" id="map-snake-${key.replace(/[^a-zA-Z0-9]/g, '-')}">`;
             html += renderSnakeNodes(p, accent);
             html += `</div>`;
         }
 
-        if (isGiant && !isLocked) {
-            html += renderGiantPackView(p, accent, completed, total, pct);
-        }
-
-        html += `</div>`; // close map-pack
+        html += `</div>`;
     }
 
-    html += `</div>`; // close map-scroll
+    html += `</div>`;
     overlay.innerHTML = html;
 
-    // Wire close button
-    document.getElementById("map-close-btn").onclick = () => { state.showMap = false; renderMap(); if (!state.showHome) renderWheel(); };
+    // Back button → return to group list
+    document.getElementById("map-back-btn").onclick = () => {
+        _mapSelectedGroup = null;
+        _mapHasScrolled = false;
+        renderMap();
+    };
 
-    // Wire pack header toggles (accordion — only one open at a time)
-    overlay.querySelectorAll(".map-pack-header.expandable").forEach(hdr => {
+    // Pack header toggles (accordion)
+    overlay.querySelectorAll(".map-pack-header[data-pack-key]").forEach(hdr => {
         hdr.onclick = () => {
             const packKey = hdr.getAttribute("data-pack-key");
             const wasOpen = _mapExpandedPacks[packKey];
@@ -4817,7 +5011,7 @@ function renderMap() {
         };
     });
 
-    // Wire level node clicks
+    // Level node clicks
     overlay.querySelectorAll(".map-node[data-lv]").forEach(node => {
         node.onclick = () => {
             if (node.classList.contains("locked")) return;
@@ -4829,7 +5023,7 @@ function renderMap() {
         };
     });
 
-    // Auto-scroll: on initial open go to current level, on pack toggle go to that pack
+    // Auto-scroll
     setTimeout(() => {
         if (_mapScrollTarget) {
             const target = overlay.querySelector(`.map-pack-header[data-pack-key="${_mapScrollTarget}"]`);
