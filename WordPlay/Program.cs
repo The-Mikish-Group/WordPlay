@@ -829,6 +829,8 @@ app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal, 
             lastLoginAt = x.u.LastLoginAt,
             highestLevel = x.p != null ? x.p.HighestLevel : 0,
             totalCoinsEarned = x.p != null ? x.p.TotalCoinsEarned : 0,
+            monthlyStart = x.p != null ? x.p.MonthlyStart : 0,
+            monthlyCoinsStart = x.p != null ? x.p.MonthlyCoinsStart : 0,
             monthlyGain = x.p != null ? x.p.HighestLevel - x.p.MonthlyStart : 0,
             paceMode = db.RabbitAssignments
                 .Where(ra => ra.IsActive && ra.BotUserId == x.u.Id)
@@ -908,6 +910,9 @@ app.MapPut("/api/admin/users/{id}/progress", async (int id, HttpRequest request,
         progress.ProgressJson = node.ToJsonString();
     }
 
+    if (body.TryGetProperty("monthlyStart", out var msEl)) progress.MonthlyStart = msEl.GetInt32();
+    if (body.TryGetProperty("monthlyCoinsStart", out var mcsEl)) progress.MonthlyCoinsStart = mcsEl.GetInt32();
+
     // Sync denormalized JSON fields
     var pNode = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
     pNode["hl"] = progress.HighestLevel;
@@ -919,7 +924,7 @@ app.MapPut("/api/admin/users/{id}/progress", async (int id, HttpRequest request,
     progress.UpdatedAt = DateTime.UtcNow;
 
     await db.SaveChangesAsync();
-    return Results.Ok(new { progress.HighestLevel, progress.TotalCoinsEarned });
+    return Results.Ok(new { progress.HighestLevel, progress.TotalCoinsEarned, progress.MonthlyStart, progress.MonthlyCoinsStart });
 }).RequireAuthorization();
 
 app.MapPut("/api/admin/users/{id}/profile", async (int id, HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>

@@ -131,9 +131,13 @@ const state = {
     showLeaderboard: false,
     showGuide: false,
     showContact: false,
+    showPrivacy: false,
+    showTerms: false,
+    showCookiePolicy: false,
     showAdmin: false,
     dailyPuzzle: null,     // { date, levelNum, fw, bf, rc, sf, coinWordsFound, completed }
     bonusPuzzle: null,         // { available, trigger, levelNum, fw, bf, rc, sf, starsCollected, starPoints, coinsEarned, completed, starCells }
+    bonusHistory: [],           // recently used bonus level numbers (avoids repeats)
     bonusStarsTotal: 0,        // cumulative bonus stars across rounds (0-9, resets on grand prize)
     isBonusMode: false,
     // Achievement tracking
@@ -190,6 +194,15 @@ let _bonusStarCells = [];        // array of "row,col" keys where stars are plac
 let _bonusCoinsEarned = 0;       // session accumulator for completion modal
 let _savedRegularStateBonus = null; // snapshot of regular game state while in bonus mode
 
+// ---- SPEED BONUS STATE ----
+let _speedTimerStart = 0;        // timestamp of first wheel touch this level
+let _speedTimerActive = false;   // whether the timer is running
+let _speedBonusEarned = false;   // whether the current level beat the clock
+let _speedBonusTime = 0;         // elapsed seconds when bonus was earned
+let _speedSpinPending = false;   // free spin available on completion modal
+let _speedSpinAnimating = false;
+let _speedSpinAngle = 0;
+
 const AVATAR_EMOJI = {
     dog:"\uD83D\uDC36", cat:"\uD83D\uDC31", fox:"\uD83E\uDD8A", unicorn:"\uD83E\uDD84",
     bear:"\uD83D\uDC3B", panda:"\uD83D\uDC3C", owl:"\uD83E\uDD89", frog:"\uD83D\uDC38",
@@ -206,9 +219,14 @@ function hashStr(s) {
 }
 
 function getDailyLevelNum() {
-    const maxLv = (typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : 6001;
-    const cap = Math.min(maxLv, 6001);
-    return (hashStr(getTodayStr()) % cap) + 1;
+    const maxLv = (typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : 156000;
+    const h1 = hashStr(getTodayStr());
+    // Normalize to 0..1 range, then bias toward upper levels (harder, more variety)
+    const r = (h1 % 10000) / 10000;
+    const biased = 1 - r * r; // bias toward higher levels
+    // Skip first 80 levels (too easy for a daily challenge)
+    const floor = 81;
+    return Math.floor(biased * (maxLv - floor)) + floor;
 }
 
 function assignDailyCoinWord() {
@@ -310,6 +328,7 @@ function resetStateToDefaults() {
 
 
 async function recompute() {
+    resetSpeedTimer();
     // Try dynamic loader first, fall back to built-in
     let lvData = null;
     if (typeof getLevel === "function") {
@@ -416,6 +435,7 @@ function loadProgress() {
             state.totalCoinsEarned = d.tce || 0;
             state.dailyPuzzle = d.dp || null;
             state.bonusPuzzle = d.bp || null;
+            state.bonusHistory = d.bh || [];
             state.bonusStarsTotal = d.bst || 0;
             state.speedLevels = d.sl || [];
             state.loginStreak = d.ls || 0;
@@ -456,6 +476,7 @@ function saveProgress() {
             tce: state.totalCoinsEarned,
             dp: state.dailyPuzzle,
             bp: state.bonusPuzzle,
+            bh: state.bonusHistory,
             bst: state.bonusStarsTotal,
             sl: state.speedLevels,
             ls: state.loginStreak,
@@ -709,7 +730,19 @@ function isStarCollected(cellKey) {
 function triggerBonusPuzzle(trigger) {
     if (state.bonusPuzzle && state.bonusPuzzle.available) return;
     if (state.highestLevel <= 1) return;
-    const pick = Math.floor(Math.random() * (state.highestLevel - 1)) + 1;
+    const max = state.highestLevel - 1;
+    const history = new Set(state.bonusHistory);
+    let pick;
+    for (let attempt = 0; attempt < 50; attempt++) {
+        // Bias toward upper half of completed levels for more variety
+        const r = Math.random();
+        const biased = r * r; // squares to bias toward 0, then invert
+        pick = Math.floor((1 - biased) * max) + 1; // bias toward higher levels
+        if (!history.has(pick)) break;
+    }
+    // Track last 50 bonus levels to prevent repeats
+    state.bonusHistory.push(pick);
+    if (state.bonusHistory.length > 50) state.bonusHistory.shift();
     state.bonusPuzzle = {
         available: true,
         trigger: trigger,
@@ -736,6 +769,27 @@ function clearExpiredBonusPuzzle() {
         state.bonusPuzzle = null;
         saveProgress();
     }
+}
+
+// ---- SPEED BONUS CHECK (15 sec per word) ----
+function checkSpeedBonus() {
+    if (!_speedTimerActive || state.isDailyMode || state.isBonusMode) return;
+    const wordCount = totalRequired;
+    if (wordCount < 5) { _speedTimerActive = false; return; } // too few words — skip
+    const elapsed = (Date.now() - _speedTimerStart) / 1000;
+    const timeLimit = wordCount * 15; // 15 seconds per word
+    _speedBonusEarned = elapsed <= timeLimit;
+    _speedBonusTime = elapsed;
+    _speedSpinPending = _speedBonusEarned;
+    _speedTimerActive = false;
+}
+
+function resetSpeedTimer() {
+    _speedTimerStart = 0;
+    _speedTimerActive = false;
+    _speedBonusEarned = false;
+    _speedBonusTime = 0;
+    _speedSpinPending = false;
 }
 
 function checkSpeedMilestone() {
@@ -876,6 +930,7 @@ function handleWord(word) {
             } else if (state.isDailyMode) {
                 handleDailyCompletion();
             } else {
+                checkSpeedBonus();
                 delete state.inProgress[state.currentLevel];
                 saveProgress();
                 setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
@@ -918,6 +973,7 @@ function handleWord(word) {
             } else if (state.isDailyMode) {
                 handleDailyCompletion();
             } else {
+                checkSpeedBonus();
                 delete state.inProgress[state.currentLevel];
                 saveProgress();
                 setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
@@ -956,6 +1012,7 @@ function handleWord(word) {
                     } else if (state.isDailyMode) {
                         handleDailyCompletion();
                     } else {
+                        checkSpeedBonus();
                         delete state.inProgress[state.currentLevel];
                         saveProgress();
                         setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 1200);
@@ -1065,6 +1122,62 @@ function renderBonusStar() {
         fill.style.stroke = gold ? "#f4d03f" : "rgba(255,255,255,0.35)";
         fill.style.fill = gold ? "rgba(244,208,63,0.15)" : "none";
     }
+}
+
+// ---- STAR FLY ANIMATION (spin wheel → specific star slot) ----
+function animateStarFly() {
+    // Figure out which slot just got filled (the star point that was just added)
+    const filledIdx = Math.floor(state.bonusStarsTotal / 3) - 1;
+    const slotId = "home-star-slot-" + Math.max(0, filledIdx);
+    // Re-render first so slots exist, then animate
+    renderAll();
+    const slot = document.getElementById(slotId);
+    const fallback = document.getElementById("home-star-display");
+    const target = slot || fallback;
+    if (!target) return;
+    const targetRect = target.getBoundingClientRect();
+    const startX = window.innerWidth / 2;
+    const startY = window.innerHeight / 2;
+    const endX = targetRect.left + targetRect.width / 2;
+    const endY = targetRect.top + targetRect.height / 2;
+
+    // Temporarily show the slot as empty so the star "fills" it on arrival
+    if (slot) slot.textContent = "\u2606";
+
+    const star = document.createElement("div");
+    star.textContent = "\u2B50";
+    star.style.cssText = `position:fixed;left:${startX}px;top:${startY}px;font-size:36px;z-index:99999;pointer-events:none;transform:translate(-50%,-50%);transition:none;`;
+    document.body.appendChild(star);
+
+    let start = null;
+    const duration = 800;
+    function frame(ts) {
+        if (!start) start = ts;
+        const t = Math.min((ts - start) / duration, 1);
+        const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const arcY = -80 * Math.sin(t * Math.PI);
+        const x = startX + (endX - startX) * ease;
+        const y = startY + (endY - startY) * ease + arcY;
+        const scale = 1 + 0.5 * Math.sin(t * Math.PI);
+        star.style.left = x + "px";
+        star.style.top = y + "px";
+        star.style.transform = `translate(-50%,-50%) scale(${scale})`;
+        if (t < 1) {
+            requestAnimationFrame(frame);
+        } else {
+            star.remove();
+            // Fill the slot
+            if (slot) slot.textContent = "\u2B50";
+            // Pulse the filled slot
+            if (target) {
+                target.style.animation = "none";
+                target.offsetHeight;
+                target.style.animation = "starPulse 0.5s ease";
+            }
+            playSound("spinPrize");
+        }
+    }
+    requestAnimationFrame(frame);
 }
 
 // ---- COIN-SPEND ANIMATION ----
@@ -1313,6 +1426,9 @@ function handleHint() {
         } else if (state.isDailyMode) {
             handleDailyCompletion();
         } else {
+            checkSpeedBonus();
+            delete state.inProgress[state.currentLevel];
+            saveProgress();
             setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
         }
     }
@@ -1359,6 +1475,9 @@ function handlePickCell(key) {
         } else if (state.isDailyMode) {
             handleDailyCompletion();
         } else {
+            checkSpeedBonus();
+            delete state.inProgress[state.currentLevel];
+            saveProgress();
             setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
         }
     }
@@ -1615,6 +1734,9 @@ function renderAll() {
     renderLeaderboard();
     renderGuide();
     renderContact();
+    renderPrivacy();
+    renderTerms();
+    renderCookiePolicy();
 }
 
 function formatCompact(n) {
@@ -1661,7 +1783,7 @@ function renderHome() {
             <div class="home-top-bar">
                 <div class="home-top-right">
                     <div class="home-coin-display" id="home-coin-display">🪙 ${state.coins.toLocaleString()}</div>
-                    ${state.bonusStarsTotal > 0 ? `<div class="home-star-display">${[0,1,2].map(i => i < Math.floor(state.bonusStarsTotal / 3) ? '\u2B50' : '\u2606').join('')}</div>` : ''}
+                    <div class="home-star-display" id="home-star-display">${[0,1,2].map(i => `<span id="home-star-slot-${i}">${i < Math.floor(state.bonusStarsTotal / 3) ? '\u2B50' : ''}</span>`).join('')}</div>
                 </div>
             </div>
             <div class="home-expertise-row">
@@ -2734,6 +2856,9 @@ function handleRocketHint() {
         } else if (state.isDailyMode) {
             handleDailyCompletion();
         } else {
+            checkSpeedBonus();
+            delete state.inProgress[state.currentLevel];
+            saveProgress();
             setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700 + revealed.length * 400);
         }
     }
@@ -2763,7 +2888,7 @@ const SPIN_SLICES = [
     { label: "Hint",      emoji: "💡", color: "#4CAF50" },
     { label: "Rocket",    emoji: "🚀", color: "#9C27B0" },
     { label: "Target",    emoji: "🎯", color: "#2196F3" },
-    { label: "50 Coins",  emoji: "🪙", color: "#FFC107" },
+    { label: "Star",      emoji: "⭐", color: "#FFC107" },
     { label: "Hint",      emoji: "💡", color: "#66BB6A" },
     { label: "Rocket",    emoji: "🚀", color: "#7B1FA2" },
     { label: "Target",    emoji: "🎯", color: "#42A5F5" },
@@ -3049,9 +3174,8 @@ function claimSpinPrize(winner) {
     if (winner.label === "Hint") {
         if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
         else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
-    } else if (winner.label === "50 Coins") {
-        state.coins += 50;
-        state.totalCoinsEarned += 50;
+    } else if (winner.label === "Star") {
+        state.bonusStarsTotal = Math.min(state.bonusStarsTotal + 3, 9);
     } else if (winner.label === "Target") {
         if (state.freeTargets < MAX_FREE_TARGETS) state.freeTargets++;
         else showToast("Target bank full!", "rgba(255,255,255,0.5)", true);
@@ -3062,7 +3186,6 @@ function claimSpinPrize(winner) {
         state.coins += 100;
         state.totalCoinsEarned += 100;
     }
-    // No Prize = nothing
     saveProgress();
     _spinAnimating = false;
     closeSpinModal();
@@ -3073,16 +3196,23 @@ function claimSpinPrize(winner) {
     renderSpinBtn();
     showToast("🎁 " + winner.emoji + " " + winner.label + "!", theme.accent);
     // Coin gain animation for coin prizes
-    if (winner.label === "50 Coins" || winner.label === "100 Coins") {
-        const amt = winner.label === "50 Coins" ? 50 : 100;
-        setTimeout(() => animateCoinGain(amt), 200);
+    if (winner.label === "100 Coins") {
+        setTimeout(() => animateCoinGain(100), 200);
+    }
+    // Star fly animation + bonus trigger
+    if (winner.label === "Star") {
+        setTimeout(() => animateStarFly(), 200);
+        if (state.bonusStarsTotal >= 9) {
+            setTimeout(() => triggerBonusPuzzle("stars"), 1200);
+        }
+        return;
     }
     // Pulse the relevant element after a brief delay so it's visible
     let targetId = null;
     if (winner.label === "Hint") targetId = "hint-btn";
     else if (winner.label === "Target") targetId = "target-btn";
     else if (winner.label === "Rocket") targetId = "rocket-btn";
-    else if (winner.label === "50 Coins" || winner.label === "100 Coins") targetId = "coin-display";
+    else if (winner.label === "100 Coins") targetId = "coin-display";
     if (targetId) {
         setTimeout(() => {
             const el = document.getElementById(targetId);
@@ -3094,6 +3224,140 @@ function claimSpinPrize(winner) {
             setTimeout(() => el.classList.remove("prize-pulse"), 700);
         }, 300);
     }
+}
+
+// ---- SPEED BONUS SPIN MODAL ----
+function openSpeedSpinModal() {
+    if (_speedSpinAnimating) return;
+    let overlay = document.getElementById("speed-spin-modal");
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "speed-spin-modal";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+    overlay.innerHTML = `
+        <div class="modal-box" style="padding:20px;border:2px solid rgba(255,200,0,0.4);box-shadow:0 0 40px rgba(255,200,0,0.15)">
+            <h2 class="modal-title" style="color:#ffd740;font-size:18px">\u26A1 Speed Bonus</h2>
+            <div class="spin-wheel-container" style="display:flex;justify-content:center;margin:8px 0">
+                <canvas id="speed-spin-canvas" style="cursor:pointer"></canvas>
+            </div>
+            <div id="speed-spin-result" style="display:none;text-align:center;margin:8px 0">
+                <span id="speed-spin-result-emoji" style="font-size:32px"></span>
+                <span id="speed-spin-result-text" style="color:#fff;font-size:16px;font-weight:700;margin-left:8px"></span>
+            </div>
+            <button class="modal-next-btn" id="speed-spin-go-btn"
+                style="background:linear-gradient(180deg,#ffc107 0%,#e6a800 100%);border:2px solid #ffc107;border-bottom-color:#cc9600;box-shadow:0 4px 14px rgba(255,193,7,0.5),inset 0 1px 1px rgba(255,255,255,0.4);color:#000;text-shadow:0 1px 1px rgba(255,255,255,0.3);font-weight:800">
+                SPIN!
+            </button>
+        </div>
+    `;
+    const canvas = document.getElementById("speed-spin-canvas");
+    drawSpinWheel(canvas, _speedSpinAngle);
+    document.getElementById("speed-spin-go-btn").onclick = startSpeedSpin;
+}
+
+function closeSpeedSpinModal() {
+    const overlay = document.getElementById("speed-spin-modal");
+    if (overlay) overlay.style.display = "none";
+}
+
+function startSpeedSpin() {
+    if (_speedSpinAnimating) return;
+    _speedSpinAnimating = true;
+    const btn = document.getElementById("speed-spin-go-btn");
+    if (btn) { btn.textContent = "Spinning..."; btn.onclick = null; }
+    const result = document.getElementById("speed-spin-result");
+    if (result) result.style.display = "none";
+
+    const canvas = document.getElementById("speed-spin-canvas");
+    let velocity = 15 + Math.random() * 10;
+    const friction = 0.97;
+    let lastSlice = -1;
+    const sliceAngle = (Math.PI * 2) / SPIN_SLICES.length;
+
+    function frame() {
+        _speedSpinAngle += velocity * 0.016;
+        velocity *= friction;
+        drawSpinWheel(canvas, _speedSpinAngle);
+
+        const normalAngle = ((-_speedSpinAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const currentSlice = Math.floor(normalAngle / sliceAngle);
+        if (currentSlice !== lastSlice && lastSlice !== -1) playSound("spinTick");
+        lastSlice = currentSlice;
+
+        if (velocity > 0.002) {
+            requestAnimationFrame(frame);
+        } else {
+            onSpeedSpinComplete();
+        }
+    }
+    requestAnimationFrame(frame);
+}
+
+function getSpeedWinningSlice() {
+    const pointerAngle = -Math.PI / 2;
+    const normalAngle = ((pointerAngle - _speedSpinAngle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+    const sliceAngle = (Math.PI * 2) / SPIN_SLICES.length;
+    return Math.floor(normalAngle / sliceAngle) % SPIN_SLICES.length;
+}
+
+function onSpeedSpinComplete() {
+    const winIdx = getSpeedWinningSlice();
+    const winner = SPIN_SLICES[winIdx];
+    playSound("spinPrize");
+
+    const result = document.getElementById("speed-spin-result");
+    const emoji = document.getElementById("speed-spin-result-emoji");
+    const text = document.getElementById("speed-spin-result-text");
+    if (result && emoji && text) {
+        emoji.textContent = winner.emoji;
+        text.textContent = "You won: " + winner.label + "!";
+        result.style.display = "block";
+        result.style.animation = "none";
+        result.offsetHeight;
+        result.style.animation = "pop 0.4s ease";
+    }
+    const btn = document.getElementById("speed-spin-go-btn");
+    if (btn) {
+        btn.textContent = "Claim!";
+        btn.onclick = () => claimSpeedSpinPrize(winner);
+    }
+}
+
+function claimSpeedSpinPrize(winner) {
+    if (winner.label === "Hint") {
+        if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
+        else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
+    } else if (winner.label === "Star") {
+        state.bonusStarsTotal = Math.min(state.bonusStarsTotal + 3, 9);
+    } else if (winner.label === "Target") {
+        if (state.freeTargets < MAX_FREE_TARGETS) state.freeTargets++;
+        else showToast("Target bank full!", "rgba(255,255,255,0.5)", true);
+    } else if (winner.label === "Rocket") {
+        if (state.freeRockets < MAX_FREE_ROCKETS) state.freeRockets++;
+        else showToast("Rocket bank full!", "rgba(255,255,255,0.5)", true);
+    } else if (winner.label === "100 Coins") {
+        state.coins += 100;
+        state.totalCoinsEarned += 100;
+    }
+    saveProgress();
+    _speedSpinAnimating = false;
+    closeSpeedSpinModal();
+    showToast("\u26A1 " + winner.emoji + " " + winner.label + "!", "#ffd740");
+    if (winner.label === "100 Coins") {
+        setTimeout(() => animateCoinGain(100), 200);
+    }
+    if (winner.label === "Star") {
+        setTimeout(() => animateStarFly(), 200);
+        if (state.bonusStarsTotal >= 9) {
+            setTimeout(() => triggerBonusPuzzle("stars"), 1200);
+            return;
+        }
+    }
+    // Advance to next level after a brief pause for the toast
+    setTimeout(() => advanceToNextLevel(), 1200);
 }
 
 function hitTestWheel(px, py) {
@@ -3123,6 +3387,11 @@ function onWheelStart(e) {
     if (!p) return;
     const i = hitTestWheel(p.x, p.y);
     if (i >= 0) {
+        // Start speed timer on first wheel interaction this level
+        if (!_speedTimerActive && !state.isDailyMode && !state.isBonusMode) {
+            _speedTimerStart = Date.now();
+            _speedTimerActive = true;
+        }
         wheelState.dragging = true;
         wheelState.sel = [i];
         wheelState.word = wheelLetters[i];
@@ -3287,19 +3556,45 @@ function renderCompleteModal() {
         const maxLv = (typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
         const isLast = state.currentLevel >= maxLv;
         const bonusCount = state.bonusFound.length;
+        const speedTime = _speedBonusEarned ? _speedBonusTime.toFixed(1) : null;
         overlay.innerHTML = `
             <div class="modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
                 <div class="modal-emoji">\uD83C\uDF89</div>
                 <h2 class="modal-title" style="color:${theme.accent}">Level Complete!</h2>
                 <p class="modal-subtitle">${level.group} · ${level.pack} · Level ${state.currentLevel}</p>
                 <p class="modal-coins" style="color:${theme.text}">+1 \uD83E\uDE99${bonusCount > 0 ? " · +" + bonusCount + " bonus" : ""}</p>
+                ${_speedSpinPending ? `
+                    <div style="margin:12px 0 4px;padding:10px 16px;background:linear-gradient(135deg,rgba(255,200,0,0.15),rgba(255,140,0,0.1));border:1px solid rgba(255,200,0,0.3);border-radius:12px">
+                        <p style="color:#ffd740;font-size:14px;font-weight:700;margin:0 0 2px">\u26A1 Speed Bonus!</p>
+                        <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:0">${speedTime}s — you beat the clock!</p>
+                    </div>
+                    <button class="modal-next-btn" id="speed-spin-btn"
+                        style="background:linear-gradient(180deg,#ffc107 0%,#e6a800 100%);border:2px solid #ffc107;border-bottom-color:#cc9600;box-shadow:0 4px 14px rgba(255,193,7,0.5),inset 0 1px 1px rgba(255,255,255,0.4);color:#000;text-shadow:0 1px 1px rgba(255,255,255,0.3);font-weight:800;font-size:16px;margin-top:8px">
+                        \uD83C\uDF1F Free Spin!
+                    </button>
+                ` : ''}
                 <button class="modal-next-btn" id="next-btn"
-                    style="background:linear-gradient(180deg,${theme.accent} 0%,${theme.accentDark} 100%);border:2px solid ${theme.accent};border-bottom-color:${theme.accentDark};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
+                    style="background:linear-gradient(180deg,${theme.accent} 0%,${theme.accentDark} 100%);border:2px solid ${theme.accent};border-bottom-color:${theme.accentDark};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)${_speedSpinPending ? ';margin-top:6px' : ''}">
                     ${isLast ? "\uD83C\uDFC6 All Done!" : "Next Level \u2192"}
                 </button>
             </div>
         `;
-        document.getElementById("next-btn").onclick = advanceToNextLevel;
+        if (_speedSpinPending) {
+            document.getElementById("speed-spin-btn").onclick = () => {
+                _speedSpinPending = false;
+                state.showComplete = false;
+                renderCompleteModal();
+                openSpeedSpinModal();
+            };
+        }
+        document.getElementById("next-btn").onclick = () => {
+            if (_speedSpinPending) {
+                // Confirm leaving without using free spin
+                if (!confirm("You have a free Speed Bonus spin! Leave without using it?")) return;
+                _speedSpinPending = false;
+            }
+            advanceToNextLevel();
+        };
     }
 }
 
@@ -3374,7 +3669,7 @@ function renderMenu() {
     // Stats + Current Level side by side
     html += `
         <div class="menu-top-row">
-            <div class="menu-top-col">
+            <div class="menu-top-col" id="menu-stats-card" style="cursor:default">
                 <div class="menu-current-label">Stats</div>
                 <div class="menu-stat">Highest Level: <span style="color:${theme.accent}">${state.highestLevel.toLocaleString()}</span></div>
                 <div class="menu-stat">Coins: <span style="color:${theme.accent}">🪙 ${state.coins}</span></div>
@@ -3406,7 +3701,7 @@ function renderMenu() {
     `;
 
     // Set progress + Reset (hidden until easter egg)
-    html += `<div id="menu-secret-section" style="display:${_menuSecretTaps >= 7 ? 'block' : 'none'}">`;
+    html += `<div id="menu-secret-section" style="display:${_menuSecretTaps >= 8 ? 'block' : 'none'}">`;
 
     // Compute current monthly display values from stored baselines
     const _msRaw = parseInt(localStorage.getItem("wordplay-monthly-start") || "0");
@@ -3478,6 +3773,16 @@ function renderMenu() {
         </div>
     `;
 
+    // Legal
+    html += `
+        <div class="menu-setting">
+            <label class="menu-setting-label">Legal</label>
+            <button class="menu-setting-btn" id="menu-privacy-btn" style="background:rgba(255,255,255,0.08);color:${theme.text};border:1px solid rgba(255,255,255,0.12);width:100%;padding:10px 0;font-size:14px">🔒 Privacy Policy</button>
+            <button class="menu-setting-btn" id="menu-terms-btn" style="background:rgba(255,255,255,0.08);color:${theme.text};border:1px solid rgba(255,255,255,0.12);width:100%;padding:10px 0;font-size:14px;margin-top:8px">📜 Terms of Service</button>
+            <button class="menu-setting-btn" id="menu-cookie-btn" style="background:rgba(255,255,255,0.08);color:${theme.text};border:1px solid rgba(255,255,255,0.12);width:100%;padding:10px 0;font-size:14px;margin-top:8px">🍪 Cookie & Data Notice</button>
+        </div>
+    `;
+
     // App card (Install / Check for Updates / Uninstall)
     html += `<div class="menu-setting"><label class="menu-setting-label">App</label>`;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -3521,10 +3826,10 @@ function renderMenu() {
         }
     };
 
-    // Easter egg: tap current level card 7 times to reveal hidden options
-    document.getElementById("menu-current-level-card").onclick = () => {
+    // Easter egg: tap stats card 8 times to reveal hidden options
+    document.getElementById("menu-stats-card").onclick = () => {
         _menuSecretTaps++;
-        if (_menuSecretTaps === 7) {
+        if (_menuSecretTaps === 8) {
             const sec = document.getElementById("menu-secret-section");
             if (sec) sec.style.display = "block";
         }
@@ -3816,6 +4121,25 @@ function renderMenu() {
         state.showContact = true;
         renderMenu();
         renderContact();
+    };
+
+    document.getElementById("menu-privacy-btn").onclick = () => {
+        state.showMenu = false;
+        state.showPrivacy = true;
+        renderMenu();
+        renderPrivacy();
+    };
+    document.getElementById("menu-terms-btn").onclick = () => {
+        state.showMenu = false;
+        state.showTerms = true;
+        renderMenu();
+        renderTerms();
+    };
+    document.getElementById("menu-cookie-btn").onclick = () => {
+        state.showMenu = false;
+        state.showCookiePolicy = true;
+        renderMenu();
+        renderCookiePolicy();
     };
 
     document.getElementById("uninstall-app-btn").onclick = () => {
@@ -4122,6 +4446,161 @@ function renderContact() {
     };
 }
 
+// ---- LEGAL OVERLAYS ----
+function renderLegalOverlay(id, flag, emoji, title, bodyHtml) {
+    let overlay = document.getElementById(id);
+    if (!state[flag]) {
+        if (overlay) overlay.style.display = "none";
+        return;
+    }
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = id;
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "guide-overlay";
+    overlay.style.display = "flex";
+    overlay.innerHTML = `
+        <div class="guide-header">
+            <button class="back-arrow-btn" id="${id}-close-btn" title="Back" style="position:absolute;left:16px;top:20px;z-index:10">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <div class="guide-icon">${emoji}</div>
+            <h2 class="guide-title" style="color:${theme.accent}">${title}</h2>
+            <div class="guide-subtitle">wordplay.illustrate.net</div>
+        </div>
+        <div class="menu-scroll" style="padding:0 20px 40px;font-size:14px;line-height:1.7;opacity:0.85">
+            ${bodyHtml}
+        </div>
+    `;
+    document.getElementById(`${id}-close-btn`).onclick = () => {
+        state[flag] = false;
+        renderLegalOverlay(id, flag, emoji, title, bodyHtml);
+    };
+}
+
+function renderPrivacy() {
+    renderLegalOverlay("privacy-overlay", "showPrivacy", "🔒", "Privacy Policy", `
+        <p style="opacity:0.5;font-size:13px">Effective March 2026</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Who We Are</h3>
+        <p>WordPlay is a free word puzzle game by <b>Illustrate</b>, available at <b>wordplay.illustrate.net</b>.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">What We Collect</h3>
+        <ul style="padding-left:20px">
+            <li><b>Account info</b> — Email address, display name, and avatar (provided when you sign in with Google or Microsoft).</li>
+            <li><b>Game data</b> — Level progress, coins earned, scores, and leaderboard entries stored on our server.</li>
+            <li><b>Local data</b> — Game state, preferences, and auth tokens saved in your browser's localStorage.</li>
+        </ul>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">How We Use Your Data</h3>
+        <p>Your data is used solely to operate the game: saving progress, syncing across devices, and displaying leaderboards. We do not profile you or make automated decisions based on your data.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Authentication Providers</h3>
+        <p>We use <b>Google Sign-In</b> and <b>Microsoft (MSAL)</b> for authentication. We receive only your email and basic profile information — we never see your password.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">No Tracking or Analytics</h3>
+        <p>We do not use any third-party analytics, advertising networks, or tracking pixels. No data is sold or shared with third parties.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Data Sharing</h3>
+        <p>We do not sell, rent, or share your personal data with anyone. Your information stays with WordPlay.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Data Retention & Deletion</h3>
+        <p>We keep your data as long as your account exists. You can <b>delete your account</b> at any time in Settings — this permanently removes all your server-side data (profile, progress, scores). Local data can be cleared by uninstalling the app or clearing your browser data.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Your Rights (GDPR)</h3>
+        <p>If you are in the EU/EEA, you have the right to access, correct, delete, or export your personal data. You can exercise these rights via the in-app <b>Contact Support</b> form or by deleting your account in Settings.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Children</h3>
+        <p>WordPlay is not directed at children under 13. We do not knowingly collect data from children under 13.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Contact</h3>
+        <p>Questions about your privacy? Use the <b>Contact Support</b> form in the app, or reach us through the Settings menu.</p>
+    `);
+}
+
+function renderTerms() {
+    renderLegalOverlay("terms-overlay", "showTerms", "📜", "Terms of Service", `
+        <p style="opacity:0.5;font-size:13px">Effective March 2026</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Acceptance</h3>
+        <p>By using WordPlay you agree to these terms. If you do not agree, please stop using the app.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Service Description</h3>
+        <p>WordPlay is a free word puzzle game provided by Illustrate. The game is offered "as is" with no guarantees of availability, uptime, or fitness for any particular purpose.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">User Accounts</h3>
+        <p>Sign-in is optional. If you create an account, you may have only one account per person. You are responsible for keeping your sign-in credentials secure.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Acceptable Use</h3>
+        <p>You agree not to:</p>
+        <ul style="padding-left:20px">
+            <li>Cheat, exploit bugs, or manipulate game mechanics.</li>
+            <li>Scrape, crawl, or use automated tools to access the app.</li>
+            <li>Reverse engineer, decompile, or disassemble any part of the app.</li>
+            <li>Impersonate others or submit false information.</li>
+            <li>Use the app for any unlawful purpose.</li>
+        </ul>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Intellectual Property</h3>
+        <p>All game content — including puzzles, code, design, and artwork — is owned by Illustrate. You may not copy, modify, or redistribute any part of the game without permission.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Termination</h3>
+        <p>We may suspend or terminate accounts that violate these terms. You can delete your account at any time through Settings.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Limitation of Liability</h3>
+        <p>To the fullest extent permitted by law, Illustrate is not liable for any indirect, incidental, or consequential damages arising from your use of WordPlay. The game is provided "as is" without warranties of any kind.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Changes to Terms</h3>
+        <p>We may update these terms from time to time. Continued use of the app after changes constitutes acceptance of the updated terms.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Governing Law</h3>
+        <p>These terms are governed by the laws of the United States. Any disputes will be resolved in accordance with applicable U.S. law.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Contact</h3>
+        <p>Questions about these terms? Use the <b>Contact Support</b> form in the app.</p>
+    `);
+}
+
+function renderCookiePolicy() {
+    renderLegalOverlay("cookie-overlay", "showCookiePolicy", "🍪", "Cookie & Data Notice", `
+        <p style="opacity:0.5;font-size:13px">Effective March 2026</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">No Cookies</h3>
+        <p>WordPlay does <b>not</b> use HTTP cookies. We rely on <b>localStorage</b> and service worker caches instead.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">What We Store Locally</h3>
+        <ul style="padding-left:20px">
+            <li><b>Game saves</b> — Your level progress, coins, hints, and game state.</li>
+            <li><b>Preferences</b> — Sound settings and display options.</li>
+            <li><b>Auth tokens</b> — Session tokens for signed-in users (stored in localStorage).</li>
+        </ul>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Service Worker</h3>
+        <p>WordPlay uses a service worker to cache app assets and level data for offline play. This lets you play without an internet connection after the initial load.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Third-Party Scripts</h3>
+        <p>We load <b>Google Sign-In</b> and <b>Microsoft MSAL</b> libraries for authentication. These scripts only run when you use the sign-in buttons and do not set tracking cookies.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Consent</h3>
+        <p>By using WordPlay, you consent to the use of localStorage for game functionality. This data stays on your device and is essential for the game to work.</p>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Your Rights</h3>
+        <p>EU/EEA users have GDPR rights including access, deletion, and data portability. You can:</p>
+        <ul style="padding-left:20px">
+            <li>Use <b>Contact Support</b> to request your data or ask questions.</li>
+            <li>Use <b>Delete Account</b> in Settings to remove all server-side data.</li>
+            <li>Use <b>Uninstall App</b> in Settings to clear all local data.</li>
+            <li>Clear your browser's localStorage manually at any time.</li>
+        </ul>
+
+        <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Contact</h3>
+        <p>Questions about data storage? Use the <b>Contact Support</b> form in the app.</p>
+    `);
+}
+
 // ---- ADMIN PANEL ----
 let _adminUsers = [];
 let _adminSearch = "";
@@ -4369,16 +4848,24 @@ function renderAdminUserDetail(overlay) {
                 </div>
             </div>
             <div class="menu-setting">
-                <label class="menu-setting-label">Progress</label>
+                <label class="menu-setting-label">Leaderboard Scores</label>
                 <div class="admin-detail-field">
-                    <label>Highest Level</label>
+                    <label>All-Time Levels</label>
                     <input type="number" id="admin-hl" value="${u.highestLevel}" min="0">
                 </div>
                 <div class="admin-detail-field">
-                    <label>Total Coins Earned</label>
+                    <label>All-Time Points</label>
                     <input type="number" id="admin-tce" value="${u.totalCoinsEarned}" min="0">
                 </div>
-                <button class="menu-setting-btn" id="admin-save-progress" style="background:${accent};color:#000;width:100%;padding:10px 0;margin:8px 12px">Save Progress</button>
+                <div class="admin-detail-field">
+                    <label>Monthly Levels</label>
+                    <input type="number" id="admin-ml" value="${Math.max(0, u.highestLevel - (u.monthlyStart || 0))}" min="0">
+                </div>
+                <div class="admin-detail-field">
+                    <label>Monthly Points</label>
+                    <input type="number" id="admin-mp" value="${Math.max(0, u.totalCoinsEarned - (u.monthlyCoinsStart || 0))}" min="0">
+                </div>
+                <button class="menu-setting-btn" id="admin-save-progress" style="background:${accent};color:#000;width:100%;padding:10px 0;margin:8px 12px">Save Scores</button>
             </div>
             <div class="menu-setting">
                 <label class="menu-setting-label">Rabbit Assignment</label>
@@ -4457,15 +4944,22 @@ function renderAdminUserDetail(overlay) {
     document.getElementById("admin-save-progress").onclick = async () => {
         const hl = parseInt(document.getElementById("admin-hl").value);
         const tce = parseInt(document.getElementById("admin-tce").value);
+        const ml = parseInt(document.getElementById("admin-ml").value);
+        const mp = parseInt(document.getElementById("admin-mp").value);
+        const ms = hl - ml;  // monthly start = all-time minus monthly gain
+        const mcs = tce - mp;
         try {
             await fetch("/api/admin/users/" + u.id + "/progress", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                body: JSON.stringify({ highestLevel: hl, totalCoinsEarned: tce }),
+                body: JSON.stringify({ highestLevel: hl, totalCoinsEarned: tce, monthlyStart: ms, monthlyCoinsStart: mcs }),
             });
             u.highestLevel = hl;
             u.totalCoinsEarned = tce;
-            showToast("Progress saved");
+            u.monthlyStart = ms;
+            u.monthlyCoinsStart = mcs;
+            showToast("Scores saved");
+            renderAdmin();
         } catch (err) { showToast("Failed", "#ff8888"); }
     };
 
@@ -5054,14 +5548,14 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDCC5", title: "Daily Puzzle", body: "A fresh puzzle every day! Tap the green Daily Puzzle button on the home screen to play. A coin (\uD83E\uDE99) appears on one word in the grid \u2014 find it for 25 bonus coins, then the coin moves to a new word. Keep chasing the coin to rack up rewards! Complete the entire puzzle for a 100-coin bonus. The same puzzle is shared by all players each day. Your regular progress is saved and waiting when you return." },
     { icon: "\u2B50", title: "Bonus Puzzle", body: "Earn bonus puzzles through achievements \u2014 complete a level pack, finish 10 levels in an hour, maintain a 3-day play streak, or beat the daily puzzle. A gold <b>\u2B50 Bonus Puzzle</b> button appears on the home screen. Inside, 9 stars are scattered across the grid. Find starred words to collect stars and earn 10 coins each! Every 3 stars fills one of your 3 star slots. Collect all 9 stars for a <b>500-coin grand prize</b>. But be careful \u2014 leaving the puzzle forfeits your progress!" },
     { icon: "\uD83D\uDD00", title: "Shuffle", body: "Tap the shuffle button to rearrange the letters on the wheel. Same letters, fresh perspective \u2014 sometimes that\u2019s all you need to spot a hidden word!" },
-    { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the Level Map from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },
+    { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the <a href=\"#\" class=\"guide-link\" data-action=\"map\">Level Map</a> from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },
     { icon: "\uD83C\uDFA8", title: "Themes", body: "The game features 16 beautiful color themes \u2014 Sunrise, Forest, Ocean, Aurora, and more. Themes change as you progress through different level groups." },
-    { icon: "\uD83D\uDD04", title: "Sync Across Devices", body: "Sign in with Google or Microsoft in Settings to save your progress to the cloud. Switch phones, play on your tablet \u2014 your progress follows you automatically!" },
-    { icon: "\uD83C\uDFC6", title: "Expertise & Leaderboard", body: "Your Expertise score on the home screen tracks every coin you\u2019ve ever earned \u2014 it only goes up! Tap it to open the leaderboard and compete with other players. Rank by levels completed or total points, and filter by this month or all time. Opt in or out in Settings." },
+    { icon: "\uD83D\uDD04", title: "Sync Across Devices", body: "Sign in with Google or Microsoft in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> to save your progress to the cloud. Switch phones, play on your tablet \u2014 your progress follows you automatically!" },
+    { icon: "\uD83C\uDFC6", title: "Expertise & Leaderboard", body: "Your Expertise score on the home screen tracks every coin you\u2019ve ever earned \u2014 it only goes up! Tap it to open <a href=\"#\" class=\"guide-link\" data-action=\"leaderboard\">the leaderboard</a> and compete with other players. Rank by levels completed or total points, and filter by this month or all time. Opt in or out in Settings." },
     { icon: "\uD83D\uDCF1", title: "Play Anywhere", body: "WordPlay works offline! Install it to your home screen for a full app experience \u2014 no app store needed. Your progress is always saved locally." },
-    { icon: "\uD83D\uDE00", title: "Avatar", body: "Personalize your profile with a custom avatar! Open Settings and tap the avatar circle next to your name. Choose an emoji, upload an image, or take a photo with your camera. Your avatar appears on the leaderboard so other players can recognize you." },
-    { icon: "\u2709\uFE0F", title: "Contact Support", body: "Need help or want to report a bug? Open Settings and tap <b>Contact Support</b>. This opens your email app with a pre-filled message to the WordPlay team. Include as much detail as you can \u2014 we read every message!" },
-    { icon: "\uD83D\uDDD1\uFE0F", title: "Account & Uninstall", body: "<b>Delete Account</b> \u2014 Open Settings, scroll to your account section, and tap <b>Delete Account</b>. This permanently removes your account, progress, coins, and scores from the server. This cannot be undone.<br><br><b>Uninstall App</b> \u2014 In Settings, scroll to the App section and tap <b>Uninstall App</b>. This clears all local data (cached levels, service workers, saved preferences) and gives you instructions to remove the app from your device. Uninstalling does not delete your server account \u2014 use Delete Account first if you want to remove everything." },
+    { icon: "\uD83D\uDE00", title: "Avatar", body: "Personalize your profile with a custom avatar! Open <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> and tap the avatar circle next to your name. Choose an emoji, upload an image, or take a photo with your camera. Your avatar appears on the leaderboard so other players can recognize you." },
+    { icon: "\u2709\uFE0F", title: "Contact Support", body: "Need help or want to report a bug? Tap <a href=\"#\" class=\"guide-link\" data-action=\"contact\">Contact Support</a> to send us a message. Include as much detail as you can \u2014 we read every message!" },
+    { icon: "\uD83D\uDDD1\uFE0F", title: "Account & Uninstall", body: "<b>Delete Account</b> \u2014 Open <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a>, scroll to your account section, and tap <b>Delete Account</b>. This permanently removes your account, progress, coins, and scores from the server. This cannot be undone.<br><br><b>Uninstall App</b> \u2014 In <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a>, scroll to the App section and tap <b>Uninstall App</b>. This clears all local data (cached levels, service workers, saved preferences) and gives you instructions to remove the app from your device. Uninstalling does not delete your server account \u2014 use Delete Account first if you want to remove everything." },
 ];
 
 function renderGuide() {
@@ -5104,6 +5598,11 @@ function renderGuide() {
         </div>
         <div class="menu-scroll" id="guide-scroll">
             ${sectionsHtml}
+            <div class="guide-legal-row">
+                <a href="#" data-legal="privacy">Privacy Policy</a>
+                <a href="#" data-legal="terms">Terms of Service</a>
+                <a href="#" data-legal="cookie">Cookie & Data</a>
+            </div>
         </div>
     `;
 
@@ -5111,6 +5610,33 @@ function renderGuide() {
         state.showGuide = false;
         renderGuide();
     };
+
+    // Legal links at bottom of guide
+    overlay.querySelectorAll(".guide-legal-row a").forEach(a => {
+        a.onclick = (e) => {
+            e.preventDefault();
+            const which = a.dataset.legal;
+            state.showGuide = false;
+            renderGuide();
+            if (which === "privacy") { state.showPrivacy = true; renderPrivacy(); }
+            else if (which === "terms") { state.showTerms = true; renderTerms(); }
+            else if (which === "cookie") { state.showCookiePolicy = true; renderCookiePolicy(); }
+        };
+    });
+
+    // Guide live-link navigation (event delegation)
+    overlay.addEventListener("click", (e) => {
+        const link = e.target.closest(".guide-link");
+        if (!link) return;
+        e.preventDefault();
+        const action = link.dataset.action;
+        state.showGuide = false;
+        renderGuide();
+        if (action === "contact") { state.showContact = true; renderContact(); }
+        else if (action === "settings") { state.showMenu = true; renderMenu(); }
+        else if (action === "leaderboard") { state.showLeaderboard = true; renderLeaderboard(); }
+        else if (action === "map") { state.showMenu = true; state.showMap = true; renderMenu(); renderMap(); }
+    });
 
     // Accordion toggle
     overlay.querySelectorAll(".guide-q").forEach(q => {

@@ -48,7 +48,7 @@ html, body {
 }
 
 @media (min-width: 1024px) {
-    #app, .modal-overlay, .menu-overlay, .map-overlay, .leaderboard-overlay, .guide-overlay, #contact-overlay { max-width: 480px; }
+    #app, .modal-overlay, .menu-overlay, .map-overlay, .leaderboard-overlay, .guide-overlay, #contact-overlay, #privacy-overlay, #terms-overlay, #cookie-overlay { max-width: 480px; }
 }
 
 /* ---- IN-APP BROWSER BANNER ---- */
@@ -1795,6 +1795,29 @@ html, body {
 .guide-btn:active {
     transform: scale(0.92);
     box-shadow: 0 1px 4px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+}
+
+.guide-link {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.guide-legal-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px 16px 12px;
+    font-size: 12px;
+    opacity: 0.4;
+}
+
+.guide-legal-row a {
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 /* ---- HOME / OPENING SCREEN ---- */
