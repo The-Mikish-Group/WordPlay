@@ -137,7 +137,7 @@ const state = {
     bonusStarsTotal: 0,        // cumulative bonus stars across rounds (0-9, resets on grand prize)
     isBonusMode: false,
     // Achievement tracking
-    speedLevels: [],           // timestamps of recent level completions (for 10-in-an-hour)
+    speedLevels: [],           // timestamps of recent level completions (for 5-in-an-hour)
     loginStreak: 0,            // consecutive days played
     lastPlayDate: null,        // "YYYY-MM-DD" of last play
     isDailyMode: false,
@@ -743,7 +743,7 @@ function checkSpeedMilestone() {
     state.speedLevels.push(now);
     const oneHourAgo = now - 60 * 60 * 1000;
     state.speedLevels = state.speedLevels.filter(t => t >= oneHourAgo);
-    if (state.speedLevels.length >= 10) {
+    if (state.speedLevels.length >= 5) {
         state.speedLevels = [];
         triggerBonusPuzzle("speed");
     }

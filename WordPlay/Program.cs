@@ -549,6 +549,16 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
             var trailingLevel = highestLevel - gap;
             if (trailingLevel < 1) trailingLevel = 1;
 
+            // Ensure bot stays behind on the monthly leaderboard too
+            var userMonthlyGain = highestLevel - progress.MonthlyStart;
+            var rabbitMonthlyGain = trailingLevel - rabbit.MonthlyStart;
+            if (rabbitMonthlyGain >= userMonthlyGain && userMonthlyGain > 0)
+            {
+                // Cap trailing bot's level so monthly gain stays behind
+                trailingLevel = (int)(rabbit.MonthlyStart + userMonthlyGain * 0.85) - rng.Next(1, 4);
+                if (trailingLevel < 1) trailingLevel = 1;
+            }
+
             // Only bump UP — never decrease
             if (trailingLevel > rabbit.HighestLevel)
             {
@@ -559,6 +569,11 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
                 // Stay behind on coins too
                 trailingCoins = Math.Min(trailingCoins, totalCoinsEarned - rng.Next(50, 301));
                 if (trailingCoins < rabbit.TotalCoinsEarned) trailingCoins = rabbit.TotalCoinsEarned + coinBonus;
+                // Ensure monthly coins stay behind target's monthly coins
+                var userMonthlyCoins = totalCoinsEarned - progress.MonthlyCoinsStart;
+                var rabbitMonthlyCoins = trailingCoins - rabbit.MonthlyCoinsStart;
+                if (rabbitMonthlyCoins >= userMonthlyCoins && userMonthlyCoins > 0)
+                    trailingCoins = (int)(rabbit.MonthlyCoinsStart + userMonthlyCoins * 0.85) - rng.Next(10, 101);
 
                 var rabbitNode = JsonNode.Parse(rabbit.ProgressJson ?? "{}")?.AsObject()
                     ?? new JsonObject();
@@ -1157,6 +1172,66 @@ app.MapDelete("/api/admin/rabbits/{id}", async (int id, WordPlayDb db, ClaimsPri
     await db.SaveChangesAsync();
     return Results.Ok(new { deleted = true });
 }).RequireAuthorization();
+
+// ============================================================
+// Anti-scraping: hotlink protection for background images
+// ============================================================
+
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path.Value ?? "";
+    if (path.StartsWith("/images/bg/", StringComparison.OrdinalIgnoreCase))
+    {
+        var referer = ctx.Request.Headers["Referer"].FirstOrDefault();
+        // Allow: no referer (direct browser navigation, bookmarks, SW fetch),
+        //        or referer from our own domain
+        if (!string.IsNullOrEmpty(referer))
+        {
+            var allowed = new[] { "wordplay.illustrate.net", "localhost" };
+            var refUri = Uri.TryCreate(referer, UriKind.Absolute, out var u) ? u : null;
+            if (refUri != null && !allowed.Any(h => refUri.Host.Contains(h, StringComparison.OrdinalIgnoreCase)))
+            {
+                ctx.Response.StatusCode = 403;
+                return;
+            }
+        }
+    }
+    await next();
+});
+
+// ============================================================
+// Anti-scraping: rate limit bulk downloads of level data
+// ============================================================
+
+var _dataRateLimit = new ConcurrentDictionary<string, (int count, DateTime window)>();
+
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path.Value ?? "";
+    if (path.StartsWith("/data/", StringComparison.OrdinalIgnoreCase) && path.EndsWith(".json"))
+    {
+        var ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var now = DateTime.UtcNow;
+        var entry = _dataRateLimit.GetOrAdd(ip, _ => (0, now));
+
+        // Reset window every 60 seconds
+        if ((now - entry.window).TotalSeconds > 60)
+            entry = (0, now);
+
+        entry.count++;
+        _dataRateLimit[ip] = entry;
+
+        // Allow 30 chunk requests per minute (generous for normal play,
+        // blocks bulk scraping of all 780 files)
+        if (entry.count > 30)
+        {
+            ctx.Response.StatusCode = 429;
+            ctx.Response.Headers["Retry-After"] = "60";
+            return;
+        }
+    }
+    await next();
+});
 
 // ============================================================
 // Static files
