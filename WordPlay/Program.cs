@@ -815,6 +815,10 @@ app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal, 
             highestLevel = x.p != null ? x.p.HighestLevel : 0,
             totalCoinsEarned = x.p != null ? x.p.TotalCoinsEarned : 0,
             monthlyGain = x.p != null ? x.p.HighestLevel - x.p.MonthlyStart : 0,
+            paceMode = db.RabbitAssignments
+                .Where(ra => ra.IsActive && ra.BotUserId == x.u.Id)
+                .Select(ra => ra.PaceMode)
+                .FirstOrDefault(),
         });
 
     if (!string.IsNullOrWhiteSpace(search))

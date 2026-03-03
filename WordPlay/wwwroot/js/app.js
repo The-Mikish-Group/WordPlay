@@ -143,6 +143,11 @@ const state = {
     isDailyMode: false,
 };
 
+// ---- POWERUP CAPS ----
+const MAX_FREE_HINTS = 30;
+const MAX_FREE_TARGETS = 30;
+const MAX_FREE_ROCKETS = 30;
+
 // ---- DEBUG: BONUS TESTING ----
 // Usage: open browser console, run  debugBonus()  or  debugBonus(5)  to preset bonusStarsTotal
 window.debugBonus = function(presetStars) {
@@ -391,9 +396,9 @@ function loadProgress() {
             state.coins = d.co ?? 50;
             state.bonusCounter = d.bc || 0;
             state.revealedCells = d.rc || [];
-            state.freeHints = d.fh || 0;
-            state.freeTargets = d.ft || 0;
-            state.freeRockets = d.fr || 0;
+            state.freeHints = Math.min(d.fh || 0, MAX_FREE_HINTS);
+            state.freeTargets = Math.min(d.ft || 0, MAX_FREE_TARGETS);
+            state.freeRockets = Math.min(d.fr || 0, MAX_FREE_ROCKETS);
             state.levelsCompleted = d.lc || 0;
             state.inProgress = d.ip || {};
             state.lastDailyClaim = d.ldc || null;
@@ -1469,9 +1474,18 @@ async function advanceToNextLevel() {
         state.totalCoinsEarned += 1;
         state.levelsCompleted++;
         checkSpeedMilestone();
-        if (state.levelsCompleted % 10 === 0) state.freeHints++;
-        if (state.levelsCompleted % 10 === 0) state.freeTargets++;
-        if (state.levelsCompleted % 10 === 0) state.freeRockets++;
+        if (state.levelsCompleted % 10 === 0) {
+            if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
+            else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
+        }
+        if (state.levelsCompleted % 20 === 0) {
+            if (state.freeTargets < MAX_FREE_TARGETS) state.freeTargets++;
+            else showToast("Target bank full!", "rgba(255,255,255,0.5)", true);
+        }
+        if (state.levelsCompleted % 30 === 0) {
+            if (state.freeRockets < MAX_FREE_ROCKETS) state.freeRockets++;
+            else showToast("Rocket bank full!", "rgba(255,255,255,0.5)", true);
+        }
     }
     state.shuffleKey = 0;
     saveProgress();
@@ -1510,13 +1524,16 @@ async function handleNextLevel() {
         state.totalCoinsEarned += 1;
         state.levelsCompleted++;
         if (state.levelsCompleted % 10 === 0) {
-            state.freeHints++;
+            if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
+            else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
         }
-        if (state.levelsCompleted % 10 === 0) {
-            state.freeTargets++;
+        if (state.levelsCompleted % 20 === 0) {
+            if (state.freeTargets < MAX_FREE_TARGETS) state.freeTargets++;
+            else showToast("Target bank full!", "rgba(255,255,255,0.5)", true);
         }
-        if (state.levelsCompleted % 10 === 0) {
-            state.freeRockets++;
+        if (state.levelsCompleted % 30 === 0) {
+            if (state.freeRockets < MAX_FREE_ROCKETS) state.freeRockets++;
+            else showToast("Rocket bank full!", "rgba(255,255,255,0.5)", true);
         }
     }
     state.shuffleKey = 0;
@@ -2920,7 +2937,7 @@ function openSpinModal() {
     overlay.style.display = "flex";
     overlay.innerHTML = `
         <div class="spin-modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
-            <h2 class="modal-title" style="color:${theme.accent}">Rescue Spin!</h2>
+            <h2 class="modal-title" style="color:${theme.accent}">Spin of Shame!</h2>
             <p class="modal-subtitle">Spin the wheel for a free prize</p>
             <div class="spin-wheel-container">
                 <canvas id="spin-canvas" width="280" height="280"></canvas>
@@ -3021,14 +3038,17 @@ function onSpinComplete() {
 
 function claimSpinPrize(winner) {
     if (winner.label === "Hint") {
-        state.freeHints++;
+        if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
+        else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
     } else if (winner.label === "50 Coins") {
         state.coins += 50;
         state.totalCoinsEarned += 50;
     } else if (winner.label === "Target") {
-        state.freeTargets++;
+        if (state.freeTargets < MAX_FREE_TARGETS) state.freeTargets++;
+        else showToast("Target bank full!", "rgba(255,255,255,0.5)", true);
     } else if (winner.label === "Rocket") {
-        state.freeRockets++;
+        if (state.freeRockets < MAX_FREE_ROCKETS) state.freeRockets++;
+        else showToast("Rocket bank full!", "rgba(255,255,255,0.5)", true);
     } else if (winner.label === "100 Coins") {
         state.coins += 100;
         state.totalCoinsEarned += 100;
@@ -4245,9 +4265,13 @@ function renderAdminUserList() {
         return;
     }
 
-    const roleBadge = (role) => {
+    const roleBadge = (role, paceMode) => {
         if (role === "admin") return '<span class="admin-badge admin-badge-admin">admin</span>';
-        if (role === "bot") return '<span class="admin-badge admin-badge-bot">bot</span>';
+        if (role === "bot") {
+            if (paceMode === "leading") return '<span class="admin-badge admin-badge-admin">\u{1F407} rabbit</span>';
+            if (paceMode === "trailing") return '<span class="admin-badge admin-badge-bot">\u{1F422} turtle</span>';
+            return '<span class="admin-badge admin-badge-bot">bot</span>';
+        }
         return '';
     };
 
@@ -4258,7 +4282,7 @@ function renderAdminUserList() {
     const rows = _adminUsers.map(u => `
         <div class="admin-user-row" data-uid="${u.id}">
             <div class="admin-user-info">
-                <div class="admin-user-name" style="display:flex;align-items:center;gap:6px">${renderAvatar(u.avatarData, u.displayName, 24)} ${escapeHtml(u.displayName || "\u2014")} ${roleBadge(u.role)}</div>
+                <div class="admin-user-name" style="display:flex;align-items:center;gap:6px">${renderAvatar(u.avatarData, u.displayName, 24)} ${escapeHtml(u.displayName || "\u2014")} ${roleBadge(u.role, u.paceMode)}</div>
                 <div class="admin-user-meta">Lv ${u.highestLevel.toLocaleString()} \u00b7 ${u.totalCoinsEarned.toLocaleString()} pts \u00b7 +${u.monthlyGain} this mo</div>
             </div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.4;flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
@@ -4481,9 +4505,9 @@ function renderAdminUserDetail(overlay) {
             if (availableBots.length > 0) {
                 let botOpts = '<option value="">Add a rabbit...</option>';
                 availableBots.forEach(b => { botOpts += '<option value="' + b.id + '">' + escapeHtml(b.displayName || "Bot #" + b.id) + '</option>'; });
-                html += '<div style="display:flex;gap:6px;margin-top:8px;align-items:center">' +
-                    '<select id="admin-rabbit-select" style="flex:1;padding:6px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#f0e8ff;font-size:13px">' + botOpts + '</select>' +
-                    '<select id="admin-rabbit-mode" style="width:90px;padding:6px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#f0e8ff;font-size:13px"><option value="leading">Leading</option><option value="trailing">Trailing</option></select>' +
+                html += '<div style="display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap">' +
+                    '<select id="admin-rabbit-select" style="flex:1 1 0;min-width:0;padding:6px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#f0e8ff;font-size:13px">' + botOpts + '</select>' +
+                    '<select id="admin-rabbit-mode" style="width:auto;padding:6px;background:#1a1030;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#f0e8ff;font-size:13px"><option value="leading">Leading</option><option value="trailing">Trailing</option></select>' +
                     '<button id="admin-assign-rabbit" style="background:' + accent + ';color:#000;border:none;padding:6px 10px;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap">Assign</button>' +
                     '</div>';
             } else if (activeRabbits.length === 0) {
@@ -4828,10 +4852,10 @@ function renderMap() {
 const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDC46", title: "Swipe & Spell", body: "Drag your finger across the letter wheel to spell words. Letters connect as you swipe \u2014 lift your finger to submit. Find all the words to fill the crossword and move on!" },
     { icon: "\uD83E\uDE99", title: "Earning Coins", body: "Every word you find earns coins! Grid words = 1 coin. Bonus words = 5 coins. The special coin word = 100 coins! Grab your daily bonus for 100 free coins too." },
-    { icon: "\uD83D\uDCA1", title: "Hints", body: "Stuck? Use hints! <b>Hint</b> (\uD83D\uDCA1 100 coins) reveals a random letter. <b>Target</b> (\uD83C\uDFAF 200 coins) lets you tap any cell. <b>Rocket</b> (\uD83D\uDE80 300 coins) blasts up to 5 letters at once! You also earn free hints every 10 levels." },
+    { icon: "\uD83D\uDCA1", title: "Hints", body: "Stuck? Use hints! <b>Hint</b> (\uD83D\uDCA1 100 coins) reveals a random letter. <b>Target</b> (\uD83C\uDFAF 200 coins) lets you tap any cell. <b>Rocket</b> (\uD83D\uDE80 300 coins) blasts up to 5 letters at once! You earn free hints every 10 levels, targets every 20, and rockets every 30 (max 30 each)." },
     { icon: "\u2B50", title: "Bonus Words", body: "Found a real word that\u2019s not on the grid? That\u2019s a bonus word! Worth 5 coins each, and every 10 bonus words earns you a free letter reveal. Watch the star counter fill up!" },
     { icon: "\uD83D\uDCB0", title: "The Coin Word", body: "See a pulsing coin on the grid? That\u2019s a special standalone word worth 100 coins! It\u2019s a short word (4\u20135 letters) tucked away for you to discover." },
-    { icon: "\uD83C\uDFB0", title: "Rescue Spin", body: "Completely stuck with no coins and no hints? A prize wheel appears! Spin to win free hints, targets, rockets, or coins. It\u2019s your lifeline!" },
+    { icon: "\uD83C\uDFB0", title: "Spin of Shame", body: "Completely stuck with no coins and no hints? A prize wheel appears! Spin to win free hints, targets, rockets, or coins. It\u2019s your lifeline!" },
     { icon: "\uD83C\uDF81", title: "Daily Bonus", body: "Tap the FREE button at the top of the screen once a day to claim 100 free coins. Come back every day \u2014 it resets at midnight!" },
     { icon: "\uD83D\uDCC5", title: "Daily Puzzle", body: "A fresh puzzle every day! Tap the green Daily Puzzle button on the home screen to play. A coin (\uD83E\uDE99) appears on one word in the grid \u2014 find it for 25 bonus coins, then the coin moves to a new word. Keep chasing the coin to rack up rewards! Complete the entire puzzle for a 100-coin bonus. The same puzzle is shared by all players each day. Your regular progress is saved and waiting when you return." },
     { icon: "\u2B50", title: "Bonus Puzzle", body: "Earn bonus puzzles through achievements \u2014 complete a level pack, finish 10 levels in an hour, maintain a 3-day play streak, or beat the daily puzzle. A gold <b>\u2B50 Bonus Puzzle</b> button appears on the home screen. Inside, 9 stars are scattered across the grid. Find starred words to collect stars and earn 10 coins each! Every 3 stars fills one of your 3 star slots. Collect all 9 stars for a <b>500-coin grand prize</b>. But be careful \u2014 leaving the puzzle forfeits your progress!" },
