@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wordplay-v91';
+const CACHE_NAME = 'wordplay-v92';
 const ASSETS = [
     '/',
     '/index.html',
@@ -12,6 +12,13 @@ const ASSETS = [
     '/manifest.json',
     '/fonts/nunito-latin.woff2',
     '/fonts/nunito-latin-italic.woff2',
+    '/images/bg/bg-manifest.json',
+    '/images/bg/alpenglow-fire.webp',
+    '/images/bg/boreal-glow.webp',
+    '/images/bg/cosmos-drift.webp',
+    '/images/bg/glacier-calve.webp',
+    '/images/bg/nebula-arm.webp',
+    '/images/bg/solstice-dawn.webp',
 ];
 
 const DATA_CACHE = 'wordplay-data-v3';

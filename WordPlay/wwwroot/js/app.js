@@ -1759,8 +1759,14 @@ function renderCurrentScreen() {
 // ---- HOME / OPENING SCREEN ----
 let _homeBgKey = null;
 
+// These images are pre-cached by the service worker for offline use
+const OFFLINE_BG_KEYS = ["alpenglow-fire","boreal-glow","cosmos-drift","glacier-calve","nebula-arm","solstice-dawn"];
+
 function pickRandomBgKey() {
-    if (!_bgManifest || _bgManifest.size === 0) return null;
+    if (!_bgManifest || _bgManifest.size === 0) {
+        // Manifest failed to load (offline, first visit) — use a pre-cached image
+        return OFFLINE_BG_KEYS[Math.floor(Math.random() * OFFLINE_BG_KEYS.length)];
+    }
     const keys = [..._bgManifest];
     return keys[Math.floor(Math.random() * keys.length)];
 }
@@ -3811,6 +3817,14 @@ function renderMenu() {
         `;
     }
 
+    html += `
+        <div class="guide-legal-row">
+            <a href="#" id="menu-legal-privacy">Privacy Policy</a>
+            <a href="#" id="menu-legal-terms">Terms of Service</a>
+            <a href="#" id="menu-legal-cookie">Cookie & Data</a>
+        </div>
+    `;
+
     html += `</div>`; // close menu-scroll
     overlay.innerHTML = html;
 
@@ -4141,6 +4155,11 @@ function renderMenu() {
         renderMenu();
         renderCookiePolicy();
     };
+
+    // Footer legal links (same actions as the buttons above)
+    document.getElementById("menu-legal-privacy").onclick = (e) => { e.preventDefault(); document.getElementById("menu-privacy-btn").click(); };
+    document.getElementById("menu-legal-terms").onclick = (e) => { e.preventDefault(); document.getElementById("menu-terms-btn").click(); };
+    document.getElementById("menu-legal-cookie").onclick = (e) => { e.preventDefault(); document.getElementById("menu-cookie-btn").click(); };
 
     document.getElementById("uninstall-app-btn").onclick = () => {
         const modal = document.createElement("div");
@@ -4479,6 +4498,17 @@ function renderLegalOverlay(id, flag, emoji, title, bodyHtml) {
         state[flag] = false;
         renderLegalOverlay(id, flag, emoji, title, bodyHtml);
     };
+    // Legal page live links (e.g. Contact Support)
+    overlay.addEventListener("click", (e) => {
+        const link = e.target.closest(".legal-link");
+        if (!link) return;
+        e.preventDefault();
+        const action = link.dataset.action;
+        state[flag] = false;
+        renderLegalOverlay(id, flag, emoji, title, bodyHtml);
+        if (action === "contact") { state.showContact = true; renderContact(); }
+        else if (action === "settings") { state.showMenu = true; renderMenu(); }
+    });
 }
 
 function renderPrivacy() {
@@ -4508,16 +4538,16 @@ function renderPrivacy() {
         <p>We do not sell, rent, or share your personal data with anyone. Your information stays with WordPlay.</p>
 
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Data Retention & Deletion</h3>
-        <p>We keep your data as long as your account exists. You can <b>delete your account</b> at any time in Settings — this permanently removes all your server-side data (profile, progress, scores). Local data can be cleared by uninstalling the app or clearing your browser data.</p>
+        <p>We keep your data as long as your account exists. You can <b>delete your account</b> at any time in <a href="#" class="legal-link guide-link" data-action="settings">Settings</a> — this permanently removes all your server-side data (profile, progress, scores). Local data can be cleared by uninstalling the app or clearing your browser data.</p>
 
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Your Rights (GDPR)</h3>
-        <p>If you are in the EU/EEA, you have the right to access, correct, delete, or export your personal data. You can exercise these rights via the in-app <b>Contact Support</b> form or by deleting your account in Settings.</p>
+        <p>If you are in the EU/EEA, you have the right to access, correct, delete, or export your personal data. You can exercise these rights via the in-app <a href="#" class="legal-link guide-link" data-action="contact">Contact Support</a> form or by deleting your account in <a href="#" class="legal-link guide-link" data-action="settings">Settings</a>.</p>
 
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Children</h3>
         <p>WordPlay is not directed at children under 13. We do not knowingly collect data from children under 13.</p>
 
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Contact</h3>
-        <p>Questions about your privacy? Use the <b>Contact Support</b> form in the app, or reach us through the Settings menu.</p>
+        <p>Questions about your privacy? Use the <a href="#" class="legal-link guide-link" data-action="contact">Contact Support</a> form, or reach us through the <a href="#" class="legal-link guide-link" data-action="settings">Settings</a> menu.</p>
     `);
 }
 
@@ -4532,7 +4562,7 @@ function renderTerms() {
         <p>WordPlay is a free word puzzle game provided by Illustrate. The game is offered "as is" with no guarantees of availability, uptime, or fitness for any particular purpose.</p>
 
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">User Accounts</h3>
-        <p>Sign-in is optional. If you create an account, you may have only one account per person. You are responsible for keeping your sign-in credentials secure.</p>
+        <p>Sign-in is optional. You may sign in with multiple providers (Google, Microsoft) and switch between accounts. You are responsible for keeping your sign-in credentials secure.</p>
 
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Acceptable Use</h3>
         <p>You agree not to:</p>
@@ -4548,7 +4578,7 @@ function renderTerms() {
         <p>All game content — including puzzles, code, design, and artwork — is owned by Illustrate. You may not copy, modify, or redistribute any part of the game without permission.</p>
 
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Termination</h3>
-        <p>We may suspend or terminate accounts that violate these terms. You can delete your account at any time through Settings.</p>
+        <p>We may suspend or terminate accounts that violate these terms. You can delete your account at any time through <a href="#" class="legal-link guide-link" data-action="settings">Settings</a>.</p>
 
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Limitation of Liability</h3>
         <p>To the fullest extent permitted by law, Illustrate is not liable for any indirect, incidental, or consequential damages arising from your use of WordPlay. The game is provided "as is" without warranties of any kind.</p>
@@ -4560,7 +4590,7 @@ function renderTerms() {
         <p>These terms are governed by the laws of the United States. Any disputes will be resolved in accordance with applicable U.S. law.</p>
 
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Contact</h3>
-        <p>Questions about these terms? Use the <b>Contact Support</b> form in the app.</p>
+        <p>Questions about these terms? Use the <a href="#" class="legal-link guide-link" data-action="contact">Contact Support</a> form.</p>
     `);
 }
 
@@ -4590,14 +4620,14 @@ function renderCookiePolicy() {
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Your Rights</h3>
         <p>EU/EEA users have GDPR rights including access, deletion, and data portability. You can:</p>
         <ul style="padding-left:20px">
-            <li>Use <b>Contact Support</b> to request your data or ask questions.</li>
-            <li>Use <b>Delete Account</b> in Settings to remove all server-side data.</li>
-            <li>Use <b>Uninstall App</b> in Settings to clear all local data.</li>
+            <li>Use <a href="#" class="legal-link guide-link" data-action="contact">Contact Support</a> to request your data or ask questions.</li>
+            <li>Use <b>Delete Account</b> in <a href="#" class="legal-link guide-link" data-action="settings">Settings</a> to remove all server-side data.</li>
+            <li>Use <b>Uninstall App</b> in <a href="#" class="legal-link guide-link" data-action="settings">Settings</a> to clear all local data.</li>
             <li>Clear your browser's localStorage manually at any time.</li>
         </ul>
 
         <h3 style="color:${theme.accent};margin:18px 0 8px;font-size:16px">Contact</h3>
-        <p>Questions about data storage? Use the <b>Contact Support</b> form in the app.</p>
+        <p>Questions about data storage? Use the <a href="#" class="legal-link guide-link" data-action="contact">Contact Support</a> form.</p>
     `);
 }
 
