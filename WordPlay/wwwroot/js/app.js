@@ -1941,6 +1941,11 @@ function renderHome() {
         animateGridEntrance();
     };
 
+    // First-launch: force tier selection
+    if (state.difficultyTier < 0) {
+        setTimeout(() => renderTierChooser(), 300);
+    }
+
     const dailyBtn = document.getElementById("home-daily-btn");
     if (dailyBtn) {
         dailyBtn.onclick = () => renderDailyModal(true);
@@ -2116,6 +2121,69 @@ function renderDailyModal(show) {
     overlay.onclick = (e) => {
         if (e.target === overlay) renderDailyModal(false);
     };
+}
+
+function renderTierChooser() {
+    let overlay = document.getElementById("tier-chooser");
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "tier-chooser";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+    overlay.style.zIndex = "9999";
+
+    const tierColors = ["#4CAF50", "#2196F3", "#FF9800", "#f44336"];
+    const tierEmojis = ["\uD83C\uDF31", "\uD83D\uDCAA", "\uD83D\uDD25", "\uD83D\uDC8E"];
+
+    let btnsHtml = "";
+    DIFFICULTY_TIERS.forEach((t, i) => {
+        btnsHtml += `
+            <button class="tier-choice-btn" data-tier="${i}" style="border-color:${tierColors[i]}">
+                <span class="tier-choice-emoji">${tierEmojis[i]}</span>
+                <div>
+                    <span class="tier-choice-label" style="color:${tierColors[i]}">${t.label}</span>
+                    <span class="tier-choice-tagline">${t.tagline}</span>
+                </div>
+            </button>`;
+    });
+
+    overlay.innerHTML = `
+        <div class="modal-box tier-chooser-box">
+            <div class="modal-emoji">\uD83C\uDFAF</div>
+            <h2 class="modal-title" style="color:${theme.accent}">Choose Your Level</h2>
+            <p class="tier-chooser-subtitle">Pick a starting difficulty. You can always move up later in Settings.</p>
+            <div class="tier-choices">${btnsHtml}</div>
+            <p class="tier-chooser-hint">Not sure? Check the <a href="#" id="tier-guide-link" style="color:${theme.accent}">Player Guide</a> for details.</p>
+        </div>
+    `;
+
+    overlay.querySelectorAll(".tier-choice-btn").forEach(btn => {
+        btn.onclick = () => {
+            const idx = parseInt(btn.getAttribute("data-tier"));
+            const tier = DIFFICULTY_TIERS[idx];
+            state.difficultyTier = idx;
+            state.difficultyOffset = tier.offset;
+            // Apply offset to starting level
+            if (state.highestLevel <= 1) {
+                state.currentLevel = tier.offset + 1;
+                state.highestLevel = tier.offset + 1;
+            }
+            saveProgress();
+            overlay.style.display = "none";
+            renderHome();
+        };
+    });
+
+    const guideLink = document.getElementById("tier-guide-link");
+    if (guideLink) {
+        guideLink.onclick = (e) => {
+            e.preventDefault();
+            state.showGuide = true;
+            renderGuide();
+        };
+    }
 }
 
 function renderBonusModal(show) {

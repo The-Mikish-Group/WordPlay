@@ -2396,3 +2396,19 @@ html, body {
 }
 .admin-rabbit-row .admin-rabbit-info { flex: 1; }
 .admin-rabbit-row button { background: rgba(255,80,80,0.2); color: #ff8888; border: 1px solid rgba(255,80,80,0.3); padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+
+/* ---- Difficulty Tier Chooser ---- */
+.tier-chooser-box { max-width: 340px; }
+.tier-chooser-subtitle { font-size: 14px; opacity: 0.8; margin: 4px 0 16px; line-height: 1.4; }
+.tier-choices { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.tier-choice-btn {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,0.06); border: 2px solid; border-radius: 14px;
+    padding: 14px 16px; cursor: pointer; transition: background 0.2s, transform 0.15s;
+    text-align: left;
+}
+.tier-choice-btn:hover, .tier-choice-btn:active { background: rgba(255,255,255,0.12); transform: scale(1.02); }
+.tier-choice-emoji { font-size: 28px; flex-shrink: 0; }
+.tier-choice-label { font-size: 17px; font-weight: 700; display: block; }
+.tier-choice-tagline { font-size: 13px; opacity: 0.65; display: block; }
+.tier-chooser-hint { font-size: 12px; opacity: 0.5; margin-top: 14px; }
