@@ -484,6 +484,8 @@ function loadProgress() {
             state.loginStreak = d.ls || 0;
             state.lastPlayDate = d.lpd || null;
             state.flowsCompleted = d.fc || 0;
+            state.difficultyTier = d.dt !== undefined ? d.dt : -1;
+            state.difficultyOffset = d.doff || 0;
             // Clear expired bonus puzzle (1-hour window)
             if (state.bonusPuzzle && state.bonusPuzzle.available && state.bonusPuzzle.awardedAt &&
                 Date.now() - state.bonusPuzzle.awardedAt > 60 * 60 * 1000) {
@@ -526,6 +528,8 @@ function saveProgress() {
             ls: state.loginStreak,
             lpd: state.lastPlayDate,
             fc: state.flowsCompleted,
+            dt: state.difficultyTier,
+            doff: state.difficultyOffset,
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
     } catch (e) { /* ignore */ }

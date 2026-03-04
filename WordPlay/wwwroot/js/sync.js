@@ -192,5 +192,17 @@ function mergeProgress(local, server) {
     // Flow completions: max merge
     merged.fc = Math.max(local.fc || 0, server.fc || 0);
 
+    // Difficulty tier: take from whichever has higher tier (up only)
+    const localTier = local.dt !== undefined ? local.dt : -1;
+    const serverTier = server.dt !== undefined ? server.dt : -1;
+    merged.dt = Math.max(localTier, serverTier);
+    // Offset matches the tier
+    if (merged.dt >= 0 && merged.dt < 4) {
+        const offsets = [0, 250, 2000, 5000];
+        merged.doff = offsets[merged.dt];
+    } else {
+        merged.doff = Math.max(local.doff || 0, server.doff || 0);
+    }
+
     return merged;
 }
