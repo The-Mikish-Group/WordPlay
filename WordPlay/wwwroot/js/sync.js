@@ -196,13 +196,11 @@ function mergeProgress(local, server) {
     const localTier = local.dt !== undefined ? local.dt : -1;
     const serverTier = server.dt !== undefined ? server.dt : -1;
     merged.dt = Math.max(localTier, serverTier);
-    // Offset matches the tier
-    if (merged.dt >= 0 && merged.dt < 4) {
-        const offsets = [0, 250, 2000, 5000];
-        merged.doff = offsets[merged.dt];
-    } else {
-        merged.doff = Math.max(local.doff || 0, server.doff || 0);
-    }
+    // Offset: take from whichever save has higher version (most recent migration).
+    // Don't recompute from tier — existing players have tier>0 but offset=0.
+    const localV = local.v || 0;
+    const serverV = server.v || 0;
+    merged.doff = localV >= serverV ? (local.doff || 0) : (server.doff || 0);
 
     return merged;
 }

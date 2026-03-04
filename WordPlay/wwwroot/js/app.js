@@ -490,6 +490,8 @@ function loadProgress() {
             // Reset offset for anyone who didn't choose it via the tier chooser.
             if (d.v && d.v < 6 && state.difficultyOffset > 0) {
                 state.difficultyOffset = 0;
+                // Push corrected data to server immediately
+                setTimeout(() => { saveProgress(); if (typeof syncPush === "function") syncPush(); }, 500);
             }
             // Auto-detect tier for existing players who haven't been assigned one.
             // Existing players started from level 1 — keep offset 0, just assign the tier label.
