@@ -1910,7 +1910,7 @@ function renderHome() {
                 const completed = dp && dp.date === getTodayStr() && dp.completed;
                 if (completed) return '';
                 const inProgress = dp && dp.date === getTodayStr() && (dp.fw || []).length > 0 && !dp.completed;
-                return '<div class="home-daily-puzzle-row"><button class="home-daily-puzzle-btn' + (inProgress ? ' in-progress' : '') + '" id="home-daily-puzzle-btn">\uD83D\uDCC5 ' + (inProgress ? 'Continue Daily Puzzle' : 'Daily Puzzle') + '</button></div>';
+                return '<div class="home-daily-puzzle-row"><button class="home-daily-puzzle-btn' + (inProgress ? ' in-progress' : '') + '" id="home-daily-puzzle-btn"><span class="daily-icon-pulse">\uD83D\uDCC5</span> ' + (inProgress ? 'Continue Daily Puzzle' : 'Daily Puzzle') + '</button></div>';
             })()}
             ${(function() {
                 if (!state.bonusPuzzle || !state.bonusPuzzle.available || isBonusPuzzleExpired()) {

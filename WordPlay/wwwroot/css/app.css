@@ -2234,6 +2234,16 @@ html, body {
     50% { transform: scale(1.04); box-shadow: 0 6px 14px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.3); }
 }
 
+.daily-icon-pulse {
+    display: inline-block;
+    animation: dailyIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes dailyIconPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.35); }
+}
+
 /* ---- BONUS PUZZLE BUTTON (home screen) ---- */
 .home-bonus-puzzle-row {
     display: flex;
