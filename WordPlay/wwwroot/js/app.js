@@ -1665,6 +1665,7 @@ async function advanceToNextLevel() {
     }
     state.currentLevel = next;
     state.highestLevel = Math.max(state.highestLevel, next);
+    checkTierPromotion();
     state.foundWords = [];
     state.bonusFound = [];
     state.revealedCells = [];
@@ -1718,6 +1719,7 @@ async function handleNextLevel() {
     }
     state.currentLevel = next;
     state.highestLevel = Math.max(state.highestLevel, next);
+    checkTierPromotion();
     state.foundWords = [];
     state.bonusFound = [];
     state.revealedCells = [];
@@ -2184,6 +2186,73 @@ function renderTierChooser() {
             renderGuide();
         };
     }
+}
+
+function checkTierPromotion() {
+    if (state.difficultyTier < 0 || state.difficultyTier >= DIFFICULTY_TIERS.length - 1) return;
+    const nextTier = DIFFICULTY_TIERS[state.difficultyTier + 1];
+    if (state.highestLevel >= nextTier.offset + 1) {
+        state.difficultyTier++;
+        state.difficultyOffset = nextTier.offset;
+        saveProgress();
+        setTimeout(() => renderTierPromotion(nextTier), 600);
+    }
+}
+
+function renderTierPromotion(tier) {
+    let overlay = document.getElementById("tier-promotion");
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "tier-promotion";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+    overlay.style.zIndex = "9998";
+
+    const tierColors = ["#4CAF50", "#2196F3", "#FF9800", "#f44336"];
+    const tierEmojis = ["\uD83C\uDF31", "\uD83D\uDCAA", "\uD83D\uDD25", "\uD83D\uDC8E"];
+    const tierIdx = DIFFICULTY_TIERS.indexOf(tier);
+    const color = tierColors[tierIdx] || theme.accent;
+    const emoji = tierEmojis[tierIdx] || "\uD83C\uDFC6";
+
+    overlay.innerHTML = `
+        <div class="modal-box tier-promotion-box" style="border:2px solid ${color}50;box-shadow:0 0 60px ${color}30">
+            <div class="tier-promotion-anim">
+                <div class="tier-trophy">\uD83C\uDFC6</div>
+                <div class="tier-flame" style="color:${color}">${emoji}</div>
+            </div>
+            <div class="tier-confetti" id="tier-confetti"></div>
+            <h2 class="modal-title" style="color:${color}">Level Up!</h2>
+            <p class="tier-promotion-tier" style="color:${color}">${tier.label}</p>
+            <p class="tier-promotion-tagline">${tier.tagline}</p>
+            <p class="tier-promotion-desc">Your puzzles just got harder. Rewards stay boosted!</p>
+            <button class="modal-next-btn" id="tier-promo-btn"
+                style="background:linear-gradient(180deg,${color} 0%,${color}bb 100%);border:2px solid ${color};box-shadow:0 4px 14px ${color}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
+                Let's Go!
+            </button>
+        </div>
+    `;
+
+    // Confetti burst
+    const confettiEl = document.getElementById("tier-confetti");
+    if (confettiEl) {
+        let confettiHtml = "";
+        for (let i = 0; i < 40; i++) {
+            const x = Math.random() * 100;
+            const delay = Math.random() * 0.5;
+            const hue = Math.random() * 360;
+            const size = 4 + Math.random() * 6;
+            confettiHtml += `<div class="confetti-piece" style="left:${x}%;animation-delay:${delay}s;background:hsl(${hue},80%,60%);width:${size}px;height:${size}px"></div>`;
+        }
+        confettiEl.innerHTML = confettiHtml;
+    }
+
+    if (typeof playSound === "function") playSound("spinPrize");
+
+    document.getElementById("tier-promo-btn").onclick = () => {
+        overlay.style.display = "none";
+    };
 }
 
 function renderBonusModal(show) {
