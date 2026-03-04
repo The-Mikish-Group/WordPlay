@@ -355,7 +355,7 @@ function resetStateToDefaults() {
     state.lastPlayDate = null;
     state.showAdmin = false;
     state.flowsCompleted = 0;
-    state.difficultyTier = -1;
+    state.difficultyTier = 0;
     state.difficultyOffset = 0;
 }
 
@@ -486,6 +486,14 @@ function loadProgress() {
             state.flowsCompleted = d.fc || 0;
             state.difficultyTier = d.dt !== undefined ? d.dt : -1;
             state.difficultyOffset = d.doff || 0;
+            // Auto-detect tier for existing players who haven't been assigned one
+            if (state.difficultyTier < 0) {
+                const hl = state.highestLevel;
+                if (hl >= 5001) { state.difficultyTier = 3; state.difficultyOffset = 5000; }
+                else if (hl >= 2001) { state.difficultyTier = 2; state.difficultyOffset = 2000; }
+                else if (hl >= 251) { state.difficultyTier = 1; state.difficultyOffset = 250; }
+                else { state.difficultyTier = 0; state.difficultyOffset = 0; }
+            }
             // Clear expired bonus puzzle (1-hour window)
             if (state.bonusPuzzle && state.bonusPuzzle.available && state.bonusPuzzle.awardedAt &&
                 Date.now() - state.bonusPuzzle.awardedAt > 60 * 60 * 1000) {
@@ -1943,8 +1951,8 @@ function renderHome() {
         animateGridEntrance();
     };
 
-    // First-launch: force tier selection
-    if (state.difficultyTier < 0) {
+    // New players only: show tier chooser (existing players are auto-detected in loadProgress)
+    if (state.highestLevel <= 1 && state.difficultyTier === 0 && !localStorage.getItem("wordplay-save")) {
         setTimeout(() => renderTierChooser(), 300);
     }
 
@@ -2167,11 +2175,8 @@ function renderTierChooser() {
             const tier = DIFFICULTY_TIERS[idx];
             state.difficultyTier = idx;
             state.difficultyOffset = tier.offset;
-            // Apply offset to starting level
-            if (state.highestLevel <= 1) {
-                state.currentLevel = tier.offset + 1;
-                state.highestLevel = tier.offset + 1;
-            }
+            state.currentLevel = tier.offset + 1;
+            state.highestLevel = tier.offset + 1;
             saveProgress();
             overlay.style.display = "none";
             renderHome();
