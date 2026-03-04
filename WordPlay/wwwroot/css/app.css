@@ -2443,3 +2443,11 @@ html, body {
     0% { transform: translateY(0) rotate(0deg); opacity: 1; }
     100% { transform: translateY(300px) rotate(720deg); opacity: 0; }
 }
+
+/* ---- Settings Select ---- */
+.menu-setting-select {
+    width: 100%; padding: 10px 12px; font-size: 15px;
+    background: rgba(255,255,255,0.08); color: inherit; border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px; appearance: auto; cursor: pointer;
+}
+.menu-setting-select:focus { outline: none; border-color: rgba(255,255,255,0.3); }

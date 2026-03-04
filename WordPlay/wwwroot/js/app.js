@@ -3914,7 +3914,26 @@ function renderMenu() {
             </div>
         </div>
     `;
-    
+
+    // Difficulty Tier
+    if (state.difficultyTier >= 0) {
+        const currentTier = DIFFICULTY_TIERS[state.difficultyTier];
+        let tierOptions = "";
+        for (let i = state.difficultyTier; i < DIFFICULTY_TIERS.length; i++) {
+            const t = DIFFICULTY_TIERS[i];
+            tierOptions += `<option value="${i}" ${i === state.difficultyTier ? "selected" : ""}>${t.label} \u2014 ${t.tagline}</option>`;
+        }
+        html += `
+            <div class="menu-setting">
+                <label class="menu-setting-label">Difficulty Tier</label>
+                <select id="menu-tier-select" class="menu-setting-select" style="accent-color:${theme.accent}">
+                    ${tierOptions}
+                </select>
+                <div class="menu-setting-hint">Higher tiers have harder puzzles. You can move up but not down.</div>
+            </div>
+        `;
+    }
+
     // Quick navigation
     html += `
         <div class="menu-nav-row">
@@ -4267,6 +4286,30 @@ function renderMenu() {
         saveProgress();
         renderMenu();
     };
+
+    const tierSelect = document.getElementById("menu-tier-select");
+    if (tierSelect) {
+        tierSelect.onchange = () => {
+            const newIdx = parseInt(tierSelect.value);
+            if (newIdx <= state.difficultyTier) return;
+            const newTier = DIFFICULTY_TIERS[newIdx];
+            const levelsCompleted = state.highestLevel - state.difficultyOffset;
+            state.difficultyTier = newIdx;
+            state.difficultyOffset = newTier.offset;
+            state.currentLevel = newTier.offset + levelsCompleted;
+            state.highestLevel = newTier.offset + levelsCompleted;
+            state.inProgress = {};
+            state.foundWords = [];
+            state.bonusFound = [];
+            state.revealedCells = [];
+            state.standaloneFound = false;
+            saveProgress();
+            state.showMenu = false;
+            renderMenu();
+            showToast(`Difficulty set to ${newTier.label}!`, theme.accent);
+            recompute().then(() => { restoreLevelState(); renderHome(); });
+        };
+    }
 
     document.getElementById("menu-map-btn").onclick = () => {
         state.showMenu = false;
