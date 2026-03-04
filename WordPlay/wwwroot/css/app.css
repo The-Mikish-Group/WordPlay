@@ -1891,7 +1891,7 @@ html, body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 6px 16px 5px;
+    padding: 6px 20px 5px;
     background: linear-gradient(135deg, #b8860b 0%, #d4a028 40%, #f0c850 70%, #d4a028 100%);
     border: 2px solid rgba(255,220,100,0.6);
     border-radius: 16px;
@@ -1964,13 +1964,23 @@ html, body {
     filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
 }
 
-.expertise-label {
-    font-size: 13px;
+.expertise-title {
+    font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 2px;
     color: #5a3800;
     text-shadow: 0 1px 0 rgba(255,255,255,0.2);
+    position: relative;
+    z-index: 1;
+}
+
+.expertise-tier {
+    font-size: 14px;
+    font-weight: 800;
+    color: #3a2000;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+    letter-spacing: 0.5px;
 }
 
 .home-top-right {

@@ -1892,12 +1892,13 @@ function renderHome() {
             </div>
             <div class="home-expertise-row">
                 <div class="expertise-banner" id="home-expertise-btn">
+                    <div class="expertise-title">Expertise</div>
                     <div class="expertise-bottom">
-                        <span class="expertise-icon">🏆</span>
-                        <span class="expertise-label">${DIFFICULTY_TIERS[state.difficultyTier] ? DIFFICULTY_TIERS[state.difficultyTier].label : 'Expertise'}</span>
+                        <span class="expertise-icon">\uD83C\uDFC6</span>
+                        <span class="expertise-tier">${DIFFICULTY_TIERS[state.difficultyTier] ? DIFFICULTY_TIERS[state.difficultyTier].label : ''}</span>
                     </div>
                     <div class="expertise-row">
-                        <span class="expertise-coin">🪙</span>
+                        <span class="expertise-coin">\uD83E\uDE99</span>
                         <span class="expertise-value">${formatCompact(state.totalCoinsEarned)}</span>
                     </div>
                 </div>
