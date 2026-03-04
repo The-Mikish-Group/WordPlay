@@ -2447,7 +2447,8 @@ html, body {
 /* ---- Settings Select ---- */
 .menu-setting-select {
     width: 100%; padding: 10px 12px; font-size: 15px;
-    background: rgba(255,255,255,0.08); color: inherit; border: 1px solid rgba(255,255,255,0.15);
+    background: #1a1a2e; color: #e0e0e0; border: 1px solid rgba(255,255,255,0.15);
     border-radius: 10px; appearance: auto; cursor: pointer;
 }
+.menu-setting-select option { background: #1a1a2e; color: #e0e0e0; }
 .menu-setting-select:focus { outline: none; border-color: rgba(255,255,255,0.3); }
