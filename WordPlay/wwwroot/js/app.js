@@ -1899,7 +1899,7 @@ function renderHome() {
                 <div class="home-title">Word<br>Play</div>
                 <button class="home-level-btn" id="home-play-btn">
                     <span class="home-level-label">Level</span>
-                    <span class="home-level-num" style="font-size:${state.currentLevel >= 100000 ? 22 : state.currentLevel >= 10000 ? 26 : 36}px">${state.currentLevel.toLocaleString()}</span>
+                    <span class="home-level-num" style="font-size:${displayLevel(state.currentLevel) >= 100000 ? 22 : displayLevel(state.currentLevel) >= 10000 ? 26 : 36}px">${displayLevel(state.currentLevel).toLocaleString()}</span>
                 </button>
                 ${claimed ? '' : `<button class="home-daily-btn" id="home-daily-btn">
                     <span>FREE</span>
@@ -2050,7 +2050,7 @@ function renderHeader() {
             </button>
             <div class="header-center">
                 <div class="header-pack">${flowLevel ? '\uD83C\uDF0A ' : ''}${level.group} \u00B7 ${level.pack}</div>
-                <div class="header-level" style="color:${theme.accent}">Level ${state.currentLevel}</div>
+                <div class="header-level" style="color:${theme.accent}">Level ${displayLevel(state.currentLevel)}</div>
             </div>
             <div class="header-right">
                 <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">\uD83E\uDE99 ${state.coins.toLocaleString()}</div>
@@ -3717,7 +3717,7 @@ function renderCompleteModal() {
             <div class="modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
                 <div class="modal-emoji">\uD83C\uDF89</div>
                 <h2 class="modal-title" style="color:${theme.accent}">Level Complete!</h2>
-                <p class="modal-subtitle">${flowLevel ? '\uD83C\uDF0A Flow Level \u00B7 ' : ''}${level.group} \u00B7 ${level.pack} \u00B7 Level ${state.currentLevel}</p>
+                <p class="modal-subtitle">${flowLevel ? '\uD83C\uDF0A Flow Level \u00B7 ' : ''}${level.group} \u00B7 ${level.pack} \u00B7 Level ${displayLevel(state.currentLevel)}</p>
                 ${flowLevel ? '<p class="modal-coins" style="color:#5b8def;font-size:13px;font-weight:700">\uD83C\uDF0A 3x Rewards</p>' : ''}
                 <p class="modal-coins" style="color:${theme.text}">+${flowLevel ? 3 : 1} \uD83E\uDE99${bonusCount > 0 ? " \u00B7 +" + bonusCount + " bonus" : ""}</p>
                 ${_speedSpinPending ? `
@@ -3828,13 +3828,13 @@ function renderMenu() {
         <div class="menu-top-row">
             <div class="menu-top-col" id="menu-stats-card" style="cursor:default">
                 <div class="menu-current-label">Stats</div>
-                <div class="menu-stat">Highest Level: <span style="color:${theme.accent}">${state.highestLevel.toLocaleString()}</span></div>
+                <div class="menu-stat">Highest Level: <span style="color:${theme.accent}">${displayLevel(state.highestLevel).toLocaleString()}</span></div>
                 <div class="menu-stat">Coins: <span style="color:${theme.accent}">🪙 ${state.coins}</span></div>
                 <div class="menu-stat">Levels Available: <span style="color:${theme.accent}">${maxLv.toLocaleString()}</span></div>
             </div>
             <div class="menu-top-col" id="menu-current-level-card" style="cursor:default">
                 <div class="menu-current-label">Current Level</div>
-                <div class="menu-current-num" style="color:${theme.accent}">${state.currentLevel.toLocaleString()}</div>
+                <div class="menu-current-num" style="color:${theme.accent}">${displayLevel(state.currentLevel).toLocaleString()}</div>
                 <div class="menu-current-info">${level ? level.group + " \u00b7 " + level.pack : ""}</div>
                 <div class="menu-current-progress">${state.foundWords.length} of ${totalRequired} words found</div>
             </div>
@@ -5453,11 +5453,12 @@ function renderSnakeNodes(pack, accent) {
     // Draw nodes as pill-shaped banners (adapts to digit count)
     for (let i = 0; i < pts.length; i++) {
         const lvNum = pack.start + i;
+        const dLv = displayLevel(lvNum);
         const isCompleted = lvNum < state.highestLevel;
         const isCurrent = lvNum === state.currentLevel;
         const isAvailable = lvNum <= state.highestLevel;
         const p = pts[i];
-        const digits = String(lvNum).length;
+        const digits = String(dLv).length;
         const fs = digits > 5 ? 8 : digits > 4 ? 9 : 10;
         const bh = isCurrent ? 20 : 18;
         const bw = Math.max(28, digits * 8 + (isCurrent ? 10 : 6));
@@ -5465,17 +5466,17 @@ function renderSnakeNodes(pack, accent) {
 
         if (isCompleted) {
             html += `<rect x="${p.x - bw/2}" y="${p.y - bh/2}" width="${bw}" height="${bh}" rx="${rx}" fill="${accent}" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>`;
-            html += `<text x="${p.x}" y="${p.y + fs/3}" text-anchor="middle" fill="#000" font-size="${fs}" font-weight="700">${lvNum}</text>`;
+            html += `<text x="${p.x}" y="${p.y + fs/3}" text-anchor="middle" fill="#000" font-size="${fs}" font-weight="700">${dLv}</text>`;
         } else if (isCurrent) {
             html += `<rect x="${p.x - (bw+6)/2}" y="${p.y - (bh+6)/2}" width="${bw + 6}" height="${bh + 6}" rx="${(bh+6)/2}" fill="none" stroke="${accent}" stroke-width="2.5" opacity="0.4"><animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite"/></rect>`;
             html += `<rect x="${p.x - bw/2}" y="${p.y - bh/2}" width="${bw}" height="${bh}" rx="${rx}" fill="rgba(0,0,0,0.5)" stroke="${accent}" stroke-width="2.5"/>`;
-            html += `<text x="${p.x}" y="${p.y + fs/3}" text-anchor="middle" fill="${accent}" font-size="${fs + 1}" font-weight="700">${lvNum}</text>`;
+            html += `<text x="${p.x}" y="${p.y + fs/3}" text-anchor="middle" fill="${accent}" font-size="${fs + 1}" font-weight="700">${dLv}</text>`;
         } else if (isAvailable) {
             html += `<rect x="${p.x - bw/2}" y="${p.y - bh/2}" width="${bw}" height="${bh}" rx="${rx}" fill="rgba(0,0,0,0.4)" stroke="${accent}" stroke-width="1.5" opacity="0.7"/>`;
-            html += `<text x="${p.x}" y="${p.y + fs/3}" text-anchor="middle" fill="${accent}" font-size="${fs}" font-weight="600" opacity="0.7">${lvNum}</text>`;
+            html += `<text x="${p.x}" y="${p.y + fs/3}" text-anchor="middle" fill="${accent}" font-size="${fs}" font-weight="600" opacity="0.7">${dLv}</text>`;
         } else {
             html += `<rect x="${p.x - (bw-4)/2}" y="${p.y - (bh-4)/2}" width="${bw - 4}" height="${bh - 4}" rx="${(bh-4)/2}" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>`;
-            html += `<text x="${p.x}" y="${p.y + (fs-1)/3}" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="${fs - 1}">${lvNum}</text>`;
+            html += `<text x="${p.x}" y="${p.y + (fs-1)/3}" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="${fs - 1}">${dLv}</text>`;
         }
     }
 
@@ -5562,6 +5563,7 @@ function _renderMapGroupView(overlay, packs) {
 
     for (const g of groups) {
         if (g.start > state.highestLevel) continue;
+        if (g.end < state.difficultyOffset + 1) continue; // below tier start
         const gTheme = typeof getThemeForPackStart === "function" ? getThemeForPackStart(g.start) : "sunrise";
         const accent = (THEMES[gTheme] || THEMES.sunrise).accent;
         let completed = 0;
@@ -5577,7 +5579,7 @@ function _renderMapGroupView(overlay, packs) {
         if (isDone) html += `<span class="map-pack-icon" style="color:${accent}">✓</span>`;
         else if (isActive) html += `<span class="map-pack-icon active-dot" style="background:${accent}"></span>`;
         html += `<div><div class="map-pack-name" style="font-size:15px">${g.group}</div>`;
-        html += `<div class="map-pack-range">Levels ${g.start.toLocaleString()} – ${g.end.toLocaleString()} · ${g.packCount} packs</div></div></div>`;
+        html += `<div class="map-pack-range">Levels ${displayLevel(g.start).toLocaleString()} – ${displayLevel(g.end).toLocaleString()} · ${g.packCount} packs</div></div></div>`;
         html += `<div class="map-pack-right">`;
         html += `<div class="map-progress-bar"><div class="map-progress-fill" style="width:${pct}%;background:${accent}"></div></div>`;
         html += `<span class="map-chevron">▸</span>`;
@@ -5629,6 +5631,7 @@ function _renderMapPackView(overlay, packs) {
     for (let pi = 0; pi < groupPacks.length; pi++) {
         const p = groupPacks[pi];
         if (p.start > state.highestLevel) continue;
+        if (p.end < state.difficultyOffset + 1) continue; // below tier start
         const key = p.group + "/" + p.pack + "/" + p.start;
         const total = p.end - p.start + 1;
         const packTheme = typeof getThemeForPackStart === "function" ? getThemeForPackStart(p.start) : "sunrise";
@@ -5649,7 +5652,7 @@ function _renderMapPackView(overlay, packs) {
         else if (isActive) html += `<span class="map-pack-icon active-dot" style="background:${accent}"></span>`;
         else if (isLocked) html += `<span class="map-pack-icon locked-icon">🔒</span>`;
         html += `<div><div class="map-pack-name">${packLabel}</div>`;
-        html += `<div class="map-pack-range">Levels ${p.start.toLocaleString()} – ${p.end.toLocaleString()}</div></div></div>`;
+        html += `<div class="map-pack-range">Levels ${displayLevel(p.start).toLocaleString()} – ${displayLevel(p.end).toLocaleString()}</div></div></div>`;
         html += `<div class="map-pack-right">`;
         html += `<div class="map-progress-bar"><div class="map-progress-fill" style="width:${pct}%;background:${accent}"></div></div>`;
         html += `<span class="map-chevron${isExpanded ? ' open' : ''}">▸</span>`;
