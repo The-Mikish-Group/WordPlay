@@ -486,6 +486,11 @@ function loadProgress() {
             state.flowsCompleted = d.fc || 0;
             state.difficultyTier = d.dt !== undefined ? d.dt : -1;
             state.difficultyOffset = d.doff || 0;
+            // v5→v6 migration: buggy auto-detect set doff>0 for existing players.
+            // Reset offset for anyone who didn't choose it via the tier chooser.
+            if (d.v && d.v < 6 && state.difficultyOffset > 0) {
+                state.difficultyOffset = 0;
+            }
             // Auto-detect tier for existing players who haven't been assigned one.
             // Existing players started from level 1 — keep offset 0, just assign the tier label.
             if (state.difficultyTier < 0) {
@@ -513,7 +518,7 @@ function saveProgress() {
     try {
         saveInProgressState();
         localStorage.setItem("wordplay-save", JSON.stringify({
-            v: 5,  // format version
+            v: 6,  // format version
             cl: state.currentLevel,
             fw: state.foundWords,
             bf: state.bonusFound,
