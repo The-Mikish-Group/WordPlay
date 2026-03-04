@@ -102,6 +102,14 @@ const THEMES = {
     },
 };
 
+// ---- DIFFICULTY TIERS ----
+const DIFFICULTY_TIERS = [
+    { key: "easy",   label: "Easy",   offset: 0,    tagline: "New to word games" },
+    { key: "medium", label: "Medium", offset: 250,  tagline: "I know my way around" },
+    { key: "hard",   label: "Hard",   offset: 2000, tagline: "Bring it on" },
+    { key: "expert", label: "Expert", offset: 5000, tagline: "Challenge me" },
+];
+
 // ---- STATE ----
 const state = {
     currentLevel: 1,       // Actual level number (1-based)
@@ -146,6 +154,8 @@ const state = {
     loginStreak: 0,            // consecutive days played
     lastPlayDate: null,        // "YYYY-MM-DD" of last play
     isDailyMode: false,
+    difficultyTier: -1,       // tier index (0=Easy,1=Medium,2=Hard,3=Expert), -1 = not chosen yet
+    difficultyOffset: 0,      // level offset for current tier
 };
 
 // ---- POWERUP CAPS ----
@@ -345,6 +355,8 @@ function resetStateToDefaults() {
     state.lastPlayDate = null;
     state.showAdmin = false;
     state.flowsCompleted = 0;
+    state.difficultyTier = -1;
+    state.difficultyOffset = 0;
 }
 
 
@@ -813,6 +825,14 @@ function clearExpiredBonusPuzzle() {
 // ---- FLOW LEVEL HELPER ----
 function isFlowLevel(n) {
     return n > 0 && n % 5 === 0;
+}
+
+function displayLevel(actualLevel) {
+    return actualLevel - state.difficultyOffset;
+}
+
+function actualLevel(displayLv) {
+    return displayLv + state.difficultyOffset;
 }
 
 // ---- SPEED BONUS CHECK (15 sec per word) ----
