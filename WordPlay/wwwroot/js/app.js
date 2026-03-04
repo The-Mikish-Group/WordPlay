@@ -488,10 +488,12 @@ function loadProgress() {
             state.difficultyOffset = d.doff || 0;
             // v6→v7 migration: buggy auto-detect/merge poisoned doff for existing players.
             // No new players have used tier chooser yet, so any doff>0 is from the bug.
+            // Write to localStorage immediately so sync can't race and overwrite.
             if (d.v && d.v < 7 && state.difficultyOffset > 0) {
                 state.difficultyOffset = 0;
-                // Push corrected data to server immediately
-                setTimeout(() => { saveProgress(); if (typeof syncPush === "function") syncPush(); }, 500);
+                d.doff = 0;
+                d.v = 7;
+                localStorage.setItem("wordplay-save", JSON.stringify(d));
             }
             // Auto-detect tier for existing players who haven't been assigned one.
             // Existing players started from level 1 — keep offset 0, just assign the tier label.
