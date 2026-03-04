@@ -1885,7 +1885,7 @@ function renderHome() {
                 <div class="expertise-banner" id="home-expertise-btn">
                     <div class="expertise-bottom">
                         <span class="expertise-icon">🏆</span>
-                        <span class="expertise-label">Expertise</span>
+                        <span class="expertise-label">${DIFFICULTY_TIERS[state.difficultyTier] ? DIFFICULTY_TIERS[state.difficultyTier].label : 'Expertise'}</span>
                     </div>
                     <div class="expertise-row">
                         <span class="expertise-coin">🪙</span>
