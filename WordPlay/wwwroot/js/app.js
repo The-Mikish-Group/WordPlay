@@ -486,9 +486,9 @@ function loadProgress() {
             state.flowsCompleted = d.fc || 0;
             state.difficultyTier = d.dt !== undefined ? d.dt : -1;
             state.difficultyOffset = d.doff || 0;
-            // v5→v6 migration: buggy auto-detect set doff>0 for existing players.
-            // Reset offset for anyone who didn't choose it via the tier chooser.
-            if (d.v && d.v < 6 && state.difficultyOffset > 0) {
+            // v6→v7 migration: buggy auto-detect/merge poisoned doff for existing players.
+            // No new players have used tier chooser yet, so any doff>0 is from the bug.
+            if (d.v && d.v < 7 && state.difficultyOffset > 0) {
                 state.difficultyOffset = 0;
                 // Push corrected data to server immediately
                 setTimeout(() => { saveProgress(); if (typeof syncPush === "function") syncPush(); }, 500);
@@ -520,7 +520,7 @@ function saveProgress() {
     try {
         saveInProgressState();
         localStorage.setItem("wordplay-save", JSON.stringify({
-            v: 6,  // format version
+            v: 7,  // format version
             cl: state.currentLevel,
             fw: state.foundWords,
             bf: state.bonusFound,
