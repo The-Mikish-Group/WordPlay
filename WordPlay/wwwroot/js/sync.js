@@ -189,5 +189,8 @@ function mergeProgress(local, server) {
     merged.ls = Math.max(local.ls || 0, server.ls || 0);
     merged.lpd = (local.lpd && server.lpd) ? (local.lpd > server.lpd ? local.lpd : server.lpd) : (local.lpd || server.lpd || null);
 
+    // Flow completions: max merge
+    merged.fc = Math.max(local.fc || 0, server.fc || 0);
+
     return merged;
 }

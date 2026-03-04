@@ -53,6 +53,87 @@ function generateCrosswordGrid(words) {
     return best;
 }
 
+// ============================================================
+// Zen Grid Generator — stacked horizontal words (no intersections)
+//
+// Returns identical { grid, placements, rows, cols } structure
+// so all existing game mechanics work unchanged.
+//
+// Layout: words sorted by length asc, then alphabetically.
+//   ≤5 words → single column, left-aligned
+//   ≥6 words → two columns with 1-cell gap between them
+// ============================================================
+function generateZenGrid(words) {
+    if (!words || !words.length) return { grid: [], placements: [], rows: 0, cols: 0 };
+
+    // Sort by length ascending, then alphabetically within each length
+    const sorted = [...words].sort((a, b) => a.length - b.length || a.localeCompare(b));
+
+    const placements = [];
+    let rows, cols;
+
+    if (sorted.length <= 5) {
+        // Single column: each word on its own row, left-aligned
+        cols = Math.max(...sorted.map(w => w.length));
+        rows = sorted.length;
+
+        const grid = [];
+        for (let r = 0; r < rows; r++) {
+            const row = new Array(cols).fill(null);
+            const word = sorted[r];
+            const cells = [];
+            for (let i = 0; i < word.length; i++) {
+                row[i] = word[i];
+                cells.push({ row: r, col: i, letter: word[i] });
+            }
+            grid.push(row);
+            placements.push({ word, row: r, col: 0, direction: "h", cells });
+        }
+        return { grid, placements, rows, cols };
+    }
+
+    // Two columns: split sorted list in half (ceil left, floor right)
+    const midIdx = Math.ceil(sorted.length / 2);
+    const leftWords = sorted.slice(0, midIdx);
+    const rightWords = sorted.slice(midIdx);
+
+    const maxLeft = Math.max(...leftWords.map(w => w.length));
+    const maxRight = Math.max(...rightWords.map(w => w.length));
+    const gap = 1;
+    cols = maxLeft + gap + maxRight;
+    rows = leftWords.length; // leftWords.length >= rightWords.length
+
+    const grid = [];
+    for (let r = 0; r < rows; r++) {
+        const row = new Array(cols).fill(null);
+
+        // Left column word
+        const lw = leftWords[r];
+        const lCells = [];
+        for (let i = 0; i < lw.length; i++) {
+            row[i] = lw[i];
+            lCells.push({ row: r, col: i, letter: lw[i] });
+        }
+        placements.push({ word: lw, row: r, col: 0, direction: "h", cells: lCells });
+
+        // Right column word (if exists for this row)
+        if (r < rightWords.length) {
+            const rw = rightWords[r];
+            const rCol = maxLeft + gap;
+            const rCells = [];
+            for (let i = 0; i < rw.length; i++) {
+                row[rCol + i] = rw[i];
+                rCells.push({ row: r, col: rCol + i, letter: rw[i] });
+            }
+            placements.push({ word: rw, row: r, col: rCol, direction: "h", cells: rCells });
+        }
+
+        grid.push(row);
+    }
+
+    return { grid, placements, rows, cols };
+}
+
 function _buildGrid(sortedWords, firstDir) {
     const G = 28;
     const grid = [];

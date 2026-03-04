@@ -140,6 +140,7 @@ const state = {
     bonusHistory: [],           // recently used bonus level numbers (avoids repeats)
     bonusStarsTotal: 0,        // cumulative bonus stars across rounds (0-9, resets on grand prize)
     isBonusMode: false,
+    flowsCompleted: 0,        // total flow sessions completed (internal tracking)
     // Achievement tracking
     speedLevels: [],           // timestamps of recent level completions (for 5-in-an-hour)
     loginStreak: 0,            // consecutive days played
@@ -180,6 +181,22 @@ window.debugBonus = function(presetStars) {
     }
 };
 
+// ---- DEBUG: ZEN GRID TESTING ----
+// Usage: debugZen() — convert current level to zen layout
+//        debugZen(["HOP","HOT","POT","TOO","TOP","PHOTO"], "HOTPO") — custom words + letters
+window.debugZen = function(words, letters) {
+    const w = words || level.words;
+    crossword = generateZenGrid(w);
+    standaloneWord = null;
+    placedWords = crossword.placements.map(p => p.word);
+    bonusPool = [...(level.bonus || [])];
+    totalRequired = placedWords.length;
+    state.foundWords = [];
+    state.revealedCells = [];
+    if (letters) { level.letters = letters; rebuildWheelLetters(); }
+    renderAll();
+};
+
 // ---- MENU SECRET ----
 let _menuSecretTaps = 0;
 
@@ -193,6 +210,9 @@ let _savedRegularState = null;  // snapshot of regular game state while in daily
 let _bonusStarCells = [];        // array of "row,col" keys where stars are placed
 let _bonusCoinsEarned = 0;       // session accumulator for completion modal
 let _savedRegularStateBonus = null; // snapshot of regular game state while in bonus mode
+
+// ---- FLOW / DAILY ZEN STATE ----
+let _forceZenLayout = false;       // transient flag for daily flow variant
 
 // ---- SPEED BONUS STATE ----
 let _speedTimerStart = 0;        // timestamp of first wheel touch this level
@@ -324,6 +344,7 @@ function resetStateToDefaults() {
     state.loginStreak = 0;
     state.lastPlayDate = null;
     state.showAdmin = false;
+    state.flowsCompleted = 0;
 }
 
 
@@ -353,9 +374,14 @@ async function recompute() {
     // Determine grid words vs bonus words
     const gridWords = level.words;
 
-    const extracted = extractStandaloneWord(gridWords, 12);
-    crossword = extracted.crossword;
-    standaloneWord = extracted.standalone;
+    if (level.zen || _forceZenLayout || (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel))) {
+        crossword = generateZenGrid(gridWords);
+        standaloneWord = null;
+    } else {
+        const extracted = extractStandaloneWord(gridWords, 12);
+        crossword = extracted.crossword;
+        standaloneWord = extracted.standalone;
+    }
 
     placedWords = crossword.placements.map(p => p.word);
     // Words that couldn't be placed in the crossword become bonus
@@ -410,6 +436,11 @@ function loadProgress() {
                 state.currentLevel = oldStart + oldIdx;
                 state.highestLevel = oldStart + (d.hl || 0);
             }
+            // Migration: old flow mode could leave currentLevel at a 100k+ flow level number.
+            // Clamp it so completing a stale flow level can't poison highestLevel.
+            if (state.currentLevel > state.highestLevel) {
+                state.currentLevel = state.highestLevel;
+            }
             // v4→v5 migration: levels were reshuffled, clear stale puzzle state
             if (d.v && d.v < 5) {
                 state.foundWords = [];
@@ -440,6 +471,7 @@ function loadProgress() {
             state.speedLevels = d.sl || [];
             state.loginStreak = d.ls || 0;
             state.lastPlayDate = d.lpd || null;
+            state.flowsCompleted = d.fc || 0;
             // Clear expired bonus puzzle (1-hour window)
             if (state.bonusPuzzle && state.bonusPuzzle.available && state.bonusPuzzle.awardedAt &&
                 Date.now() - state.bonusPuzzle.awardedAt > 60 * 60 * 1000) {
@@ -481,6 +513,7 @@ function saveProgress() {
             sl: state.speedLevels,
             ls: state.loginStreak,
             lpd: state.lastPlayDate,
+            fc: state.flowsCompleted,
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
     } catch (e) { /* ignore */ }
@@ -558,10 +591,16 @@ async function enterDailyMode() {
             fw: [], bf: [], rc: [], sf: false,
             coinWordsFound: 0,
             completed: false,
+            flow: (hashStr(today) % 10) < 3,
         };
     }
+    if (!state.dailyPuzzle.hasOwnProperty('flow')) {
+        state.dailyPuzzle.flow = (hashStr(state.dailyPuzzle.date) % 10) < 3;
+    }
     state.currentLevel = state.dailyPuzzle.levelNum;
+    _forceZenLayout = !!state.dailyPuzzle.flow;
     await recompute();
+    _forceZenLayout = false;
     state.foundWords = (state.dailyPuzzle.fw || []).filter(w => placedWords.includes(w));
     state.bonusFound = state.dailyPuzzle.bf || [];
     state.revealedCells = state.dailyPuzzle.rc || [];
@@ -771,6 +810,11 @@ function clearExpiredBonusPuzzle() {
     }
 }
 
+// ---- FLOW LEVEL HELPER ----
+function isFlowLevel(n) {
+    return n > 0 && n % 5 === 0;
+}
+
 // ---- SPEED BONUS CHECK (15 sec per word) ----
 function checkSpeedBonus() {
     if (!_speedTimerActive || state.isDailyMode || state.isBonusMode) return;
@@ -914,9 +958,10 @@ function handleWord(word) {
         }
         state.standaloneFound = true;
         if (!state.foundWords.includes(w)) state.foundWords.push(w);
-        state.coins += 100;
-        state.totalCoinsEarned += 100;
-        if (state.isDailyMode) { _dailyCoinsEarned += 100; saveDailyState(); } else if (state.isBonusMode) { _bonusCoinsEarned += 100; saveBonusState(); } else saveProgress();
+        const coinWordReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 200 : 100;
+        state.coins += coinWordReward;
+        state.totalCoinsEarned += coinWordReward;
+        if (state.isDailyMode) { _dailyCoinsEarned += coinWordReward; saveDailyState(); } else if (state.isBonusMode) { _bonusCoinsEarned += coinWordReward; saveBonusState(); } else saveProgress();
         renderGrid();
         highlightWord(w);
         renderCoins();
@@ -948,8 +993,9 @@ function handleWord(word) {
         // Auto-complete any crossing words whose cells are all now visible
         const beforeAuto = state.foundWords.length;
         while (checkAutoCompleteWords()) {}
-        state.coins += 1;
-        state.totalCoinsEarned += 1;
+        const wordReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 3 : 1;
+        state.coins += wordReward;
+        state.totalCoinsEarned += wordReward;
         if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
         renderGrid();
         highlightWord(w);
@@ -984,8 +1030,9 @@ function handleWord(word) {
     if (bonusPool && bonusPool.includes(w)) {
         playSound("bonusChime");
         state.bonusFound.push(w);
-        state.coins += 5;
-        state.totalCoinsEarned += 5;
+        const bonusReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 15 : 5;
+        state.coins += bonusReward;
+        state.totalCoinsEarned += bonusReward;
         state.bonusCounter++;
         if (state.bonusCounter >= 10) {
             state.bonusCounter = 0;
@@ -1336,8 +1383,8 @@ function playSound(name) {
     } catch (e) { /* audio not available */ }
 }
 
-function animateCoinGain(amount) {
-    const coinDisplay = document.getElementById("coin-display");
+function animateCoinGain(amount, targetId) {
+    const coinDisplay = document.getElementById(targetId || "coin-display");
     if (!coinDisplay) return;
     const coinRect = coinDisplay.getBoundingClientRect();
     const endX = coinRect.left + coinRect.width / 2;
@@ -1583,6 +1630,8 @@ async function advanceToNextLevel() {
         }
     }
     const isReplay = state.currentLevel < state.highestLevel;
+    const wasFlowLevel = !isReplay && isFlowLevel(state.currentLevel);
+    if (wasFlowLevel) state.flowsCompleted++;
     let next;
     if (isReplay) {
         // Jump back to the frontier
@@ -1598,8 +1647,9 @@ async function advanceToNextLevel() {
     state.standaloneFound = false;
     state.showComplete = false;
     if (!isReplay) {
-        state.coins += 1;
-        state.totalCoinsEarned += 1;
+        const levelUpReward = wasFlowLevel ? 3 : 1;
+        state.coins += levelUpReward;
+        state.totalCoinsEarned += levelUpReward;
         state.levelsCompleted++;
         checkSpeedMilestone();
         if (state.levelsCompleted % 10 === 0) {
@@ -1633,6 +1683,8 @@ async function handleNextLevel() {
         delete state.inProgress[state.currentLevel];
     }
     const isReplay = state.currentLevel < state.highestLevel;
+    const wasFlowLevel = !isReplay && isFlowLevel(state.currentLevel);
+    if (wasFlowLevel) state.flowsCompleted++;
     let next;
     if (isReplay) {
         // Jump back to the frontier
@@ -1648,8 +1700,9 @@ async function handleNextLevel() {
     state.standaloneFound = false;
     state.showComplete = false;
     if (!isReplay) {
-        state.coins += 1;
-        state.totalCoinsEarned += 1;
+        const levelUpReward = wasFlowLevel ? 3 : 1;
+        state.coins += levelUpReward;
+        state.totalCoinsEarned += levelUpReward;
         state.levelsCompleted++;
         if (state.levelsCompleted % 10 === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
@@ -1901,7 +1954,7 @@ function renderHeader() {
             </button>
             <div class="header-center">
                 <div class="header-pack" style="color:#d4a51c">\u2B50 Bonus Puzzle</div>
-                <div class="header-level" style="color:#d4a51c">Level ${state.currentLevel}</div>
+                <div class="header-level" style="color:#d4a51c">Bonus</div>
             </div>
             <div class="header-right">
                 <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">\uD83E\uDE99 ${state.coins.toLocaleString()}</div>
@@ -1942,6 +1995,7 @@ function renderHeader() {
             };
         };
     } else if (state.isDailyMode) {
+        const dailyFlowLabel = state.dailyPuzzle && state.dailyPuzzle.flow ? '\uD83C\uDF0A ' : '';
         hdr.innerHTML = `
             <button class="back-arrow-btn" id="back-home-btn" title="Back to Home">
                 <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1949,7 +2003,7 @@ function renderHeader() {
                 </svg>
             </button>
             <div class="header-center">
-                <div class="header-pack" style="color:#22a866">\uD83D\uDCC5 Daily Puzzle</div>
+                <div class="header-pack" style="color:#22a866">${dailyFlowLabel}\uD83D\uDCC5 Daily Puzzle</div>
                 <div class="header-level" style="color:#22a866">${getTodayStr()}</div>
             </div>
             <div class="header-right">
@@ -1958,6 +2012,7 @@ function renderHeader() {
         `;
         document.getElementById("back-home-btn").onclick = () => exitDailyMode();
     } else {
+        const flowLevel = isFlowLevel(state.currentLevel);
         hdr.innerHTML = `
             <button class="back-arrow-btn" id="back-home-btn" title="Back to Home">
                 <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1965,7 +2020,7 @@ function renderHeader() {
                 </svg>
             </button>
             <div class="header-center">
-                <div class="header-pack">${level.group} · ${level.pack}</div>
+                <div class="header-pack">${flowLevel ? '\uD83C\uDF0A ' : ''}${level.group} \u00B7 ${level.pack}</div>
                 <div class="header-level" style="color:${theme.accent}">Level ${state.currentLevel}</div>
             </div>
             <div class="header-right">
@@ -2032,6 +2087,7 @@ function renderDailyModal(show) {
         renderHome();
         showToast("🪙 +100 daily coins!", theme.accent);
         playSound("spinPrize");
+        setTimeout(() => animateCoinGain(100, "home-coin-display"), 200);
     };
     overlay.onclick = (e) => {
         if (e.target === overlay) renderDailyModal(false);
@@ -3246,8 +3302,9 @@ function openSpeedSpinModal() {
     overlay.innerHTML = `
         <div class="modal-box" style="padding:20px;border:2px solid rgba(255,200,0,0.4);box-shadow:0 0 40px rgba(255,200,0,0.15)">
             <h2 class="modal-title" style="color:#ffd740;font-size:18px">\u26A1 Speed Bonus</h2>
-            <div class="spin-wheel-container" style="display:flex;justify-content:center;margin:8px 0">
-                <canvas id="speed-spin-canvas" style="cursor:pointer"></canvas>
+            <div class="spin-wheel-container">
+                <canvas id="speed-spin-canvas" width="280" height="280"></canvas>
+                <div class="spin-pointer"></div>
             </div>
             <div id="speed-spin-result" style="display:none;text-align:center;margin:8px 0">
                 <span id="speed-spin-result-emoji" style="font-size:32px"></span>
@@ -3563,12 +3620,14 @@ function renderCompleteModal() {
         const isLast = state.currentLevel >= maxLv;
         const bonusCount = state.bonusFound.length;
         const speedTime = _speedBonusEarned ? _speedBonusTime.toFixed(1) : null;
+        const flowLevel = isFlowLevel(state.currentLevel);
         overlay.innerHTML = `
             <div class="modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
                 <div class="modal-emoji">\uD83C\uDF89</div>
                 <h2 class="modal-title" style="color:${theme.accent}">Level Complete!</h2>
-                <p class="modal-subtitle">${level.group} · ${level.pack} · Level ${state.currentLevel}</p>
-                <p class="modal-coins" style="color:${theme.text}">+1 \uD83E\uDE99${bonusCount > 0 ? " · +" + bonusCount + " bonus" : ""}</p>
+                <p class="modal-subtitle">${flowLevel ? '\uD83C\uDF0A Flow Level \u00B7 ' : ''}${level.group} \u00B7 ${level.pack} \u00B7 Level ${state.currentLevel}</p>
+                ${flowLevel ? '<p class="modal-coins" style="color:#5b8def;font-size:13px;font-weight:700">\uD83C\uDF0A 3x Rewards</p>' : ''}
+                <p class="modal-coins" style="color:${theme.text}">+${flowLevel ? 3 : 1} \uD83E\uDE99${bonusCount > 0 ? " \u00B7 +" + bonusCount + " bonus" : ""}</p>
                 ${_speedSpinPending ? `
                     <div style="margin:12px 0 4px;padding:10px 16px;background:linear-gradient(135deg,rgba(255,200,0,0.15),rgba(255,140,0,0.1));border:1px solid rgba(255,200,0,0.3);border-radius:12px">
                         <p style="color:#ffd740;font-size:14px;font-weight:700;margin:0 0 2px">\u26A1 Speed Bonus!</p>
@@ -5569,14 +5628,16 @@ function _renderMapPackView(overlay, packs) {
 // ---- GUIDE OVERLAY ----
 const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDC46", title: "Swipe & Spell", body: "Drag your finger across the letter wheel to spell words. Letters connect as you swipe \u2014 lift your finger to submit. Find all the words to fill the crossword and move on!" },
-    { icon: "\uD83E\uDE99", title: "Earning Coins", body: "Every word you find earns coins! Grid words = 1 coin. Bonus words = 5 coins. The special coin word = 100 coins! Grab your daily bonus for 100 free coins too." },
+    { icon: "\uD83E\uDE99", title: "Earning Coins", body: "Every word you find earns coins! Grid words = 1 coin. Bonus words = 5 coins. The special coin word = 100 coins! On <b>flow levels</b> (every 5th level), rewards are boosted: 3 coins per word, 15 per bonus word, and 200 for the coin word. Grab your daily bonus for 100 free coins too." },
     { icon: "\uD83D\uDCA1", title: "Hints", body: "Stuck? Use hints! <b>Hint</b> (\uD83D\uDCA1 100 coins) reveals a random letter. <b>Target</b> (\uD83C\uDFAF 200 coins) lets you tap any cell. <b>Rocket</b> (\uD83D\uDE80 300 coins) blasts up to 5 letters at once! You earn free hints every 10 levels, targets every 20, and rockets every 30 (max 30 each)." },
     { icon: "\u2B50", title: "Bonus Words", body: "Found a real word that\u2019s not on the grid? That\u2019s a bonus word! Worth 5 coins each, and every 10 bonus words earns you a free letter reveal. Watch the star counter fill up!" },
     { icon: "\uD83D\uDCB0", title: "The Coin Word", body: "See a pulsing coin on the grid? That\u2019s a special standalone word worth 100 coins! It\u2019s a short word (4\u20135 letters) tucked away for you to discover." },
     { icon: "\uD83C\uDFB0", title: "Spin of Shame", body: "Completely stuck with no coins and no hints? A prize wheel appears! Spin to win free hints, targets, rockets, or coins. It\u2019s your lifeline!" },
     { icon: "\uD83C\uDF81", title: "Daily Bonus", body: "Tap the FREE button at the top of the screen once a day to claim 100 free coins. Come back every day \u2014 it resets at midnight!" },
-    { icon: "\uD83D\uDCC5", title: "Daily Puzzle", body: "A fresh puzzle every day! Tap the green Daily Puzzle button on the home screen to play. A coin (\uD83E\uDE99) appears on one word in the grid \u2014 find it for 25 bonus coins, then the coin moves to a new word. Keep chasing the coin to rack up rewards! Complete the entire puzzle for a 100-coin bonus. The same puzzle is shared by all players each day. Your regular progress is saved and waiting when you return." },
-    { icon: "\u2B50", title: "Bonus Puzzle", body: "Earn bonus puzzles through achievements \u2014 complete a level pack, finish 10 levels in an hour, maintain a 3-day play streak, or beat the daily puzzle. A gold <b>\u2B50 Bonus Puzzle</b> button appears on the home screen. Inside, 9 stars are scattered across the grid. Find starred words to collect stars and earn 10 coins each! Every 3 stars fills one of your 3 star slots. Collect all 9 stars for a <b>500-coin grand prize</b>. But be careful \u2014 leaving the puzzle forfeits your progress!" },
+    { icon: "\uD83D\uDCC5", title: "Daily Puzzle", body: "A fresh puzzle every day! Tap the green Daily Puzzle button on the home screen to play. A coin (\uD83E\uDE99) appears on one word in the grid \u2014 find it for 25 bonus coins, then the coin moves to a new word. Keep chasing the coin to rack up rewards! Complete the entire puzzle for a 100-coin bonus. The same puzzle is shared by all players each day. Some dailies use a \uD83C\uDF0A stacked zen layout for variety. Your regular progress is saved and waiting when you return." },
+    { icon: "\u2B50", title: "Bonus Puzzle", body: "Earn bonus puzzles through achievements \u2014 complete a level pack, finish 5 levels in an hour, maintain a 3-day play streak, or beat the daily puzzle. A gold <b>\u2B50 Bonus Puzzle</b> button appears on the home screen. Inside, 9 stars are scattered across the grid. Find starred words to collect stars and earn 10 coins each! Every 3 stars fills one of your 3 star slots. Collect all 9 stars for a <b>500-coin grand prize</b>. But be careful \u2014 leaving the puzzle forfeits your progress!" },
+    { icon: "\uD83C\uDF0A", title: "Flow Levels", body: "Every 5th level (5, 10, 15, 20\u2026) is a <b>flow level</b>! These use a stacked zen grid layout instead of the usual crossword. Same words, same letters \u2014 just a different visual style with <b>3x rewards</b>: 3 coins per word, 15 per bonus word, and 200 for the coin word. Look for the \uD83C\uDF0A wave icon in the header. Speed bonus works on flow levels too!" },
+    { icon: "\u26A1", title: "Speed Bonus", body: "Beat the clock for a free prize spin! When you start swiping on a level with 5+ words, a hidden timer starts. Finish the level within <b>15 seconds per word</b> and you\u2019ll earn a \u26A1 Speed Bonus \u2014 a free spin on the prize wheel with chances to win hints, targets, rockets, bonus stars, or 100 coins. Works on regular levels and flow levels!" },
     { icon: "\uD83D\uDD00", title: "Shuffle", body: "Tap the shuffle button to rearrange the letters on the wheel. Same letters, fresh perspective \u2014 sometimes that\u2019s all you need to spot a hidden word!" },
     { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the <a href=\"#\" class=\"guide-link\" data-action=\"map\">Level Map</a> from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },
     { icon: "\uD83C\uDFA8", title: "Themes", body: "The game features 16 beautiful color themes \u2014 Sunrise, Forest, Ocean, Aurora, and more. Themes change as you progress through different level groups." },
