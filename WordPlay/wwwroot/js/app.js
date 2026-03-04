@@ -486,13 +486,15 @@ function loadProgress() {
             state.flowsCompleted = d.fc || 0;
             state.difficultyTier = d.dt !== undefined ? d.dt : -1;
             state.difficultyOffset = d.doff || 0;
-            // Auto-detect tier for existing players who haven't been assigned one
+            // Auto-detect tier for existing players who haven't been assigned one.
+            // Existing players started from level 1 — keep offset 0, just assign the tier label.
             if (state.difficultyTier < 0) {
                 const hl = state.highestLevel;
-                if (hl >= 5001) { state.difficultyTier = 3; state.difficultyOffset = 5000; }
-                else if (hl >= 2001) { state.difficultyTier = 2; state.difficultyOffset = 2000; }
-                else if (hl >= 251) { state.difficultyTier = 1; state.difficultyOffset = 250; }
-                else { state.difficultyTier = 0; state.difficultyOffset = 0; }
+                if (hl >= 5001) state.difficultyTier = 3;
+                else if (hl >= 2001) state.difficultyTier = 2;
+                else if (hl >= 251) state.difficultyTier = 1;
+                else state.difficultyTier = 0;
+                state.difficultyOffset = 0; // they started from 1, no offset
             }
             // Clear expired bonus puzzle (1-hour window)
             if (state.bonusPuzzle && state.bonusPuzzle.available && state.bonusPuzzle.awardedAt &&
