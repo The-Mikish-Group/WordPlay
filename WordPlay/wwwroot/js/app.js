@@ -869,6 +869,8 @@ function resetSpeedTimer() {
 }
 
 function checkSpeedMilestone() {
+    // Easy tier cannot trigger speed milestones
+    if (state.difficultyTier === 0) return;
     const now = Date.now();
     state.speedLevels.push(now);
     const oneHourAgo = now - 60 * 60 * 1000;
