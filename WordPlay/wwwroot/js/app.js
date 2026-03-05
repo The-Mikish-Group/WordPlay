@@ -389,7 +389,17 @@ async function recompute() {
     // Determine grid words vs bonus words
     const gridWords = level.words;
 
-    if (level.zen || _forceZenLayout || (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel))) {
+    // Determine if this level should use zen layout
+    const naturalZen = level.zen || _forceZenLayout || (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel));
+    if (state.layoutPref === "flow") {
+        _currentLayoutIsZen = true;
+    } else if (state.layoutPref === "crossword") {
+        _currentLayoutIsZen = false;
+    } else {
+        _currentLayoutIsZen = naturalZen;
+    }
+
+    if (_currentLayoutIsZen) {
         crossword = generateZenGrid(gridWords);
         standaloneWord = null;
     } else {
