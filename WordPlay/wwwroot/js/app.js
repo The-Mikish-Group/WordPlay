@@ -565,6 +565,7 @@ function saveInProgressState() {
             rc: [...state.revealedCells],
             sf: state.standaloneFound,
             wo: wheelLetters ? [...wheelLetters] : null,
+            rsc: _regularStarCells.length > 0 ? [..._regularStarCells] : undefined,
         };
     }
 }
@@ -596,6 +597,8 @@ function restoreLevelState() {
             state.foundWords.push(standaloneWord);
         }
         while (checkAutoCompleteWords()) {}
+        // Restore regular star cells
+        _regularStarCells = ip.rsc || [];
         return;
     }
     // Completed level: all words found
