@@ -1903,6 +1903,7 @@ function renderHome() {
                         <span class="expertise-coin">\uD83E\uDE99</span>
                         <span class="expertise-value">${formatCompact(state.totalCoinsEarned)}</span>
                     </div>
+                    <div class="expertise-lb-label">Leaderboard</div>
                 </div>
             </div>
             ${(function() {
