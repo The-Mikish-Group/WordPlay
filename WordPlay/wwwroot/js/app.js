@@ -218,6 +218,7 @@ let _savedRegularState = null;  // snapshot of regular game state while in daily
 
 // ---- BONUS PUZZLE STATE ----
 let _bonusStarCells = [];        // array of "row,col" keys where stars are placed
+let _regularStarCells = [];     // array of "row,col" keys where stars are placed in regular levels
 let _bonusCoinsEarned = 0;       // session accumulator for completion modal
 let _savedRegularStateBonus = null; // snapshot of regular game state while in bonus mode
 
@@ -784,6 +785,36 @@ function assignBonusStars() {
             starCells.push(c.row + "," + c.col);
             remaining--;
         }
+    }
+    return starCells;
+}
+
+function shouldLevelHaveStars(levelNum) {
+    // Seeded 20% chance based on level number
+    return (hashStr("regularstars:" + levelNum) % 100) < 20;
+}
+
+function assignRegularStars(levelNum) {
+    if (!crossword || !crossword.placements) return [];
+    const words = crossword.placements.filter(p => !p.standalone);
+    if (words.length === 0) return [];
+    const starCells = [];
+    // 1-2 stars based on seeded hash
+    const starCount = (hashStr("regularstarcount:" + levelNum) % 2) + 1;
+    let remaining = starCount;
+    const shuffled = [...words].sort((a, b) => {
+        const ha = hashStr(levelNum + ":regstar:" + a.word);
+        const hb = hashStr(levelNum + ":regstar:" + b.word);
+        return ha - hb;
+    });
+    for (const w of shuffled) {
+        if (remaining <= 0) break;
+        const available = w.cells.filter(c => !starCells.includes(c.row + "," + c.col));
+        if (available.length === 0) continue;
+        const seed = hashStr(levelNum + ":regstar:" + w.word);
+        const c = available[seed % available.length];
+        starCells.push(c.row + "," + c.col);
+        remaining--;
     }
     return starCells;
 }
