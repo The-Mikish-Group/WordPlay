@@ -802,7 +802,7 @@ function assignBonusStars() {
 
 function shouldLevelHaveStars(levelNum) {
     // Seeded 20% chance based on level number
-    return (hashStr("regularstars:" + levelNum) % 100) < 20;
+    return (hashStr("regularstars:" + levelNum) % 100) < 35;
 }
 
 function assignRegularStars(levelNum) {
@@ -900,13 +900,13 @@ function actualLevel(displayLv) {
     return displayLv + state.difficultyOffset;
 }
 
-// ---- SPEED BONUS CHECK (15 sec per word) ----
+// ---- SPEED BONUS CHECK (10 sec per word) ----
 function checkSpeedBonus() {
     if (!_speedTimerActive || state.isDailyMode || state.isBonusMode) return;
     const wordCount = totalRequired;
     if (wordCount < 5) { _speedTimerActive = false; return; } // too few words — skip
     const elapsed = (Date.now() - _speedTimerStart) / 1000;
-    const timeLimit = wordCount * 15; // 15 seconds per word
+    const timeLimit = wordCount * 10; // 10 seconds per word
     _speedBonusEarned = elapsed <= timeLimit;
     _speedBonusTime = elapsed;
     _speedSpinPending = _speedBonusEarned;
