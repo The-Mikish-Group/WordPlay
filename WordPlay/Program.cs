@@ -1178,6 +1178,21 @@ app.MapDelete("/api/admin/rabbits/{id}", async (int id, WordPlayDb db, ClaimsPri
     return Results.Ok(new { deleted = true });
 }).RequireAuthorization();
 
+app.MapPut("/api/admin/rabbits/{id}/active", async (int id, HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+    if (!body.TryGetProperty("isActive", out var activeEl))
+        return Results.BadRequest(new { error = "isActive required" });
+
+    var assignment = await db.RabbitAssignments.FindAsync(id);
+    if (assignment == null) return Results.NotFound();
+
+    assignment.IsActive = activeEl.GetBoolean();
+    await db.SaveChangesAsync();
+    return Results.Ok(new { assignment.Id, assignment.IsActive });
+}).RequireAuthorization();
+
 // ============================================================
 // Anti-scraping: hotlink protection for background images
 // ============================================================

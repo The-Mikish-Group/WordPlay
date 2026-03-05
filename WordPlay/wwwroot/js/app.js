@@ -1927,7 +1927,7 @@ function renderHome() {
                 </button>
                 ${claimed ? '' : `<button class="home-daily-btn" id="home-daily-btn">
                     <span>FREE</span>
-                    <svg class="daily-coins" width="16" height="22" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg>
+                    <svg class="daily-coins" width="13" height="18" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg>
                     <span>COINS</span>
                 </button>`}
             </div>
@@ -3118,8 +3118,7 @@ function renderRocketBtn() {
 function renderSpinBtn() {
     const el = document.getElementById("spin-btn-area");
     if (!el) return;
-    const dailyAvailable = state.lastDailyClaim !== getTodayStr();
-    const stuck = state.freeHints === 0 && state.freeTargets === 0 && state.freeRockets === 0 && state.coins < 100 && !dailyAvailable;
+    const stuck = state.freeHints === 0 && state.freeTargets === 0 && state.freeRockets === 0 && state.coins < 100;
     el.style.display = stuck ? "" : "none";
 }
 
@@ -3929,25 +3928,6 @@ function renderMenu() {
         </div>
     `;
 
-    // Difficulty Tier
-    if (state.difficultyTier >= 0) {
-        const currentTier = DIFFICULTY_TIERS[state.difficultyTier];
-        let tierOptions = "";
-        for (let i = state.difficultyTier; i < DIFFICULTY_TIERS.length; i++) {
-            const t = DIFFICULTY_TIERS[i];
-            tierOptions += `<option value="${i}" ${i === state.difficultyTier ? "selected" : ""}>${t.label} \u2014 ${t.tagline}</option>`;
-        }
-        html += `
-            <div class="menu-setting">
-                <label class="menu-setting-label">Difficulty Tier</label>
-                <select id="menu-tier-select" class="menu-setting-select" style="accent-color:${theme.accent}">
-                    ${tierOptions}
-                </select>
-                <div class="menu-setting-hint">Higher tiers have harder puzzles. You can move up but not down.</div>
-            </div>
-        `;
-    }
-
     // Quick navigation
     html += `
         <div class="menu-nav-row">
@@ -3963,6 +3943,28 @@ function renderMenu() {
             <span style="font-size:24px;vertical-align:middle">🗺️</span> Level Map
         </button>
     `;
+
+    // Difficulty Tier
+    if (state.difficultyTier >= 0) {
+        const currentTier = DIFFICULTY_TIERS[state.difficultyTier];
+        const levelsPlayed = (state.highestLevel || 1) - state.difficultyOffset;
+        const canGoDown = levelsPlayed < 10;
+        let tierOptions = "";
+        for (let i = 0; i < DIFFICULTY_TIERS.length; i++) {
+            if (!canGoDown && i < state.difficultyTier) continue;
+            const t = DIFFICULTY_TIERS[i];
+            tierOptions += `<option value="${i}" ${i === state.difficultyTier ? "selected" : ""}>${t.label} \u2014 ${t.tagline}</option>`;
+        }
+        html += `
+            <div class="menu-setting">
+                <label class="menu-setting-label">Difficulty Tier</label>
+                <select id="menu-tier-select" class="menu-setting-select" style="accent-color:${theme.accent}">
+                    ${tierOptions}
+                </select>
+                <div class="menu-setting-hint">${canGoDown ? "Fewer than 10 levels played — you can still change freely." : "Higher tiers have harder puzzles. You can move up but not down."}</div>
+            </div>
+        `;
+    }
 
     // Set progress + Reset (hidden until easter egg)
     html += `<div id="menu-secret-section" style="display:${_menuSecretTaps >= 8 ? 'block' : 'none'}">`;
@@ -4061,7 +4063,7 @@ function renderMenu() {
     } else {
         html += `<div style="text-align:center;opacity:0.4;font-size:14px;padding:4px 0">Installed \u2713</div>`;
     }
-    html += `<button class="menu-setting-btn" id="check-update-btn" style="background:rgba(255,255,255,0.12);color:${theme.accent};border:1px solid ${theme.accent}44;width:100%;padding:10px 0;font-size:14px;margin-top:8px"><span style="font-size:24px;vertical-align:middle;margin-right:6px">✨</span>Check for Updates</button>`;
+    html += `<button class="menu-setting-btn" id="check-update-btn" style="background:rgba(80,200,80,0.2);color:#66dd88;border:1px solid rgba(80,200,80,0.35);width:100%;padding:10px 0;font-size:14px;margin-top:8px"><span style="font-size:24px;vertical-align:middle;margin-right:6px">✨</span>Check for Updates</button>`;
     html += `<button class="menu-setting-btn" id="uninstall-app-btn" style="background:rgba(255,50,50,0.15);color:#ff6666;border:1px solid rgba(255,50,50,0.25);width:100%;padding:10px 0;font-size:14px;margin-top:8px">Uninstall App</button>`;
     html += `</div>`;
 
@@ -4305,7 +4307,9 @@ function renderMenu() {
     if (tierSelect) {
         tierSelect.onchange = () => {
             const newIdx = parseInt(tierSelect.value);
-            if (newIdx <= state.difficultyTier) return;
+            if (newIdx === state.difficultyTier) return;
+            const lvPlayed = (state.highestLevel || 1) - state.difficultyOffset;
+            if (newIdx < state.difficultyTier && lvPlayed >= 10) return;
             const newTier = DIFFICULTY_TIERS[newIdx];
             const levelsCompleted = state.highestLevel - state.difficultyOffset;
             state.difficultyTier = newIdx;
@@ -5430,9 +5434,24 @@ function renderAdminRabbits(overlay) {
                         <span style="background:${r.paceMode === 'trailing' ? '#ff6644' : '#44cc88'};color:#000;padding:1px 6px;border-radius:4px;font-size:11px;margin-left:6px">${r.paceMode || 'leading'}</span>
                         ${r.isActive ? '' : '<span style="opacity:0.4;margin-left:6px">(paused)</span>'}
                     </div>
+                    <button data-pause="${r.id}" data-active="${r.isActive}">${r.isActive ? '\u23F8 Pause' : '\u25B6 Resume'}</button>
                     <button data-rid="${r.id}">Remove</button>
                 </div>
             `).join("");
+
+            list.querySelectorAll("button[data-pause]").forEach(btn => {
+                btn.onclick = async () => {
+                    const newActive = btn.dataset.active !== "true";
+                    await fetch("/api/admin/rabbits/" + btn.dataset.pause + "/active", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                        body: JSON.stringify({ isActive: newActive }),
+                    });
+                    showToast(newActive ? "Resumed" : "Paused");
+                    _adminView = "rabbits";
+                    renderAdmin();
+                };
+            });
 
             list.querySelectorAll("button[data-rid]").forEach(btn => {
                 btn.onclick = async () => {
@@ -5869,7 +5888,7 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the <a href=\"#\" class=\"guide-link\" data-action=\"map\">Level Map</a> from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },
     { icon: "\uD83C\uDFA8", title: "Themes", body: "The game features 16 beautiful color themes \u2014 Sunrise, Forest, Ocean, Aurora, and more. Themes change as you progress through different level groups." },
     { icon: "\uD83D\uDD04", title: "Sync Across Devices", body: "Sign in with Google or Microsoft in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> to save your progress to the cloud. Switch phones, play on your tablet \u2014 your progress follows you automatically!" },
-    { icon: "\uD83C\uDFC6", title: "Expertise & Leaderboard", body: "Your Expertise score on the home screen tracks every coin you\u2019ve ever earned \u2014 it only goes up! Tap it to open <a href=\"#\" class=\"guide-link\" data-action=\"leaderboard\">the leaderboard</a> and compete with other players. Rank by levels completed or total points, and filter by this month or all time. Opt in or out in Settings." },
+    { icon: "\uD83C\uDFC6", title: "Expertise & Leaderboard", body: "Your Expertise score on the home screen tracks every coin you\u2019ve ever earned \u2014 it only goes up! Tap it to open <a href=\"#\" class=\"guide-link\" data-action=\"leaderboard\">the leaderboard</a> and compete with other players. Rank by levels completed or total points, and filter by this month or all time. To appear on the leaderboard you must sign in with Google or Microsoft in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a>. Opt in or out anytime from Settings." },
     { icon: "\uD83D\uDCF1", title: "Play Anywhere", body: "WordPlay works offline! Install it to your home screen for a full app experience \u2014 no app store needed. Your progress is always saved locally." },
     { icon: "\uD83D\uDE00", title: "Avatar", body: "Personalize your profile with a custom avatar! Open <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> and tap the avatar circle next to your name. Choose an emoji, upload an image, or take a photo with your camera. Your avatar appears on the leaderboard so other players can recognize you." },
     { icon: "\u2709\uFE0F", title: "Contact Support", body: "Need help or want to report a bug? Tap <a href=\"#\" class=\"guide-link\" data-action=\"contact\">Contact Support</a> to send us a message. Include as much detail as you can \u2014 we read every message!" },
