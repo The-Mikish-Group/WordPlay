@@ -665,6 +665,60 @@ function remapCells(oldCells, oldPlacements, newPlacements) {
     return result;
 }
 
+function toggleLayout() {
+    if (!crossword || !level) return;
+    const oldPlacements = crossword.placements;
+    const oldRevealedCells = [...state.revealedCells];
+    const oldStarCells = state.isBonusMode ? [..._bonusStarCells] : [..._regularStarCells];
+    const oldDailyCoinKey = _dailyCoinCellKey;
+
+    // Toggle
+    _currentLayoutIsZen = !_currentLayoutIsZen;
+
+    // Regenerate grid
+    const gridWords = level.words;
+    if (_currentLayoutIsZen) {
+        crossword = generateZenGrid(gridWords);
+        standaloneWord = null;
+    } else {
+        const extracted = extractStandaloneWord(gridWords, 12);
+        crossword = extracted.crossword;
+        standaloneWord = extracted.standalone;
+    }
+    placedWords = crossword.placements.map(p => p.word);
+    bonusPool = [...(level.bonus || []), ...gridWords.filter(w => !placedWords.includes(w))];
+    if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
+    totalRequired = placedWords.length;
+
+    // Re-map revealed cells
+    state.revealedCells = remapCells(oldRevealedCells, oldPlacements, crossword.placements);
+
+    // Re-map star cells
+    if (state.isBonusMode) {
+        _bonusStarCells = remapCells(oldStarCells, oldPlacements, crossword.placements);
+        if (state.bonusPuzzle) state.bonusPuzzle.starCells = _bonusStarCells;
+    } else {
+        _regularStarCells = remapCells(oldStarCells, oldPlacements, crossword.placements);
+    }
+
+    // Re-map daily coin cell
+    if (oldDailyCoinKey) {
+        const mapped = remapCells([oldDailyCoinKey], oldPlacements, crossword.placements);
+        _dailyCoinCellKey = mapped.length > 0 ? mapped[0] : null;
+    }
+
+    // Ensure standalone found state is consistent
+    if (!_currentLayoutIsZen && standaloneWord) {
+        if (state.foundWords.includes(standaloneWord)) {
+            state.standaloneFound = true;
+        }
+    }
+
+    // Re-render
+    renderAll();
+    playSound("letterClick");
+}
+
 // ---- DAILY MODE ENTRY/EXIT ----
 async function enterDailyMode() {
     if (applyPendingUpdate()) return;
