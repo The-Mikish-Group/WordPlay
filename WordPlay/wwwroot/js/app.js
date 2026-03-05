@@ -1095,7 +1095,7 @@ function handleWord(word) {
         checkDailyCoinWord();
         checkBonusStars(w);
         // Check stars for any auto-completed words
-        if (state.isBonusMode) {
+        if (state.isBonusMode || _regularStarCells.length > 0) {
             for (let i = beforeAuto; i < state.foundWords.length; i++) {
                 checkBonusStars(state.foundWords[i]);
             }
@@ -2685,13 +2685,17 @@ function animateCoinFlyFromDailyCoin(cellKey) {
 }
 
 function checkBonusStars(word) {
-    if (!state.isBonusMode || !state.bonusPuzzle) return;
+    const inBonus = state.isBonusMode && state.bonusPuzzle;
+    const inRegular = !state.isBonusMode && !state.isDailyMode && _regularStarCells.length > 0;
+    if (!inBonus && !inRegular) return;
+
+    const activeStarCells = inBonus ? _bonusStarCells : _regularStarCells;
     const placement = crossword.placements.find(p => p.word === word);
     if (!placement) return;
     const wordStarCells = placement.cells
         .map(c => c.row + "," + c.col)
         .filter(k => {
-            if (!_bonusStarCells.includes(k)) return false;
+            if (!activeStarCells.includes(k)) return false;
             // Skip stars already collected by a previously found word
             for (const p of crossword.placements) {
                 if (p.word === word || p.standalone) continue;
@@ -2706,31 +2710,54 @@ function checkBonusStars(word) {
     if (wordStarCells.length === 0) return;
     const starsInWord = wordStarCells.length;
     const coinReward = starsInWord * 10;
-    state.bonusPuzzle.starsCollected += starsInWord;
+    if (inBonus) {
+        state.bonusPuzzle.starsCollected += starsInWord;
+        _bonusCoinsEarned += coinReward;
+    }
     state.bonusStarsTotal = Math.min(9, state.bonusStarsTotal + starsInWord);
     state.coins += coinReward;
     state.totalCoinsEarned += coinReward;
-    _bonusCoinsEarned += coinReward;
     wordStarCells.forEach((cellKey, i) => {
         setTimeout(() => animateStarFly(cellKey), i * 200);
     });
     setTimeout(() => {
         animateBonusCoinFly(wordStarCells[0], coinReward);
     }, wordStarCells.length * 200 + 400);
-    const oldPoints = state.bonusPuzzle.starPoints;
+    const oldPoints = Math.floor((state.bonusStarsTotal - starsInWord) / 3);
     const newPoints = Math.floor(state.bonusStarsTotal / 3);
     if (newPoints > oldPoints) {
-        state.bonusPuzzle.starPoints = newPoints;
+        if (inBonus) {
+            state.bonusPuzzle.starPoints = newPoints;
+        }
         setTimeout(() => {
             renderHeader();
             playSound("bonusChime");
         }, wordStarCells.length * 200 + 600);
     }
-    saveBonusState();
-    saveProgress();
+    if (inBonus) {
+        saveBonusState();
+    } else {
+        saveProgress();
+    }
     renderCoins();
+
+    // Grand prize check
     if (state.bonusStarsTotal >= 9) {
-        setTimeout(() => handleBonusCompletion(), wordStarCells.length * 200 + 800);
+        if (inBonus) {
+            setTimeout(() => handleBonusCompletion(), wordStarCells.length * 200 + 800);
+        } else {
+            // Regular mode: award grand prize inline, do NOT end the level
+            setTimeout(() => {
+                state.coins += 500;
+                state.totalCoinsEarned += 500;
+                state.bonusStarsTotal = 0;
+                saveProgress();
+                renderCoins();
+                renderHeader();
+                showToast("\uD83C\uDF1F Grand Prize! +500 \uD83E\uDE99", "#d4a51c");
+                playSound("bonusChime");
+            }, wordStarCells.length * 200 + 800);
+        }
     }
 }
 
