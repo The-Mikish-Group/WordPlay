@@ -4160,6 +4160,18 @@ function renderMenu() {
         `;
     }
 
+    html += `
+        <div class="menu-setting">
+            <label class="menu-setting-label">Grid Layout</label>
+            <select id="menu-layout-select" class="menu-setting-select" style="accent-color:${theme.accent}">
+                <option value="auto" ${state.layoutPref === "auto" ? "selected" : ""}>Auto</option>
+                <option value="crossword" ${state.layoutPref === "crossword" ? "selected" : ""}>Crossword</option>
+                <option value="flow" ${state.layoutPref === "flow" ? "selected" : ""}>Flow</option>
+            </select>
+            <div class="menu-setting-hint">Auto uses crossword by default and flow every 5th level. Toggle mid-game by tapping the level info.</div>
+        </div>
+    `;
+
     // Set progress + Reset (hidden until easter egg)
     html += `<div id="menu-secret-section" style="display:${_menuSecretTaps >= 8 ? 'block' : 'none'}">`;
 
@@ -4521,6 +4533,15 @@ function renderMenu() {
             renderMenu();
             showToast(`Difficulty set to ${newTier.label}!`, theme.accent);
             recompute().then(() => { restoreLevelState(); renderHome(); });
+        };
+    }
+
+    const layoutSelect = document.getElementById("menu-layout-select");
+    if (layoutSelect) {
+        layoutSelect.onchange = () => {
+            state.layoutPref = layoutSelect.value;
+            saveProgress();
+            showToast("Layout set to " + state.layoutPref);
         };
     }
 
