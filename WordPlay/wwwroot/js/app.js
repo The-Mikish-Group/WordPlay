@@ -1997,9 +1997,9 @@ function renderHeader() {
     hdr.style.color = theme.text;
     if (state.isBonusMode) {
         const sp = state.bonusPuzzle ? state.bonusPuzzle.starPoints : 0;
-        const starSlots = [0, 1, 2].map(i =>
-            `<span class="bonus-star-slot${i < sp ? ' filled' : ''}" id="bonus-star-${i}">${i < sp ? '\u2B50' : '\u2606'}</span>`
-        ).join('');
+        const starSlots = sp > 0 ? [0, 1, 2].filter(i => i < sp).map(i =>
+            `<span class="bonus-star-slot filled" id="bonus-star-${i}">\u2B50</span>`
+        ).join('') : '';
         hdr.innerHTML = `
             <button class="back-arrow-btn" id="back-home-btn" title="Back to Home">
                 <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

@@ -2307,9 +2307,6 @@ html, body {
     align-items: center;
     gap: 2px;
     font-size: 18px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    background: rgba(0,0,0,0.3);
 }
 
 .bonus-star-slot {
