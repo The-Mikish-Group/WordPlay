@@ -630,6 +630,41 @@ function restoreLevelState() {
     }
 }
 
+function remapCells(oldCells, oldPlacements, newPlacements) {
+    // Build lookup: for each old placement, map each cell index to {word, letterIdx}
+    const oldLookup = {};
+    for (const p of oldPlacements) {
+        for (let i = 0; i < p.cells.length; i++) {
+            const k = p.cells[i].row + "," + p.cells[i].col;
+            if (!oldLookup[k]) oldLookup[k] = [];
+            oldLookup[k].push({ word: p.word, letterIdx: i });
+        }
+    }
+    // Build reverse lookup: for each new placement, map {word, letterIdx} to cell key
+    const newLookup = {};
+    for (const p of newPlacements) {
+        for (let i = 0; i < p.cells.length; i++) {
+            newLookup[p.word + ":" + i] = p.cells[i].row + "," + p.cells[i].col;
+        }
+    }
+    // Re-map each old cell to its new position
+    const result = [];
+    const seen = new Set();
+    for (const oldKey of oldCells) {
+        const refs = oldLookup[oldKey];
+        if (!refs) continue;
+        for (const ref of refs) {
+            const newKey = newLookup[ref.word + ":" + ref.letterIdx];
+            if (newKey && !seen.has(newKey)) {
+                seen.add(newKey);
+                result.push(newKey);
+                break;
+            }
+        }
+    }
+    return result;
+}
+
 // ---- DAILY MODE ENTRY/EXIT ----
 async function enterDailyMode() {
     if (applyPendingUpdate()) return;
