@@ -801,8 +801,12 @@ function assignBonusStars() {
 }
 
 function shouldLevelHaveStars(levelNum) {
-    // Seeded 20% chance based on level number
-    return (hashStr("regularstars:" + levelNum) % 100) < 35;
+    // Seeded 35% chance — use integer mixing for uniform distribution
+    let n = levelNum * 0x45d9f3b | 0;
+    n = ((n >> 16) ^ n) * 0x45d9f3b | 0;
+    n = ((n >> 16) ^ n) * 0x45d9f3b | 0;
+    n = (n >> 16) ^ n;
+    return (Math.abs(n) % 100) < 35;
 }
 
 function assignRegularStars(levelNum) {
