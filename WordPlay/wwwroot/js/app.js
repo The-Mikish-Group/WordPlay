@@ -2241,7 +2241,7 @@ function renderHeader() {
                 </svg>
             </button>
             <div class="header-center">
-                <div class="header-pack" style="color:#d4a51c">\u2B50 Bonus Puzzle</div>
+                <div class="header-pack" style="color:#d4a51c">${_currentLayoutIsZen ? '\uD83C\uDF0A ' : ''}\u2B50 Bonus Puzzle</div>
                 <div class="header-level" style="color:#d4a51c">Bonus</div>
             </div>
             <div class="header-right">
@@ -2283,7 +2283,6 @@ function renderHeader() {
             };
         };
     } else if (state.isDailyMode) {
-        const dailyFlowLabel = state.dailyPuzzle && state.dailyPuzzle.flow ? '\uD83C\uDF0A ' : '';
         hdr.innerHTML = `
             <button class="back-arrow-btn" id="back-home-btn" title="Back to Home">
                 <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2291,7 +2290,7 @@ function renderHeader() {
                 </svg>
             </button>
             <div class="header-center">
-                <div class="header-pack" style="color:#22a866">${dailyFlowLabel}\uD83D\uDCC5 Daily Puzzle</div>
+                <div class="header-pack" style="color:#22a866">${_currentLayoutIsZen ? '\uD83C\uDF0A ' : ''}\uD83D\uDCC5 Daily Puzzle</div>
                 <div class="header-level" style="color:#22a866">${getTodayStr()}</div>
             </div>
             <div class="header-right">
@@ -2300,7 +2299,6 @@ function renderHeader() {
         `;
         document.getElementById("back-home-btn").onclick = () => exitDailyMode();
     } else {
-        const flowLevel = isFlowLevel(state.currentLevel);
         hdr.innerHTML = `
             <button class="back-arrow-btn" id="back-home-btn" title="Back to Home">
                 <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2308,7 +2306,7 @@ function renderHeader() {
                 </svg>
             </button>
             <div class="header-center">
-                <div class="header-pack">${flowLevel ? '\uD83C\uDF0A ' : ''}${level.group} \u00B7 ${level.pack}</div>
+                <div class="header-pack">${_currentLayoutIsZen ? '\uD83C\uDF0A ' : ''}${level.group} \u00B7 ${level.pack}</div>
                 <div class="header-level" style="color:${theme.accent}">Level ${displayLevel(state.currentLevel)}</div>
             </div>
             <div class="header-right">
