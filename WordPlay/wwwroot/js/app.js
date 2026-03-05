@@ -2255,6 +2255,8 @@ function renderHeader() {
             renderHome();
         };
     }
+    const hdrCenter = document.querySelector(".header-center");
+    if (hdrCenter) hdrCenter.onclick = toggleLayout;
 }
 
 function renderCoins() {
