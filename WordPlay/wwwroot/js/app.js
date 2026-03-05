@@ -913,6 +913,13 @@ function checkSpeedBonus() {
     _speedTimerActive = false;
 }
 
+function startSpeedTimer() {
+    if (!_speedTimerActive && !state.isDailyMode && !state.isBonusMode) {
+        _speedTimerStart = Date.now();
+        _speedTimerActive = true;
+    }
+}
+
 function resetSpeedTimer() {
     _speedTimerStart = 0;
     _speedTimerActive = false;
@@ -1534,6 +1541,7 @@ function animateCoinGain(amount, targetId) {
 }
 
 function handleHint() {
+    startSpeedTimer();
     const hasFree = state.freeHints > 0;
     if (!hasFree && state.coins < 100) return;
     const cell = pickRandomUnrevealedCell();
@@ -1571,6 +1579,7 @@ function handleHint() {
 
 function handleTargetHint() {
     if (state.pickMode) { cancelPickMode(); return; }
+    startSpeedTimer();
     const hasFree = state.freeTargets > 0;
     if (!hasFree && state.coins < 200) return;
     if (!pickRandomUnrevealedCell()) return; // nothing to reveal
@@ -3140,6 +3149,7 @@ function renderHintBtn() {
 }
 
 function handleRocketHint() {
+    startSpeedTimer();
     const hasFree = state.freeRockets > 0;
     if (!hasFree && state.coins < 300) return;
     const firstCell = pickRandomUnrevealedCell();
@@ -3708,10 +3718,7 @@ function onWheelStart(e) {
     const i = hitTestWheel(p.x, p.y);
     if (i >= 0) {
         // Start speed timer on first wheel interaction this level
-        if (!_speedTimerActive && !state.isDailyMode && !state.isBonusMode) {
-            _speedTimerStart = Date.now();
-            _speedTimerActive = true;
-        }
+        startSpeedTimer();
         wheelState.dragging = true;
         wheelState.sel = [i];
         wheelState.word = wheelLetters[i];
@@ -4072,6 +4079,7 @@ function renderMenu() {
                 <span style="font-size:13px;opacity:0.6;width:60px;flex-shrink:0">🚀 Rocket</span>
                 <input type="number" id="seed-rockets-input" value="${state.freeRockets}" min="0" class="menu-setting-input">
             </div>
+            <button class="menu-setting-btn" id="seed-state-btn" style="background:${theme.accent};color:#000;width:100%;padding:10px 0;margin-top:4px">Set Game State</button>
         </div>
     `;
 
@@ -4611,6 +4619,21 @@ function renderMenu() {
             renderAdmin();
         };
     }
+
+    document.getElementById("seed-state-btn").onclick = () => {
+        const coins = parseInt(document.getElementById("seed-coins-input").value);
+        const hints = parseInt(document.getElementById("seed-hints-input").value);
+        const targets = parseInt(document.getElementById("seed-targets-input").value);
+        const rockets = parseInt(document.getElementById("seed-rockets-input").value);
+        if (!isNaN(coins) && coins >= 0) state.coins = coins;
+        if (!isNaN(hints) && hints >= 0) state.freeHints = hints;
+        if (!isNaN(targets) && targets >= 0) state.freeTargets = targets;
+        if (!isNaN(rockets) && rockets >= 0) state.freeRockets = rockets;
+        saveProgress();
+        renderMenu();
+        if (state.showHome) renderHome();
+        showToast("Game state updated");
+    };
 
     document.getElementById("seed-level-btn").onclick = async () => {
         const input = document.getElementById("seed-level-input");
