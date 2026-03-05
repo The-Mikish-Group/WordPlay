@@ -608,6 +608,12 @@ function restoreLevelState() {
         state.revealedCells = [];
         state.standaloneFound = !!standaloneWord;
     }
+    // For fresh or completed levels, assign regular stars if applicable
+    if (!state.isDailyMode && !state.isBonusMode && shouldLevelHaveStars(lv)) {
+        _regularStarCells = assignRegularStars(lv);
+    } else {
+        _regularStarCells = [];
+    }
 }
 
 // ---- DAILY MODE ENTRY/EXIT ----
@@ -622,6 +628,7 @@ async function enterDailyMode() {
         standaloneFound: state.standaloneFound,
     };
     state.isDailyMode = true;
+    _regularStarCells = [];
     const today = getTodayStr();
     if (!state.dailyPuzzle || state.dailyPuzzle.date !== today) {
         state.dailyPuzzle = {
@@ -701,6 +708,7 @@ async function enterBonusMode() {
         standaloneFound: state.standaloneFound,
     };
     state.isBonusMode = true;
+    _regularStarCells = [];
     state.bonusPuzzle.available = false;
     state.currentLevel = state.bonusPuzzle.levelNum;
     await recompute();
