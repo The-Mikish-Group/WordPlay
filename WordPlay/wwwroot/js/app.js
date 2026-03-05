@@ -2122,6 +2122,13 @@ function renderHeader() {
             </div>
             <div class="header-right">
                 <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">\uD83E\uDE99 ${state.coins.toLocaleString()}</div>
+                <div class="bonus-star-display" id="bonus-star-display">${(function() {
+                    const sp = Math.floor(state.bonusStarsTotal / 3);
+                    if (sp <= 0) return '';
+                    return [0,1,2].filter(i => i < sp).map(i =>
+                        '<span class="bonus-star-slot filled">\u2B50</span>'
+                    ).join('');
+                })()}</div>
             </div>
         `;
         document.getElementById("back-home-btn").onclick = () => {
