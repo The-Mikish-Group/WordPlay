@@ -135,6 +135,7 @@ const state = {
     loading: false,
     pickMode: false,       // target-hint: user taps a cell to reveal it
     soundEnabled: true,    // sound effects on/off
+    layoutPref: "auto",        // "auto" | "crossword" | "flow"
     standaloneFound: false, // whether the standalone coin word has been solved
     showLeaderboard: false,
     showGuide: false,
@@ -219,6 +220,7 @@ let _savedRegularState = null;  // snapshot of regular game state while in daily
 // ---- BONUS PUZZLE STATE ----
 let _bonusStarCells = [];        // array of "row,col" keys where stars are placed
 let _regularStarCells = [];     // array of "row,col" keys where stars are placed in regular levels
+let _currentLayoutIsZen = false;  // whether the current grid is in zen/flow layout
 let _bonusCoinsEarned = 0;       // session accumulator for completion modal
 let _savedRegularStateBonus = null; // snapshot of regular game state while in bonus mode
 
@@ -476,6 +478,7 @@ function loadProgress() {
             state.levelsCompleted = d.lc || 0;
             state.lastDailyClaim = d.ldc || null;
             state.soundEnabled = d.se !== undefined ? d.se : true;
+            state.layoutPref = d.lp || "auto";
             state.totalCoinsEarned = d.tce || 0;
             state.dailyPuzzle = d.dp || null;
             state.bonusPuzzle = d.bp || null;
@@ -538,6 +541,7 @@ function saveProgress() {
             ip: state.inProgress,
             ldc: state.lastDailyClaim,
             se: state.soundEnabled,
+            lp: state.layoutPref,
             sf: state.standaloneFound,
             tce: state.totalCoinsEarned,
             dp: state.dailyPuzzle,
