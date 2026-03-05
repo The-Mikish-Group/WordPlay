@@ -1211,9 +1211,10 @@ function pickRandomUnrevealedCell() {
     }
     // Fall back to standalone cells if no regular cells remain
     let pool;
-    if (state.isBonusMode && _bonusStarCells.length > 0 && candidates.length > 0) {
-        // In bonus mode, prefer non-starred cells
-        const nonStarred = candidates.filter(k => !_bonusStarCells.includes(k));
+    const activeStarCells = state.isBonusMode ? _bonusStarCells : _regularStarCells;
+    if (activeStarCells.length > 0 && candidates.length > 0) {
+        // Prefer non-starred cells for hint reveals
+        const nonStarred = candidates.filter(k => !activeStarCells.includes(k));
         pool = nonStarred.length > 0 ? nonStarred : candidates;
     } else {
         pool = candidates.length ? candidates : standaloneCandidates;
@@ -2478,7 +2479,7 @@ function renderGrid() {
                     div.style.cursor = "";
                     div.onclick = null;
                 }
-            } else if (state.isBonusMode && _bonusStarCells.includes(k) && !isStarCollected(k)) {
+            } else if (((state.isBonusMode && _bonusStarCells.includes(k)) || (!state.isBonusMode && !state.isDailyMode && _regularStarCells.includes(k))) && !isStarCollected(k)) {
                 // Bonus star cell — show star overlay
                 div.className = "grid-cell bonus-star-cell";
                 if (isR) {
