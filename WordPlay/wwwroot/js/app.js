@@ -580,6 +580,7 @@ function saveInProgressState() {
             sf: state.standaloneFound,
             wo: wheelLetters ? [...wheelLetters] : null,
             rsc: _regularStarCells.length > 0 ? [..._regularStarCells] : undefined,
+            zen: _currentLayoutIsZen || undefined,
         };
     }
 }
@@ -591,6 +592,7 @@ function saveDailyState() {
     state.dailyPuzzle.rc = [...state.revealedCells];
     state.dailyPuzzle.sf = state.standaloneFound;
     state.dailyPuzzle.wo = wheelLetters ? [...wheelLetters] : null;
+    state.dailyPuzzle.zen = _currentLayoutIsZen || undefined;
     saveProgress();
 }
 
@@ -613,6 +615,7 @@ function restoreLevelState() {
         while (checkAutoCompleteWords()) {}
         // Restore regular star cells
         _regularStarCells = ip.rsc || [];
+        _currentLayoutIsZen = ip.zen || false;
         return;
     }
     // Completed level: all words found
@@ -762,6 +765,26 @@ async function enterDailyMode() {
         wheelLetters = [...state.dailyPuzzle.wo];
     }
     while (checkAutoCompleteWords()) {}
+    if (state.dailyPuzzle.zen !== undefined) {
+        const savedZen = state.dailyPuzzle.zen;
+        if (savedZen !== _currentLayoutIsZen) {
+            _currentLayoutIsZen = savedZen;
+            const gridWords = level.words;
+            if (_currentLayoutIsZen) {
+                crossword = generateZenGrid(gridWords);
+                standaloneWord = null;
+            } else {
+                const extracted = extractStandaloneWord(gridWords, 12);
+                crossword = extracted.crossword;
+                standaloneWord = extracted.standalone;
+            }
+            placedWords = crossword.placements.map(p => p.word);
+            bonusPool = [...(level.bonus || []), ...gridWords.filter(w => !placedWords.includes(w))];
+            if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
+            totalRequired = placedWords.length;
+            state.foundWords = (state.dailyPuzzle.fw || []).filter(w => placedWords.includes(w));
+        }
+    }
     _dailyCoinsEarned = 0;
     assignDailyCoinWord();
     state.showHome = false;
@@ -827,6 +850,28 @@ async function enterBonusMode() {
     _bonusCoinsEarned = state.bonusPuzzle.coinsEarned || 0;
     _bonusStarCells = state.bonusPuzzle.starCells || assignBonusStars();
     state.bonusPuzzle.starCells = _bonusStarCells;
+    if (state.bonusPuzzle.zen !== undefined) {
+        const savedZen = state.bonusPuzzle.zen;
+        if (savedZen !== _currentLayoutIsZen) {
+            _currentLayoutIsZen = savedZen;
+            const gridWords = level.words;
+            if (_currentLayoutIsZen) {
+                crossword = generateZenGrid(gridWords);
+                standaloneWord = null;
+            } else {
+                const extracted = extractStandaloneWord(gridWords, 12);
+                crossword = extracted.crossword;
+                standaloneWord = extracted.standalone;
+            }
+            placedWords = crossword.placements.map(p => p.word);
+            bonusPool = [...(level.bonus || []), ...gridWords.filter(w => !placedWords.includes(w))];
+            if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
+            totalRequired = placedWords.length;
+            state.foundWords = (state.bonusPuzzle.fw || []).filter(w => placedWords.includes(w));
+            _bonusStarCells = state.bonusPuzzle.starCells || assignBonusStars();
+            state.bonusPuzzle.starCells = _bonusStarCells;
+        }
+    }
     state.bonusPuzzle.starPoints = Math.floor(state.bonusStarsTotal / 3);
     state.showHome = false;
     const app = document.getElementById("app");
@@ -872,6 +917,7 @@ function saveBonusState() {
     state.bonusPuzzle.wo = wheelLetters ? [...wheelLetters] : null;
     state.bonusPuzzle.coinsEarned = _bonusCoinsEarned;
     state.bonusPuzzle.starCells = _bonusStarCells;
+    state.bonusPuzzle.zen = _currentLayoutIsZen || undefined;
     saveProgress();
 }
 
@@ -2117,7 +2163,36 @@ function renderHome() {
         if (applyPendingUpdate()) return;
         state.showHome = false;
         await recompute();
+        const recomputeZen = _currentLayoutIsZen;
         restoreLevelState();
+        // If restored level was in a different layout than recompute generated, regenerate
+        if (_currentLayoutIsZen !== recomputeZen) {
+            const gridWords = level.words;
+            if (_currentLayoutIsZen) {
+                crossword = generateZenGrid(gridWords);
+                standaloneWord = null;
+            } else {
+                const extracted = extractStandaloneWord(gridWords, 12);
+                crossword = extracted.crossword;
+                standaloneWord = extracted.standalone;
+            }
+            placedWords = crossword.placements.map(p => p.word);
+            bonusPool = [...(level.bonus || []), ...gridWords.filter(w => !placedWords.includes(w))];
+            if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
+            totalRequired = placedWords.length;
+            // Re-restore found words for new placements
+            const ip2 = state.inProgress[state.currentLevel];
+            if (ip2) {
+                state.foundWords = (ip2.fw || []).filter(w => placedWords.includes(w));
+                state.revealedCells = ip2.rc || [];
+                state.standaloneFound = ip2.sf || false;
+                _regularStarCells = ip2.rsc || [];
+                if (state.standaloneFound && standaloneWord && !state.foundWords.includes(standaloneWord)) {
+                    state.foundWords.push(standaloneWord);
+                }
+                while (checkAutoCompleteWords()) {}
+            }
+        }
         saveInProgressState();
         saveProgress();
         app.innerHTML = "";
