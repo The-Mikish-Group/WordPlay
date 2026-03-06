@@ -1053,13 +1053,13 @@ function actualLevel(displayLv) {
     return displayLv + state.difficultyOffset;
 }
 
-// ---- SPEED BONUS CHECK (10 sec per word) ----
+// ---- SPEED BONUS CHECK (7 sec per word) ----
 function checkSpeedBonus() {
     if (!_speedTimerActive || state.isDailyMode || state.isBonusMode) return;
     const wordCount = totalRequired;
     if (wordCount < 5) { _speedTimerActive = false; return; } // too few words — skip
     const elapsed = (Date.now() - _speedTimerStart) / 1000;
-    const timeLimit = wordCount * 10; // 10 seconds per word
+    const timeLimit = wordCount * 7; // 7 seconds per word
     _speedBonusEarned = elapsed <= timeLimit;
     _speedBonusTime = elapsed;
     _speedSpinPending = _speedBonusEarned;
@@ -6201,7 +6201,7 @@ const GUIDE_SECTIONS = [
     { icon: "\u2B50", title: "Bonus Puzzle", body: "Earn bonus puzzles through achievements \u2014 complete a level pack, finish 5 levels in an hour, maintain a 3-day play streak, or beat the daily puzzle. A gold <b>\u2B50 Bonus Puzzle</b> button appears on the home screen. Inside, 9 stars are scattered across the grid. Find starred words to collect stars and earn 10 coins each! Every 3 stars fills one of your 3 star slots. Collect all 9 stars for a <b>500-coin grand prize</b>. But be careful \u2014 leaving the puzzle forfeits your progress!" },
     { icon: "\uD83C\uDF0A", title: "Flow Levels", body: "Every 5th level (5, 10, 15, 20\u2026) is a <b>flow level</b>! These use a stacked layout instead of the usual crossword. Same words, same letters \u2014 just a different visual style with <b>3x rewards</b>: 3 coins per word, 15 per bonus word, and 200 for the coin word." },
     { icon: "\u21C4", title: "Grid Layouts", body: "WordPlay has two grid styles: <b>Crossword</b> (interlocking words) and <b>Flow</b> (stacked rows). You can <b>switch between them anytime</b> by tapping the level info at the top of the screen (the pack name and level number). All your progress \u2014 found words, hints, and stars \u2014 carries over when you switch. Set your preferred default in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> under Grid Layout: Auto (game decides), Crossword, or Flow." },
-    { icon: "\u26A1", title: "Speed Bonus", body: "Beat the clock for a free prize spin! When you start swiping on a level with 5+ words, a hidden timer starts. Finish the level within <b>10 seconds per word</b> and you\u2019ll earn a \u26A1 Speed Bonus \u2014 a free spin on the prize wheel with chances to win hints, targets, rockets, bonus stars, or 100 coins. Works on regular levels and flow levels!" },
+    { icon: "\u26A1", title: "Speed Bonus", body: "Beat the clock for a free prize spin! When you start swiping on a level with 5+ words, a hidden timer starts. Finish the level within <b>7 seconds per word</b> and you\u2019ll earn a \u26A1 Speed Bonus \u2014 a free spin on the prize wheel with chances to win hints, targets, rockets, bonus stars, or 100 coins. Works on regular levels and flow levels!" },
     { icon: "\uD83C\uDFAF", title: "Difficulty Tiers", body: "WordPlay matches puzzles to your skill level! There are four tiers:<br><br>\uD83C\uDF31 <b>Easy</b> \u2014 Levels 1\u2013250. Short words with 3\u20135 letters, perfect for beginners.<br>\uD83C\uDFC5 <b>Medium</b> \u2014 Levels 251\u20132,000. Full 6-letter puzzles with moderate bonus words.<br>\uD83D\uDD25 <b>Hard</b> \u2014 Levels 2,001\u20135,000. Puzzles loaded with 3\u20139 bonus words.<br>\uD83D\uDC8E <b>Expert</b> \u2014 Levels 5,001+. Complex anagrams with 8\u201315+ bonus words.<br><br>Your tier is set automatically based on your progress. When you cross a tier boundary, you\u2019ll be <b>auto-promoted</b> with a celebration! You can also manually upgrade in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> (but you can\u2019t go back down).<br><br><b>Note:</b> Speed milestones (5 fast levels = bonus puzzle) are disabled on Easy tier." },
     { icon: "\uD83D\uDD00", title: "Shuffle", body: "Tap the shuffle button to rearrange the letters on the wheel. Same letters, fresh perspective \u2014 sometimes that\u2019s all you need to spot a hidden word!" },
     { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the <a href=\"#\" class=\"guide-link\" data-action=\"map\">Level Map</a> from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },

@@ -49,7 +49,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 | **Daily puzzle** | A fresh shared puzzle every day with a roaming coin for bonus rewards |
 | **Bonus puzzle** | Earn star-filled puzzles through achievements — collect all 9 stars for a 500-coin grand prize |
 | **Regular game stars** | ~35% of regular levels feature bonus stars worth 10 coins each; collect 9 for a grand prize |
-| **Speed bonus** | Complete a level within 10 seconds per word to earn a free prize spin |
+| **Speed bonus** | Complete a level within 7 seconds per word to earn a free prize spin |
 | **Flow levels** | Every 5th level uses a stacked layout with 3x coin rewards |
 | **Expertise score** | Lifetime coins earned — displayed on the home screen and used for leaderboard points ranking |
 | **Avatar** | Personalize your profile with an emoji or uploaded image |
@@ -88,7 +88,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 
 - Every **10 bonus words** found earns a free random letter reveal
 - Every **10 levels** completed earns free hints; targets every 20 levels; rockets every 30 levels (max 30 each)
-- **Speed bonus**: complete a level within 10 seconds per word (5+ words required) for a free prize spin
+- **Speed bonus**: complete a level within 7 seconds per word (5+ words required) for a free prize spin
 
 ### Stars
 
