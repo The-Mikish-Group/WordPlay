@@ -37438,5 +37438,125 @@
     "pack": "Blush",
     "start": 155976,
     "end": 155996
+  },
+  {
+    "group": "Summit",
+    "pack": "Peak",
+    "start": 155997,
+    "end": 156021
+  },
+  {
+    "group": "Summit",
+    "pack": "Ridge",
+    "start": 156022,
+    "end": 156046
+  },
+  {
+    "group": "Summit",
+    "pack": "Crest",
+    "start": 156047,
+    "end": 156071
+  },
+  {
+    "group": "Summit",
+    "pack": "Apex",
+    "start": 156072,
+    "end": 156096
+  },
+  {
+    "group": "Summit",
+    "pack": "Zenith",
+    "start": 156097,
+    "end": 156121
+  },
+  {
+    "group": "Summit",
+    "pack": "Spire",
+    "start": 156122,
+    "end": 156146
+  },
+  {
+    "group": "Summit",
+    "pack": "Crown",
+    "start": 156147,
+    "end": 156171
+  },
+  {
+    "group": "Summit",
+    "pack": "Aerie",
+    "start": 156172,
+    "end": 156196
+  },
+  {
+    "group": "Summit",
+    "pack": "Vertex",
+    "start": 156197,
+    "end": 156221
+  },
+  {
+    "group": "Summit",
+    "pack": "Pinnacle",
+    "start": 156222,
+    "end": 156246
+  },
+  {
+    "group": "Summit",
+    "pack": "Peak",
+    "start": 156247,
+    "end": 156271
+  },
+  {
+    "group": "Summit",
+    "pack": "Ridge",
+    "start": 156272,
+    "end": 156296
+  },
+  {
+    "group": "Summit",
+    "pack": "Crest",
+    "start": 156297,
+    "end": 156321
+  },
+  {
+    "group": "Summit",
+    "pack": "Apex",
+    "start": 156322,
+    "end": 156346
+  },
+  {
+    "group": "Summit",
+    "pack": "Zenith",
+    "start": 156347,
+    "end": 156371
+  },
+  {
+    "group": "Summit",
+    "pack": "Spire",
+    "start": 156372,
+    "end": 156396
+  },
+  {
+    "group": "Summit",
+    "pack": "Crown",
+    "start": 156397,
+    "end": 156421
+  },
+  {
+    "group": "Summit",
+    "pack": "Aerie",
+    "start": 156422,
+    "end": 156446
+  },
+  {
+    "group": "Summit",
+    "pack": "Vertex",
+    "start": 156447,
+    "end": 156471
+  },
+  {
+    "group": "Summit",
+    "pack": "Pinnacle",
+    "start": 156472,
+    "end": 156496
   }
 ]

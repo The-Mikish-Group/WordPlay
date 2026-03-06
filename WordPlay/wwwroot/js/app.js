@@ -108,6 +108,7 @@ const DIFFICULTY_TIERS = [
     { key: "medium", label: "Medium", offset: 250,  tagline: "I know my way around" },
     { key: "hard",   label: "Hard",   offset: 2000, tagline: "Bring it on" },
     { key: "expert", label: "Expert", offset: 5000, tagline: "Challenge me" },
+    { key: "master", label: "Master", offset: 15000, tagline: "I live for word puzzles" },
 ];
 
 // ---- STATE ----
@@ -507,7 +508,8 @@ function loadProgress() {
             // Existing players started from level 1 — keep offset 0, just assign the tier label.
             if (state.difficultyTier < 0) {
                 const hl = state.highestLevel;
-                if (hl >= 5001) state.difficultyTier = 3;
+                if (hl >= 15001) state.difficultyTier = 4;
+                else if (hl >= 5001) state.difficultyTier = 3;
                 else if (hl >= 2001) state.difficultyTier = 2;
                 else if (hl >= 251) state.difficultyTier = 1;
                 else state.difficultyTier = 0;
@@ -2104,7 +2106,7 @@ function renderHome() {
                 <div class="expertise-banner" id="home-expertise-btn">
                     <div class="expertise-title">Expertise</div>
                     <div class="expertise-bottom">
-                        <span class="expertise-icon expertise-pulse">${["\uD83C\uDF31","\uD83C\uDFC5","\uD83D\uDD25","\uD83D\uDC8E"][state.difficultyTier] || "\uD83C\uDFC6"}</span>
+                        <span class="expertise-icon expertise-pulse">${["\uD83C\uDF31","\uD83C\uDFC5","\uD83D\uDD25","\uD83D\uDC8E","\uD83D\uDC51"][state.difficultyTier] || "\uD83C\uDFC6"}</span>
                         <span class="expertise-tier">${DIFFICULTY_TIERS[state.difficultyTier] ? DIFFICULTY_TIERS[state.difficultyTier].label : ''}</span>
                     </div>
                     <div class="expertise-row">
@@ -2408,8 +2410,8 @@ function renderTierChooser() {
     overlay.style.display = "flex";
     overlay.style.zIndex = "9999";
 
-    const tierColors = ["#4CAF50", "#2196F3", "#FF9800", "#f44336"];
-    const tierEmojis = ["\uD83C\uDF31", "\uD83D\uDCAA", "\uD83D\uDD25", "\uD83D\uDC8E"];
+    const tierColors = ["#4CAF50", "#2196F3", "#FF9800", "#f44336", "#9C27B0"];
+    const tierEmojis = ["\uD83C\uDF31", "\uD83D\uDCAA", "\uD83D\uDD25", "\uD83D\uDC8E", "\uD83D\uDC51"];
 
     let btnsHtml = "";
     DIFFICULTY_TIERS.forEach((t, i) => {
@@ -2462,7 +2464,8 @@ function checkTierPromotion() {
     const nextTier = DIFFICULTY_TIERS[state.difficultyTier + 1];
     if (state.highestLevel >= nextTier.offset + 1) {
         state.difficultyTier++;
-        state.difficultyOffset = nextTier.offset;
+        // Do NOT change difficultyOffset — that only applies when a new player
+        // picks a starting tier. Organic promotion is just a label change.
         saveProgress();
         setTimeout(() => renderTierPromotion(nextTier), 600);
     }
@@ -2479,8 +2482,8 @@ function renderTierPromotion(tier) {
     overlay.style.display = "flex";
     overlay.style.zIndex = "9998";
 
-    const tierColors = ["#4CAF50", "#2196F3", "#FF9800", "#f44336"];
-    const tierEmojis = ["\uD83C\uDF31", "\uD83D\uDCAA", "\uD83D\uDD25", "\uD83D\uDC8E"];
+    const tierColors = ["#4CAF50", "#2196F3", "#FF9800", "#f44336", "#9C27B0"];
+    const tierEmojis = ["\uD83C\uDF31", "\uD83D\uDCAA", "\uD83D\uDD25", "\uD83D\uDC8E", "\uD83D\uDC51"];
     const tierIdx = DIFFICULTY_TIERS.indexOf(tier);
     const color = tierColors[tierIdx] || theme.accent;
     const emoji = tierEmojis[tierIdx] || "\uD83C\uDFC6";
@@ -4605,11 +4608,17 @@ function renderMenu() {
             const lvPlayed = (state.highestLevel || 1) - state.difficultyOffset;
             if (newIdx < state.difficultyTier && lvPlayed >= 10) return;
             const newTier = DIFFICULTY_TIERS[newIdx];
-            const levelsCompleted = state.highestLevel - state.difficultyOffset;
-            state.difficultyTier = newIdx;
-            state.difficultyOffset = newTier.offset;
-            state.currentLevel = newTier.offset + levelsCompleted;
-            state.highestLevel = newTier.offset + levelsCompleted;
+            // If player is already past this tier's offset, just update the label
+            if (state.highestLevel >= newTier.offset + 1) {
+                state.difficultyTier = newIdx;
+                // Don't change offset or level position
+            } else {
+                const levelsCompleted = state.highestLevel - state.difficultyOffset;
+                state.difficultyTier = newIdx;
+                state.difficultyOffset = newTier.offset;
+                state.currentLevel = newTier.offset + levelsCompleted;
+                state.highestLevel = newTier.offset + levelsCompleted;
+            }
             state.inProgress = {};
             state.foundWords = [];
             state.bonusFound = [];
@@ -6202,7 +6211,7 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83C\uDF0A", title: "Flow Levels", body: "Every 5th level (5, 10, 15, 20\u2026) is a <b>flow level</b>! These use a stacked layout instead of the usual crossword. Same words, same letters \u2014 just a different visual style with <b>3x rewards</b>: 3 coins per word, 15 per bonus word, and 200 for the coin word." },
     { icon: "\u21C4", title: "Grid Layouts", body: "WordPlay has two grid styles: <b>Crossword</b> (interlocking words) and <b>Flow</b> (stacked rows). You can <b>switch between them anytime</b> by tapping the level info at the top of the screen (the pack name and level number). All your progress \u2014 found words, hints, and stars \u2014 carries over when you switch. Set your preferred default in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> under Grid Layout: Auto (game decides), Crossword, or Flow." },
     { icon: "\u26A1", title: "Speed Bonus", body: "Beat the clock for a free prize spin! When you start swiping on a level with 5+ words, a hidden timer starts. Finish the level within <b>7 seconds per word</b> and you\u2019ll earn a \u26A1 Speed Bonus \u2014 a free spin on the prize wheel with chances to win hints, targets, rockets, bonus stars, or 100 coins. Works on regular levels and flow levels!" },
-    { icon: "\uD83C\uDFAF", title: "Difficulty Tiers", body: "WordPlay matches puzzles to your skill level! There are four tiers:<br><br>\uD83C\uDF31 <b>Easy</b> \u2014 Levels 1\u2013250. Short words with 3\u20135 letters, perfect for beginners.<br>\uD83C\uDFC5 <b>Medium</b> \u2014 Levels 251\u20132,000. Full 6-letter puzzles with moderate bonus words.<br>\uD83D\uDD25 <b>Hard</b> \u2014 Levels 2,001\u20135,000. Puzzles loaded with 3\u20139 bonus words.<br>\uD83D\uDC8E <b>Expert</b> \u2014 Levels 5,001+. Complex anagrams with 8\u201315+ bonus words.<br><br>Your tier is set automatically based on your progress. When you cross a tier boundary, you\u2019ll be <b>auto-promoted</b> with a celebration! You can also manually upgrade in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> (but you can\u2019t go back down).<br><br><b>Note:</b> Speed milestones (5 fast levels = bonus puzzle) are disabled on Easy tier." },
+    { icon: "\uD83C\uDFAF", title: "Difficulty Tiers", body: "WordPlay matches puzzles to your skill level! There are five tiers:<br><br>\uD83C\uDF31 <b>Easy</b> \u2014 Levels 1\u2013250. Short words with 3\u20135 letters, perfect for beginners.<br>\uD83C\uDFC5 <b>Medium</b> \u2014 Levels 251\u20132,000. Full 6-letter puzzles with moderate bonus words.<br>\uD83D\uDD25 <b>Hard</b> \u2014 Levels 2,001\u20135,000. Puzzles loaded with 3\u20139 bonus words.<br>\uD83D\uDC8E <b>Expert</b> \u2014 Levels 5,001\u201315,000. Complex anagrams with 8\u201315+ bonus words.<br>\uD83D\uDC51 <b>Master</b> \u2014 Levels 15,001+. 7\u20138 letter puzzles with massive word counts for true word enthusiasts.<br><br>Your tier is set automatically based on your progress. When you cross a tier boundary, you\u2019ll be <b>auto-promoted</b> with a celebration! You can also manually upgrade in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> (but you can\u2019t go back down).<br><br><b>Note:</b> Speed milestones (5 fast levels = bonus puzzle) are disabled on Easy tier." },
     { icon: "\uD83D\uDD00", title: "Shuffle", body: "Tap the shuffle button to rearrange the letters on the wheel. Same letters, fresh perspective \u2014 sometimes that\u2019s all you need to spot a hidden word!" },
     { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the <a href=\"#\" class=\"guide-link\" data-action=\"map\">Level Map</a> from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },
     { icon: "\uD83C\uDFA8", title: "Themes", body: "The game features 16 beautiful color themes \u2014 Sunrise, Forest, Ocean, Aurora, and more. Themes change as you progress through different level groups." },
