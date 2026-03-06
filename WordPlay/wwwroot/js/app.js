@@ -1553,7 +1553,7 @@ function getAudioCtx() {
     return _audioCtx;
 }
 
-function playSound(name) {
+function playSound(name, vol) {
     if (!state.soundEnabled) return;
     try {
         const ctx = getAudioCtx();
@@ -1589,13 +1589,16 @@ function playSound(name) {
                 o.start(t); o.stop(t + 0.04);
             });
         } else if (name === "spinTick") {
+            // Sharp mechanical click — sounds like a wheel peg hitting a flapper
             const o = ctx.createOscillator();
             const g = ctx.createGain();
-            o.type = "square"; o.frequency.value = 600;
-            g.gain.setValueAtTime(0.1, now);
-            g.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+            const v = vol || 0.15;
+            o.type = "triangle"; o.frequency.value = 1800;
+            o.frequency.exponentialRampToValueAtTime(400, now + 0.025);
+            g.gain.setValueAtTime(v, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
             o.connect(g); g.connect(ctx.destination);
-            o.start(now); o.stop(now + 0.02);
+            o.start(now); o.stop(now + 0.04);
         } else if (name === "spinPrize") {
             [523, 659, 784, 1047].forEach((f, i) => {
                 const o = ctx.createOscillator();
@@ -2131,11 +2134,11 @@ function renderHome() {
                     <span class="home-level-label">Level</span>
                     <span class="home-level-num" style="font-size:${displayLevel(state.currentLevel) >= 100000 ? 22 : displayLevel(state.currentLevel) >= 10000 ? 26 : 36}px">${displayLevel(state.currentLevel).toLocaleString()}</span>
                 </button>
-                ${claimed ? '' : `<button class="home-daily-btn" id="home-daily-btn">
+                <button class="home-daily-btn" id="home-daily-btn" style="${claimed ? 'visibility:hidden;pointer-events:none' : ''}">
                     <span>FREE</span>
                     <svg class="daily-coins" width="13" height="18" viewBox="0 0 20 28">${[0,1,2,3,4].map(i=>{const y=24-i*4.5;return `<path d="M2,${y} v-2.5 a8,3 0 0,1 16,0 v2.5 a8,3 0 0,1 -16,0z" fill="#a07818"/><ellipse cx="10" cy="${y-2.5}" rx="8" ry="3" fill="#d4a51c"/><ellipse cx="10" cy="${y-2.5}" rx="5" ry="1.8" fill="#e8c640" opacity="0.35"/>`}).join('')}</svg>
                     <span>COINS</span>
-                </button>`}
+                </button>
             </div>
             <div class="home-bottom">
                 <div class="home-bottom-btns">
@@ -3621,7 +3624,8 @@ function startSpin() {
     if (result) result.style.display = "none";
 
     const canvas = document.getElementById("spin-canvas");
-    let velocity = 15 + Math.random() * 10; // 15-25 rad/s
+    const startVel = 15 + Math.random() * 10; // 15-25 rad/s
+    let velocity = startVel;
     const friction = 0.97;
     let lastSlice = -1;
     const sliceAngle = (Math.PI * 2) / SPIN_SLICES.length;
@@ -3631,11 +3635,12 @@ function startSpin() {
         velocity *= friction;
         drawSpinWheel(canvas, _spinAngle);
 
-        // Tick sound on segment boundary
+        // Click sound on segment boundary — gets louder as wheel slows
         const normalAngle = ((-_spinAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         const currentSlice = Math.floor(normalAngle / sliceAngle);
         if (currentSlice !== lastSlice && lastSlice !== -1) {
-            playSound("spinTick");
+            const vol = 0.08 + 0.22 * (1 - velocity / startVel);
+            playSound("spinTick", vol);
         }
         lastSlice = currentSlice;
 
@@ -3784,7 +3789,8 @@ function startSpeedSpin() {
     if (result) result.style.display = "none";
 
     const canvas = document.getElementById("speed-spin-canvas");
-    let velocity = 15 + Math.random() * 10;
+    const startVel = 15 + Math.random() * 10;
+    let velocity = startVel;
     const friction = 0.97;
     let lastSlice = -1;
     const sliceAngle = (Math.PI * 2) / SPIN_SLICES.length;
@@ -3796,7 +3802,10 @@ function startSpeedSpin() {
 
         const normalAngle = ((-_speedSpinAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         const currentSlice = Math.floor(normalAngle / sliceAngle);
-        if (currentSlice !== lastSlice && lastSlice !== -1) playSound("spinTick");
+        if (currentSlice !== lastSlice && lastSlice !== -1) {
+            const vol = 0.08 + 0.22 * (1 - velocity / startVel);
+            playSound("spinTick", vol);
+        }
         lastSlice = currentSlice;
 
         if (velocity > 0.002) {
