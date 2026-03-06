@@ -54,7 +54,7 @@ function generateCrosswordGrid(words) {
 }
 
 // ============================================================
-// Zen Grid Generator — stacked horizontal words (no intersections)
+// Flow Grid Generator — stacked horizontal words (no intersections)
 //
 // Returns identical { grid, placements, rows, cols } structure
 // so all existing game mechanics work unchanged.
@@ -63,7 +63,7 @@ function generateCrosswordGrid(words) {
 //   ≤5 words → single column, left-aligned
 //   ≥6 words → two columns with 1-cell gap between them
 // ============================================================
-function generateZenGrid(words) {
+function generateFlowGrid(words) {
     if (!words || !words.length) return { grid: [], placements: [], rows: 0, cols: 0 };
 
     // Sort by length ascending, then alphabetically within each length

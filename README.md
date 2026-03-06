@@ -252,7 +252,7 @@ WordPlay/
 │   ├── wwwroot/                         # Static web files (served directly)
 │   │   ├── js/
 │   │   │   ├── app.js                   # Game logic, rendering, sound, animations (~7,000 lines)
-│   │   │   ├── crossword.js             # Grid generator (crossword + flow/zen layouts)
+│   │   │   ├── crossword.js             # Grid generator (crossword + flow layouts)
 │   │   │   ├── level-loader.js          # Chunked level loader for 156K+ levels
 │   │   │   ├── levels.js               # Original hand-curated levels
 │   │   │   ├── auth.js                  # Google & Microsoft sign-in, JWT management
@@ -385,7 +385,7 @@ Game progress is stored in `localStorage` under `"wordplay-save"`:
 | `doff` | Difficulty offset (for tier-based level numbering) |
 | `ip` | In-progress state for levels navigated away from |
 
-In-progress entries (`ip`) additionally store `rsc` (regular star cells) and `zen` (whether flow layout was active).
+In-progress entries (`ip`) additionally store `rsc` (regular star cells) and `zen` (whether flow layout was active, kept as `zen` key for save compatibility).
 
 ---
 

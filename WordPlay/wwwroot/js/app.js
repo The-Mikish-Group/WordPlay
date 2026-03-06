@@ -192,12 +192,12 @@ window.debugBonus = function(presetStars) {
     }
 };
 
-// ---- DEBUG: ZEN GRID TESTING ----
-// Usage: debugZen() — convert current level to zen layout
-//        debugZen(["HOP","HOT","POT","TOO","TOP","PHOTO"], "HOTPO") — custom words + letters
-window.debugZen = function(words, letters) {
+// ---- DEBUG: FLOW GRID TESTING ----
+// Usage: debugFlow() — convert current level to flow layout
+//        debugFlow(["HOP","HOT","POT","TOO","TOP","PHOTO"], "HOTPO") — custom words + letters
+window.debugFlow = function(words, letters) {
     const w = words || level.words;
-    crossword = generateZenGrid(w);
+    crossword = generateFlowGrid(w);
     standaloneWord = null;
     placedWords = crossword.placements.map(p => p.word);
     bonusPool = [...(level.bonus || [])];
@@ -220,12 +220,12 @@ let _savedRegularState = null;  // snapshot of regular game state while in daily
 // ---- BONUS PUZZLE STATE ----
 let _bonusStarCells = [];        // array of "row,col" keys where stars are placed
 let _regularStarCells = [];     // array of "row,col" keys where stars are placed in regular levels
-let _currentLayoutIsZen = false;  // whether the current grid is in zen/flow layout
+let _currentLayoutIsFlow = false;  // whether the current grid is in flow layout
 let _bonusCoinsEarned = 0;       // session accumulator for completion modal
 let _savedRegularStateBonus = null; // snapshot of regular game state while in bonus mode
 
-// ---- FLOW / DAILY ZEN STATE ----
-let _forceZenLayout = false;       // transient flag for daily flow variant
+// ---- FLOW / DAILY LAYOUT STATE ----
+let _forceFlowLayout = false;       // transient flag for daily flow layout variant
 
 // ---- SPEED BONUS STATE ----
 let _speedTimerStart = 0;        // timestamp of first wheel touch this level
@@ -389,18 +389,18 @@ async function recompute() {
     // Determine grid words vs bonus words
     const gridWords = level.words;
 
-    // Determine if this level should use zen layout
-    const naturalZen = level.zen || _forceZenLayout || (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel));
+    // Determine if this level should use flow layout
+    const naturalFlow = level.flow || _forceFlowLayout || (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel));
     if (state.layoutPref === "flow") {
-        _currentLayoutIsZen = true;
+        _currentLayoutIsFlow = true;
     } else if (state.layoutPref === "crossword") {
-        _currentLayoutIsZen = false;
+        _currentLayoutIsFlow = false;
     } else {
-        _currentLayoutIsZen = naturalZen;
+        _currentLayoutIsFlow = naturalFlow;
     }
 
-    if (_currentLayoutIsZen) {
-        crossword = generateZenGrid(gridWords);
+    if (_currentLayoutIsFlow) {
+        crossword = generateFlowGrid(gridWords);
         standaloneWord = null;
     } else {
         const extracted = extractStandaloneWord(gridWords, 12);
@@ -437,12 +437,6 @@ function applyPendingUpdate() {
 }
 
 // ---- PERSISTENCE ----
-// Migrate old save key from pre-rename
-const _oldSave = localStorage.getItem("wordscapes-save");
-if (_oldSave && !localStorage.getItem("wordplay-save")) {
-    localStorage.setItem("wordplay-save", _oldSave);
-    localStorage.removeItem("wordscapes-save");
-}
 
 function loadProgress() {
     try {
@@ -572,7 +566,7 @@ function saveProgress() {
 function saveInProgressState() {
     if (state.isDailyMode || state.isBonusMode) return;
     const lv = state.currentLevel;
-    if (state.foundWords.length > 0 || state.revealedCells.length > 0 || state.bonusFound.length > 0 || state.standaloneFound || (wheelLetters && wheelLetters.length > 0)) {
+    if (state.foundWords.length > 0 || state.revealedCells.length > 0 || state.bonusFound.length > 0 || state.standaloneFound) {
         state.inProgress[lv] = {
             fw: [...state.foundWords],
             bf: [...state.bonusFound],
@@ -580,7 +574,7 @@ function saveInProgressState() {
             sf: state.standaloneFound,
             wo: wheelLetters ? [...wheelLetters] : null,
             rsc: _regularStarCells.length > 0 ? [..._regularStarCells] : undefined,
-            zen: _currentLayoutIsZen || undefined,
+            zen: _currentLayoutIsFlow || undefined,
         };
     }
 }
@@ -592,7 +586,7 @@ function saveDailyState() {
     state.dailyPuzzle.rc = [...state.revealedCells];
     state.dailyPuzzle.sf = state.standaloneFound;
     state.dailyPuzzle.wo = wheelLetters ? [...wheelLetters] : null;
-    state.dailyPuzzle.zen = _currentLayoutIsZen || undefined;
+    state.dailyPuzzle.zen = _currentLayoutIsFlow || undefined;
     saveProgress();
 }
 
@@ -613,9 +607,15 @@ function restoreLevelState() {
             state.foundWords.push(standaloneWord);
         }
         while (checkAutoCompleteWords()) {}
-        // Restore regular star cells
-        _regularStarCells = ip.rsc || [];
-        _currentLayoutIsZen = ip.zen || false;
+        // Restore regular star cells — if not saved, compute them fresh
+        if (ip.rsc) {
+            _regularStarCells = ip.rsc;
+        } else if (!state.isDailyMode && !state.isBonusMode && shouldLevelHaveStars(lv)) {
+            _regularStarCells = assignRegularStars(lv);
+        } else {
+            _regularStarCells = [];
+        }
+        _currentLayoutIsFlow = ip.zen || false;
         return;
     }
     // Completed level: all words found
@@ -676,12 +676,12 @@ function toggleLayout() {
     const oldDailyCoinKey = _dailyCoinCellKey;
 
     // Toggle
-    _currentLayoutIsZen = !_currentLayoutIsZen;
+    _currentLayoutIsFlow = !_currentLayoutIsFlow;
 
     // Regenerate grid
     const gridWords = level.words;
-    if (_currentLayoutIsZen) {
-        crossword = generateZenGrid(gridWords);
+    if (_currentLayoutIsFlow) {
+        crossword = generateFlowGrid(gridWords);
         standaloneWord = null;
     } else {
         const extracted = extractStandaloneWord(gridWords, 12);
@@ -711,7 +711,7 @@ function toggleLayout() {
     }
 
     // Ensure standalone found state is consistent
-    if (!_currentLayoutIsZen && standaloneWord) {
+    if (!_currentLayoutIsFlow && standaloneWord) {
         if (state.foundWords.includes(standaloneWord)) {
             state.standaloneFound = true;
         }
@@ -750,9 +750,9 @@ async function enterDailyMode() {
         state.dailyPuzzle.flow = (hashStr(state.dailyPuzzle.date) % 10) < 3;
     }
     state.currentLevel = state.dailyPuzzle.levelNum;
-    _forceZenLayout = !!state.dailyPuzzle.flow;
+    _forceFlowLayout = !!state.dailyPuzzle.flow;
     await recompute();
-    _forceZenLayout = false;
+    _forceFlowLayout = false;
     state.foundWords = (state.dailyPuzzle.fw || []).filter(w => placedWords.includes(w));
     state.bonusFound = state.dailyPuzzle.bf || [];
     state.revealedCells = state.dailyPuzzle.rc || [];
@@ -766,12 +766,12 @@ async function enterDailyMode() {
     }
     while (checkAutoCompleteWords()) {}
     if (state.dailyPuzzle.zen !== undefined) {
-        const savedZen = state.dailyPuzzle.zen;
-        if (savedZen !== _currentLayoutIsZen) {
-            _currentLayoutIsZen = savedZen;
+        const savedFlow = state.dailyPuzzle.zen;
+        if (savedFlow !== _currentLayoutIsFlow) {
+            _currentLayoutIsFlow = savedFlow;
             const gridWords = level.words;
-            if (_currentLayoutIsZen) {
-                crossword = generateZenGrid(gridWords);
+            if (_currentLayoutIsFlow) {
+                crossword = generateFlowGrid(gridWords);
                 standaloneWord = null;
             } else {
                 const extracted = extractStandaloneWord(gridWords, 12);
@@ -851,12 +851,12 @@ async function enterBonusMode() {
     _bonusStarCells = state.bonusPuzzle.starCells || assignBonusStars();
     state.bonusPuzzle.starCells = _bonusStarCells;
     if (state.bonusPuzzle.zen !== undefined) {
-        const savedZen = state.bonusPuzzle.zen;
-        if (savedZen !== _currentLayoutIsZen) {
-            _currentLayoutIsZen = savedZen;
+        const savedFlow = state.bonusPuzzle.zen;
+        if (savedFlow !== _currentLayoutIsFlow) {
+            _currentLayoutIsFlow = savedFlow;
             const gridWords = level.words;
-            if (_currentLayoutIsZen) {
-                crossword = generateZenGrid(gridWords);
+            if (_currentLayoutIsFlow) {
+                crossword = generateFlowGrid(gridWords);
                 standaloneWord = null;
             } else {
                 const extracted = extractStandaloneWord(gridWords, 12);
@@ -917,7 +917,7 @@ function saveBonusState() {
     state.bonusPuzzle.wo = wheelLetters ? [...wheelLetters] : null;
     state.bonusPuzzle.coinsEarned = _bonusCoinsEarned;
     state.bonusPuzzle.starCells = _bonusStarCells;
-    state.bonusPuzzle.zen = _currentLayoutIsZen || undefined;
+    state.bonusPuzzle.zen = _currentLayoutIsFlow || undefined;
     saveProgress();
 }
 
@@ -2166,13 +2166,13 @@ function renderHome() {
         if (applyPendingUpdate()) return;
         state.showHome = false;
         await recompute();
-        const recomputeZen = _currentLayoutIsZen;
+        const recomputeFlow = _currentLayoutIsFlow;
         restoreLevelState();
         // If restored level was in a different layout than recompute generated, regenerate
-        if (_currentLayoutIsZen !== recomputeZen) {
+        if (_currentLayoutIsFlow !== recomputeFlow) {
             const gridWords = level.words;
-            if (_currentLayoutIsZen) {
-                crossword = generateZenGrid(gridWords);
+            if (_currentLayoutIsFlow) {
+                crossword = generateFlowGrid(gridWords);
                 standaloneWord = null;
             } else {
                 const extracted = extractStandaloneWord(gridWords, 12);
@@ -2223,6 +2223,11 @@ function renderHome() {
 }
 
 // ---- HEADER ----
+function layoutIcon() {
+    if (_currentLayoutIsFlow) return '\uD83C\uDF0A ';
+    return '<svg width="14" height="14" viewBox="0 0 16 16" style="vertical-align:-2px;margin-right:3px;opacity:0.7"><rect x="0" y="0" width="5" height="5" rx="1" fill="currentColor"/><rect x="6" y="0" width="5" height="5" rx="1" fill="currentColor"/><rect x="11" y="0" width="5" height="5" rx="1" fill="currentColor"/><rect x="0" y="6" width="5" height="5" rx="1" fill="currentColor"/><rect x="6" y="6" width="5" height="5" rx="1" fill="currentColor"/><rect x="0" y="11" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/><rect x="6" y="11" width="5" height="5" rx="1" fill="currentColor"/><rect x="11" y="6" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/></svg>';
+}
+
 function renderHeader() {
     let hdr = document.getElementById("header");
     if (!hdr) {
@@ -2244,7 +2249,7 @@ function renderHeader() {
                 </svg>
             </button>
             <div class="header-center">
-                <div class="header-pack" style="color:#d4a51c">${_currentLayoutIsZen ? '\uD83C\uDF0A ' : ''}\u2B50 Bonus Puzzle</div>
+                <div class="header-pack" style="color:#d4a51c">${layoutIcon()}\u2B50 Bonus Puzzle</div>
                 <div class="header-level" style="color:#d4a51c">Bonus</div>
             </div>
             <div class="header-right">
@@ -2293,7 +2298,7 @@ function renderHeader() {
                 </svg>
             </button>
             <div class="header-center">
-                <div class="header-pack" style="color:#22a866">${_currentLayoutIsZen ? '\uD83C\uDF0A ' : ''}\uD83D\uDCC5 Daily Puzzle</div>
+                <div class="header-pack" style="color:#22a866">${layoutIcon()}\uD83D\uDCC5 Daily Puzzle</div>
                 <div class="header-level" style="color:#22a866">${getTodayStr()}</div>
             </div>
             <div class="header-right">
@@ -2309,7 +2314,7 @@ function renderHeader() {
                 </svg>
             </button>
             <div class="header-center">
-                <div class="header-pack">${_currentLayoutIsZen ? '\uD83C\uDF0A ' : ''}${level.group} \u00B7 ${level.pack}</div>
+                <div class="header-pack">${layoutIcon()}${level.group} \u00B7 ${level.pack}</div>
                 <div class="header-level" style="color:${theme.accent}">Level ${displayLevel(state.currentLevel)}</div>
             </div>
             <div class="header-right">
@@ -6192,7 +6197,7 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDCB0", title: "The Coin Word", body: "See a pulsing coin on the grid? That\u2019s a special standalone word worth 100 coins! It\u2019s a short word (4\u20135 letters) tucked away for you to discover." },
     { icon: "\uD83C\uDFB0", title: "Spin of Shame", body: "Completely stuck with no coins and no hints? A prize wheel appears! Spin to win free hints, targets, rockets, or coins. It\u2019s your lifeline!" },
     { icon: "\uD83C\uDF81", title: "Daily Bonus", body: "Tap the FREE button at the top of the screen once a day to claim 100 free coins. Come back every day \u2014 it resets at midnight!" },
-    { icon: "\uD83D\uDCC5", title: "Daily Puzzle", body: "A fresh puzzle every day! Tap the green Daily Puzzle button on the home screen to play. A coin (\uD83E\uDE99) appears on one word in the grid \u2014 find it for 25 bonus coins, then the coin moves to a new word. Keep chasing the coin to rack up rewards! Complete the entire puzzle for a 100-coin bonus. The same puzzle is shared by all players each day. Some dailies use a \uD83C\uDF0A stacked zen layout for variety. Your regular progress is saved and waiting when you return." },
+    { icon: "\uD83D\uDCC5", title: "Daily Puzzle", body: "A fresh puzzle every day! Tap the green Daily Puzzle button on the home screen to play. A coin (\uD83E\uDE99) appears on one word in the grid \u2014 find it for 25 bonus coins, then the coin moves to a new word. Keep chasing the coin to rack up rewards! Complete the entire puzzle for a 100-coin bonus. The same puzzle is shared by all players each day. Some dailies use a \uD83C\uDF0A stacked flow layout for variety. Your regular progress is saved and waiting when you return." },
     { icon: "\u2B50", title: "Bonus Puzzle", body: "Earn bonus puzzles through achievements \u2014 complete a level pack, finish 5 levels in an hour, maintain a 3-day play streak, or beat the daily puzzle. A gold <b>\u2B50 Bonus Puzzle</b> button appears on the home screen. Inside, 9 stars are scattered across the grid. Find starred words to collect stars and earn 10 coins each! Every 3 stars fills one of your 3 star slots. Collect all 9 stars for a <b>500-coin grand prize</b>. But be careful \u2014 leaving the puzzle forfeits your progress!" },
     { icon: "\uD83C\uDF0A", title: "Flow Levels", body: "Every 5th level (5, 10, 15, 20\u2026) is a <b>flow level</b>! These use a stacked layout instead of the usual crossword. Same words, same letters \u2014 just a different visual style with <b>3x rewards</b>: 3 coins per word, 15 per bonus word, and 200 for the coin word." },
     { icon: "\u21C4", title: "Grid Layouts", body: "WordPlay has two grid styles: <b>Crossword</b> (interlocking words) and <b>Flow</b> (stacked rows). You can <b>switch between them anytime</b> by tapping the level info at the top of the screen (the pack name and level number). All your progress \u2014 found words, hints, and stars \u2014 carries over when you switch. Set your preferred default in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> under Grid Layout: Auto (game decides), Crossword, or Flow." },

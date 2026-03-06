@@ -1846,7 +1846,7 @@ html, body {
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
-    padding: max(8px, env(safe-area-inset-top)) 14px 0;
+    padding: max(8px, env(safe-area-inset-top)) 14px 6px 6px;
     flex-shrink: 0;
     z-index: 4;
     position: relative;
