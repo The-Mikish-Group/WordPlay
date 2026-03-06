@@ -27,7 +27,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 ## How to Play
 
 1. **Swipe letters** around the wheel to spell words (minimum 3 letters)
-2. **Find all words** to complete the crossword grid and advance to the next level
+2. **Find all words** to complete the grid and advance to the next level
 3. **Earn coins** for each word found and use them on hints when you're stuck
 4. **Discover bonus words** — valid words not in the grid earn extra coins and progress toward free letter rewards
 
@@ -39,17 +39,25 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 |---------|-------------|
 | **156,000+ levels** | Organized into themed packs (Nature, Animals, Food, Science, and many more) |
 | **16 visual themes** | Sunrise, Forest, Canyon, Ocean, Aurora, and more — each with unique color palettes and gradient backgrounds |
-| **Crossword grid** | Words interlock on a dynamically generated grid with animated entrance patterns |
+| **Two grid layouts** | Crossword (interlocking) and Flow (stacked rows) — toggle between them mid-game by tapping the header |
 | **Letter wheel** | Drag across letters to spell words with smooth touch interactions |
+| **Difficulty tiers** | Four tiers (Easy, Medium, Hard, Expert) that scale with your progress |
 | **3 hint types** | Hint (random letter), Target (tap a cell), Rocket (reveals up to 5 letters) |
 | **Rescue spin wheel** | When completely stuck, spin a prize wheel to win free hints, targets, rockets, or coins |
 | **Bonus words** | Find extra valid words not on the grid; every 10 bonus words earns a free letter reveal |
-| **Standalone coin word** | Special word worth 100 coins, shown with a pulsing coin animation |
+| **Standalone coin word** | Special word worth 100 coins (200 on flow levels), shown with a pulsing coin animation |
+| **Daily puzzle** | A fresh shared puzzle every day with a roaming coin for bonus rewards |
+| **Bonus puzzle** | Earn star-filled puzzles through achievements — collect all 9 stars for a 500-coin grand prize |
+| **Regular game stars** | ~35% of regular levels feature bonus stars worth 10 coins each; collect 9 for a grand prize |
+| **Speed bonus** | Complete a level within 10 seconds per word to earn a free prize spin |
+| **Flow levels** | Every 5th level uses a stacked layout with 3x coin rewards |
+| **Expertise score** | Lifetime coins earned — displayed on the home screen and used for leaderboard points ranking |
+| **Avatar** | Personalize your profile with an emoji or uploaded image |
 | **Sound effects** | Synthesized Web Audio API sounds — no audio files needed |
 | **Daily bonus** | Claim 100 free coins once per day |
 | **Level map** | Browse all packs with snake-path navigation and progress tracking |
 | **Cross-device sync** | Sign in with Google or Microsoft to sync progress across devices |
-| **Leaderboard** | Monthly and all-time rankings with trophy animations and medals |
+| **Leaderboard** | Monthly and all-time rankings by levels completed or points earned |
 | **Contact form** | In-app support form with four-layer anti-spam protection |
 | **Installable PWA** | Works offline with service worker caching; add to home screen on mobile |
 | **Mobile-first design** | Optimized for phones with safe-area support, touch gestures, and responsive layout |
@@ -60,13 +68,15 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 
 ### Coins
 
-| Action | Coins |
-|--------|-------|
-| Find a placed word | +1 |
-| Find a bonus word | +5 |
-| Find the standalone coin word | +100 |
-| Claim daily bonus | +100 |
-| Rescue spin wheel | +50 or +100 |
+| Action | Coins (Regular) | Coins (Flow Level) |
+|--------|-----------------|-------------------|
+| Find a placed word | +1 | +3 |
+| Find a bonus word | +5 | +15 |
+| Find the standalone coin word | +100 | +200 |
+| Claim daily bonus | +100 | — |
+| Rescue spin wheel | +50 or +100 | — |
+| Collect a bonus star | +10 | — |
+| Grand prize (9 stars) | +500 | — |
 
 | Hint | Cost |
 |------|------|
@@ -77,7 +87,40 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 ### Free Rewards
 
 - Every **10 bonus words** found earns a free random letter reveal
-- Every **10 levels** completed earns free hints, targets, and rockets
+- Every **10 levels** completed earns free hints; targets every 20 levels; rockets every 30 levels (max 30 each)
+- **Speed bonus**: complete a level within 10 seconds per word (5+ words required) for a free prize spin
+
+### Stars
+
+Stars appear on ~35% of regular levels (1-2 per level) and throughout bonus puzzles (9 per puzzle). Finding a word that contains a starred cell collects the star and awards 10 coins. Every 3 stars fills one banner star slot. Collecting all 9 stars (3 banner stars) awards a **500-coin grand prize** and resets the counter. In regular mode the grand prize is awarded inline; in bonus mode it ends the round.
+
+### Grid Layouts
+
+Two layout styles are available:
+
+- **Crossword** — words interlock on a dynamically generated grid
+- **Flow** — words stack in horizontal rows
+
+Toggle between them during gameplay by tapping the pack name / level info in the header. A **Grid Layout** preference in Settings controls the default: Auto (game decides), Crossword, or Flow. All progress carries over when switching.
+
+### Difficulty Tiers
+
+| Tier | Levels | Description |
+|------|--------|-------------|
+| Easy | 1–250 | Short words (3–5 letters), perfect for beginners |
+| Medium | 251–2,000 | Full 6-letter puzzles with moderate bonus words |
+| Hard | 2,001–5,000 | Puzzles with 3–9 bonus words |
+| Expert | 5,001+ | Complex anagrams with 8–15+ bonus words |
+
+Tier is set automatically based on progress and can be manually upgraded (but not downgraded) in Settings.
+
+### Daily Puzzle
+
+A fresh puzzle shared by all players each day. A coin appears on one word in the grid — find it for 25 bonus coins, then the coin moves to a new word. Complete the entire puzzle for a 100-coin bonus. Some dailies use a flow layout for variety.
+
+### Bonus Puzzle
+
+Earned through achievements: completing a level pack, finishing 5 levels in an hour, maintaining a 3-day play streak, or beating the daily puzzle. Inside, 9 stars are scattered across the grid. Collect all 9 for a 500-coin grand prize. Leaving the puzzle forfeits progress.
 
 ### Rescue Spin Wheel
 
@@ -141,6 +184,14 @@ Sign in with **Google** or **Microsoft** to sync your progress across devices. S
 
 On first sign-in you'll be prompted to choose a display name (3–20 characters, letters, numbers, and spaces). This name appears on the leaderboard. You can change it anytime from the settings menu.
 
+### Avatar
+
+Tap the avatar circle next to your name in Settings to personalize your profile. Choose an emoji, upload an image, or take a photo with your camera. Your avatar appears on the leaderboard.
+
+### Account Deletion
+
+Open Settings, scroll to your account section, and tap **Delete Account**. This permanently removes your account, progress, coins, and scores from the server. This cannot be undone.
+
 ---
 
 ## Leaderboard
@@ -150,9 +201,11 @@ The leaderboard has two tabs:
 - **This Month** — ranks players by levels gained since the start of the current month
 - **All Time** — ranks players by highest level reached overall
 
+Within each tab, toggle between **By Levels** (levels completed) and **By Points** (expertise/lifetime coins earned).
+
 Top 3 players receive medal badges. Your own entry is highlighted if you're on the board. You can opt out of appearing on the leaderboard from the settings menu.
 
-Access the leaderboard from the trophy button in the game header.
+Access the leaderboard from the trophy button in the game header or by tapping the expertise banner on the home screen.
 
 ---
 
@@ -198,19 +251,19 @@ WordPlay/
 ├── WordPlay/                            # ASP.NET Core application
 │   ├── wwwroot/                         # Static web files (served directly)
 │   │   ├── js/
-│   │   │   ├── app.js                   # Game logic, rendering, sound, animations (~3,000 lines)
-│   │   │   ├── crossword.js             # Grid generator with adjacency rules
+│   │   │   ├── app.js                   # Game logic, rendering, sound, animations (~7,000 lines)
+│   │   │   ├── crossword.js             # Grid generator (crossword + flow/zen layouts)
 │   │   │   ├── level-loader.js          # Chunked level loader for 156K+ levels
 │   │   │   ├── levels.js               # Original hand-curated levels
 │   │   │   ├── auth.js                  # Google & Microsoft sign-in, JWT management
 │   │   │   └── sync.js                 # Push/pull/merge cloud sync
 │   │   ├── css/
-│   │   │   └── app.css                  # All styles, themes, and animations (~1,500 lines)
+│   │   │   └── app.css                  # All styles, themes, and animations (~2,500 lines)
 │   │   ├── data/
 │   │   │   ├── chunk-manifest.json      # Maps chunk files to level ranges
 │   │   │   ├── level-index.json         # Group/pack metadata with level ranges
 │   │   │   └── levels-*.json            # Level data chunks (200 levels per file)
-│   │   ├── icons/                       # PWA icons (32×32, 192×192)
+│   │   ├── icons/                       # PWA icons (32x32, 192x192)
 │   │   ├── images/bg/                   # Theme background images
 │   │   ├── sw.js                        # Service worker — caching & offline support
 │   │   ├── manifest.json                # PWA manifest
@@ -228,6 +281,7 @@ WordPlay/
 │   └── appsettings.json                 # Configuration (gitignored — contains secrets)
 ├── scraper/                             # Level data scraping tools
 ├── tools/                               # Utility scripts
+├── docs/plans/                          # Design and implementation plans
 ├── WordPlay.sln                         # Visual Studio solution
 └── README.md
 ```
@@ -271,7 +325,7 @@ Game progress is stored in `localStorage` under `"wordplay-save"`:
 
 ```json
 {
-  "v": 3,
+  "v": 7,
   "cl": 42,
   "fw": ["CAR", "CAT"],
   "bf": ["AT"],
@@ -285,9 +339,20 @@ Game progress is stored in `localStorage` under `"wordplay-save"`:
   "lc": 42,
   "sf": false,
   "se": true,
+  "lp": "auto",
   "ldc": "2026-02-23",
-  "lh": { "1": ["CAR", "CAT", "ARC"] },
-  "ip": { "42": { "fw": ["CAR"], "bf": [], "rc": [], "sf": false } }
+  "tce": 12500,
+  "dp": null,
+  "bp": null,
+  "bh": [],
+  "bst": 0,
+  "sl": [],
+  "ls": {},
+  "lpd": null,
+  "fc": 0,
+  "dt": 1,
+  "doff": 0,
+  "ip": { "42": { "fw": ["CAR"], "bf": [], "rc": [], "sf": false, "rsc": [], "zen": false } }
 }
 ```
 
@@ -305,9 +370,22 @@ Game progress is stored in `localStorage` under `"wordplay-save"`:
 | `lc` | Total levels completed |
 | `sf` | Standalone word found (current level) |
 | `se` | Sound enabled |
+| `lp` | Layout preference (`"auto"`, `"crossword"`, `"flow"`) |
 | `ldc` | Last daily claim date |
-| `lh` | Level history — completed levels and their found words |
+| `tce` | Total coins earned (lifetime, never decreases — used for expertise) |
+| `dp` | Daily puzzle state |
+| `bp` | Bonus puzzle state |
+| `bh` | Bonus puzzle history |
+| `bst` | Bonus stars total (0–9, resets on grand prize) |
+| `sl` | Speed levels (recent fast completions for bonus puzzle triggers) |
+| `ls` | Login streak tracking |
+| `lpd` | Last play date |
+| `fc` | Flow levels completed |
+| `dt` | Difficulty tier (0=Easy, 1=Medium, 2=Hard, 3=Expert) |
+| `doff` | Difficulty offset (for tier-based level numbering) |
 | `ip` | In-progress state for levels navigated away from |
+
+In-progress entries (`ip`) additionally store `rsc` (regular star cells) and `zen` (whether flow layout was active).
 
 ---
 
