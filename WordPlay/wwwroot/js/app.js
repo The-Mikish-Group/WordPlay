@@ -5364,6 +5364,7 @@ function renderAdmin() {
                 <input type="text" id="admin-search" class="menu-setting-input" placeholder="Search users..." value="${escapeHtml(_adminSearch)}" style="flex:1">
                 <button class="menu-setting-btn" id="admin-create-bot-btn" style="background:${accent};color:#000;white-space:nowrap;padding:8px 12px">+ Bot</button>
                 <button class="menu-setting-btn" id="admin-rabbits-btn" style="background:rgba(255,255,255,0.15);color:#fff;white-space:nowrap;padding:8px 12px;border:1px solid rgba(255,255,255,0.3)">Rabbits</button>
+                <button class="menu-setting-btn" id="admin-migrate-v8-btn" style="background:rgba(255,160,0,0.25);color:#ffb347;white-space:nowrap;padding:8px 12px;border:1px solid rgba(255,160,0,0.4);font-size:13px">Migrate v8</button>
             </div>
             <div id="admin-user-list" style="padding:0 4px">
                 <div style="text-align:center;padding:30px;opacity:0.5">Loading...</div>
@@ -5422,6 +5423,30 @@ function renderAdmin() {
     document.getElementById("admin-rabbits-btn").onclick = () => {
         _adminView = "rabbits";
         renderAdmin();
+    };
+
+    document.getElementById("admin-migrate-v8-btn").onclick = async () => {
+        if (!confirm("Convert all server data to v8 display levels?\n\nThis is a one-time migration. Only needed once after deploying the v8 update.")) return;
+        const btn = document.getElementById("admin-migrate-v8-btn");
+        btn.textContent = "Migrating...";
+        btn.disabled = true;
+        try {
+            const res = await fetch("/api/admin/migrate-v8", {
+                method: "POST",
+                headers: getAuthHeaders(),
+            });
+            if (!res.ok) throw new Error("Failed");
+            const data = await res.json();
+            showToast(`Migrated ${data.migrated} of ${data.total} users`, theme.accent);
+            btn.textContent = "Done ✓";
+            // Reload user list to show updated levels
+            _adminPage = 1; _adminUsers = []; _adminHasMore = true;
+            loadAdminUsers();
+        } catch (err) {
+            showToast("Migration failed", "#ff8888");
+            btn.textContent = "Migrate v8";
+            btn.disabled = false;
+        }
     };
 
     _adminPage = 1; _adminUsers = []; _adminHasMore = true;
