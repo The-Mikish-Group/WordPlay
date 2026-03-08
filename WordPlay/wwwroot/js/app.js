@@ -1108,13 +1108,7 @@ function isFlowLevel(n) {
     return n > 0 && n % 5 === 0;
 }
 
-function displayLevel(actualLevel) {
-    return actualLevel - state.difficultyOffset;
-}
 
-function actualLevel(displayLv) {
-    return displayLv + state.difficultyOffset;
-}
 
 // ---- SPEED BONUS CHECK (7 sec per word) ----
 function checkSpeedBonus() {
@@ -2198,7 +2192,7 @@ function renderHome() {
                 <div class="home-title">Word<br>Play</div>
                 <button class="home-level-btn" id="home-play-btn">
                     <span class="home-level-label">Level</span>
-                    <span class="home-level-num" style="font-size:${displayLevel(state.currentLevel) >= 100000 ? 22 : displayLevel(state.currentLevel) >= 10000 ? 26 : 36}px">${displayLevel(state.currentLevel).toLocaleString()}</span>
+                    <span class="home-level-num" style="font-size:${state.currentLevel >= 100000 ? 22 : state.currentLevel >= 10000 ? 26 : 36}px">${state.currentLevel.toLocaleString()}</span>
                 </button>
                 <button class="home-daily-btn" id="home-daily-btn" style="${claimed ? 'visibility:hidden;pointer-events:none' : ''}">
                     <span>FREE</span>
@@ -2390,7 +2384,7 @@ function renderHeader() {
             </button>
             <div class="header-center">
                 <div class="header-pack">${layoutIcon()}${level.group} \u00B7 ${level.pack}</div>
-                <div class="header-level" style="color:${theme.accent}">Level ${displayLevel(state.currentLevel)}</div>
+                <div class="header-level" style="color:${theme.accent}">Level ${state.currentLevel}</div>
             </div>
             <div class="header-right">
                 <div class="header-btn coin-display" style="color:${theme.text}" id="coin-display">\uD83E\uDE99 ${state.coins.toLocaleString()}</div>
@@ -4161,7 +4155,7 @@ function renderCompleteModal() {
             <div class="modal-box" style="border:2px solid ${theme.accent}50;box-shadow:0 0 40px ${theme.accent}20">
                 <div class="modal-emoji">\uD83C\uDF89</div>
                 <h2 class="modal-title" style="color:${theme.accent}">Level Complete!</h2>
-                <p class="modal-subtitle">${flowLevel ? '\uD83C\uDF0A Flow Level \u00B7 ' : ''}${level.group} \u00B7 ${level.pack} \u00B7 Level ${displayLevel(state.currentLevel)}</p>
+                <p class="modal-subtitle">${flowLevel ? '\uD83C\uDF0A Flow Level \u00B7 ' : ''}${level.group} \u00B7 ${level.pack} \u00B7 Level ${state.currentLevel}</p>
                 ${flowLevel ? '<p class="modal-coins" style="color:#5b8def;font-size:13px;font-weight:700">\uD83C\uDF0A 3x Rewards</p>' : ''}
                 <p class="modal-coins" style="color:${theme.text}">+${flowLevel ? 3 : 1} \uD83E\uDE99${bonusCount > 0 ? " \u00B7 +" + bonusCount + " bonus" : ""}</p>
                 ${_speedSpinPending ? `
@@ -4272,13 +4266,13 @@ function renderMenu() {
         <div class="menu-top-row">
             <div class="menu-top-col" id="menu-stats-card" style="cursor:default">
                 <div class="menu-current-label">Stats</div>
-                <div class="menu-stat">Highest Level: <span style="color:${theme.accent}">${displayLevel(state.highestLevel).toLocaleString()}</span></div>
+                <div class="menu-stat">Highest Level: <span style="color:${theme.accent}">${state.highestLevel.toLocaleString()}</span></div>
                 <div class="menu-stat">Coins: <span style="color:${theme.accent}">🪙 ${state.coins}</span></div>
                 <div class="menu-stat">Levels Available: <span style="color:${theme.accent}">${maxLv.toLocaleString()}</span></div>
             </div>
             <div class="menu-top-col" id="menu-current-level-card" style="cursor:default">
                 <div class="menu-current-label">Current Level</div>
-                <div class="menu-current-num" style="color:${theme.accent}">${displayLevel(state.currentLevel).toLocaleString()}</div>
+                <div class="menu-current-num" style="color:${theme.accent}">${state.currentLevel.toLocaleString()}</div>
                 <div class="menu-current-info">${level ? level.group + " \u00b7 " + level.pack : ""}</div>
                 <div class="menu-current-progress">${state.foundWords.length} of ${totalRequired} words found</div>
             </div>
@@ -6022,7 +6016,7 @@ function renderSnakeNodes(pack, accent) {
     // Draw nodes as pill-shaped banners (adapts to digit count)
     for (let i = 0; i < pts.length; i++) {
         const lvNum = pack.start + i;
-        const dLv = displayLevel(lvNum);
+        const dLv = lvNum - state.difficultyOffset;
         const isCompleted = lvNum < state.highestLevel;
         const isCurrent = lvNum === state.currentLevel;
         const isAvailable = lvNum <= state.highestLevel;
@@ -6148,7 +6142,7 @@ function _renderMapGroupView(overlay, packs) {
         if (isDone) html += `<span class="map-pack-icon" style="color:${accent}">✓</span>`;
         else if (isActive) html += `<span class="map-pack-icon active-dot" style="background:${accent}"></span>`;
         html += `<div><div class="map-pack-name" style="font-size:15px">${g.group}</div>`;
-        html += `<div class="map-pack-range">Levels ${displayLevel(g.start).toLocaleString()} – ${displayLevel(g.end).toLocaleString()} · ${g.packCount} packs</div></div></div>`;
+        html += `<div class="map-pack-range">Levels ${(g.start - state.difficultyOffset).toLocaleString()} – ${(g.end - state.difficultyOffset).toLocaleString()} · ${g.packCount} packs</div></div></div>`;
         html += `<div class="map-pack-right">`;
         html += `<div class="map-progress-bar"><div class="map-progress-fill" style="width:${pct}%;background:${accent}"></div></div>`;
         html += `<span class="map-chevron">▸</span>`;
@@ -6221,7 +6215,7 @@ function _renderMapPackView(overlay, packs) {
         else if (isActive) html += `<span class="map-pack-icon active-dot" style="background:${accent}"></span>`;
         else if (isLocked) html += `<span class="map-pack-icon locked-icon">🔒</span>`;
         html += `<div><div class="map-pack-name">${packLabel}</div>`;
-        html += `<div class="map-pack-range">Levels ${displayLevel(p.start).toLocaleString()} – ${displayLevel(p.end).toLocaleString()}</div></div></div>`;
+        html += `<div class="map-pack-range">Levels ${(p.start - state.difficultyOffset).toLocaleString()} – ${(p.end - state.difficultyOffset).toLocaleString()}</div></div></div>`;
         html += `<div class="map-pack-right">`;
         html += `<div class="map-progress-bar"><div class="map-progress-fill" style="width:${pct}%;background:${accent}"></div></div>`;
         html += `<span class="map-chevron${isExpanded ? ' open' : ''}">▸</span>`;
