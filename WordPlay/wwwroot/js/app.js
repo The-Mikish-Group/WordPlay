@@ -115,7 +115,7 @@ const DIFFICULTY_TIERS = [
 
 // ---- STATE ----
 const state = {
-    currentLevel: 1,       // Actual level number (1-based)
+    currentLevel: 1,       // Display level number (1-based, user-facing)
     foundWords: [],
     bonusFound: [],
     coins: 50,
@@ -1070,7 +1070,7 @@ function triggerBonusPuzzle(trigger) {
     state.bonusPuzzle = {
         available: true,
         trigger: trigger,
-        levelNum: parseInt(pick),
+        levelNum: parseInt(pick) + state.difficultyOffset,  // raw data position for recompute()
         fw: [], bf: [], rc: [], sf: false,
         starsCollected: 0,
         starPoints: Math.floor(state.bonusStarsTotal / 3),
@@ -1919,16 +1919,16 @@ async function advanceToNextLevel() {
     if (state.isDailyMode) { exitDailyMode(); return; }
     if (applyPendingUpdate()) return;
     // Advance level logic and return to home screen
-    const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
+    const maxLv = ((typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999)) - state.difficultyOffset;
     if (state.foundWords.length === totalRequired) {
         delete state.inProgress[state.currentLevel];
         // Check pack completion for bonus puzzle trigger
         if (typeof getLevelPacks === "function") {
-            const justCompleted = state.currentLevel;
+            const rawCompleted = state.currentLevel + state.difficultyOffset;
             const packs = getLevelPacks();
             for (const p of packs) {
-                if (justCompleted >= p.start && justCompleted <= p.end) {
-                    if (state.highestLevel > p.end) triggerBonusPuzzle("pack");
+                if (rawCompleted >= p.start && rawCompleted <= p.end) {
+                    if (state.highestLevel + state.difficultyOffset > p.end) triggerBonusPuzzle("pack");
                     break;
                 }
             }
@@ -1984,7 +1984,7 @@ async function handleNextLevel() {
     if (state.isBonusMode) { exitBonusMode(false); return; }
     if (state.isDailyMode) { exitDailyMode(); return; }
     if (applyPendingUpdate()) return;
-    const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
+    const maxLv = ((typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999)) - state.difficultyOffset;
     if (state.foundWords.length === totalRequired) {
         delete state.inProgress[state.currentLevel];
     }
@@ -3370,7 +3370,7 @@ function renderWheel() {
 
     // Show "Next Level" overlay on wheel when level is already complete
     if (state.foundWords.length === totalRequired && !state.showComplete) {
-        const maxLv = (typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
+        const maxLv = ((typeof getMaxLevel === "function") ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999)) - state.difficultyOffset;
         const isLast = state.currentLevel >= maxLv;
         const overlay = document.createElement("div");
         overlay.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;border-radius:50%;background:rgba(0,0,0,0.35)";
@@ -4139,7 +4139,7 @@ function renderCompleteModal() {
         `;
         document.getElementById("next-btn").onclick = () => exitDailyMode();
     } else {
-        const maxLv = (typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999);
+        const maxLv = ((typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999)) - state.difficultyOffset;
         const isLast = state.currentLevel >= maxLv;
         const bonusCount = state.bonusFound.length;
         const speedTime = _speedBonusEarned ? _speedBonusTime.toFixed(1) : null;
@@ -4201,7 +4201,7 @@ function renderMenu() {
     overlay.className = "menu-overlay";
     overlay.style.display = "flex";
 
-    const maxLv = (typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 0);
+    const maxLv = ((typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 0)) - state.difficultyOffset;
 
     let html = `
         <div class="menu-header" style="justify-content:center;position:relative;cursor:default">
