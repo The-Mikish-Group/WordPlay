@@ -280,11 +280,19 @@ function _buildGrid(sortedWords, firstDir) {
 // removed word is then injected back into empty space in the
 // first or last row of the new grid (never adding rows/cols).
 // ============================================================
-function extractStandaloneWord(words, maxDim) {
+function extractStandaloneWord(words, maxDim, forceExtract) {
     if (typeof maxDim !== "number") maxDim = 12;
     const initial = generateCrosswordGrid(words);
-    if (initial.rows <= maxDim && initial.cols <= maxDim) {
+    const gridFits = initial.rows <= maxDim && initial.cols <= maxDim;
+
+    if (gridFits && !forceExtract) {
         return { crossword: initial, standalone: null };
+    }
+
+    // If grid already fits, check for naturally-detached words first (cheap)
+    if (gridFits) {
+        const detached = _findDetachedWord(initial);
+        if (detached) return { crossword: initial, standalone: detached };
     }
 
     // Find candidates: 4-5 letter placed words on a grid edge
@@ -298,22 +306,23 @@ function extractStandaloneWord(words, maxDim) {
         if (onEdge) candidates.push(p.word);
     }
     if (!candidates.length) {
-        // Fallback: check for naturally-detached words in the original grid
         const detached = _findDetachedWord(initial);
         if (detached) return { crossword: initial, standalone: detached };
         return { crossword: initial, standalone: null };
     }
 
-    // Try removing each candidate, measure shrinkage, collect all viable options
+    // Try removing each candidate, collect viable options
     const viable = [];
     for (const cand of candidates) {
         const reduced = words.filter(w => w !== cand);
         const result = generateCrosswordGrid(reduced);
         if (result.placements.length < reduced.length) continue;
+        // Must still fit within maxDim after extraction
+        if (result.rows > maxDim || result.cols > maxDim) continue;
         const oldMax = Math.max(initial.rows, initial.cols);
         const newMax = Math.max(result.rows, result.cols);
         const shrink = oldMax - newMax;
-        if (shrink >= 2) viable.push({ word: cand, result, shrink });
+        viable.push({ word: cand, result, shrink });
     }
 
     // Try each viable candidate (best shrink first) through injection

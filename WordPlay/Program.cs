@@ -588,6 +588,13 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
                 rabbit.TotalCoinsEarned = trailingCoins;
                 rabbit.UpdatedAt = DateTime.UtcNow;
             }
+            // Fix bots whose MonthlyStart was never initialized (created at
+            // level 0, then paced up before rollover could capture a baseline)
+            if (rabbit.MonthlyStart <= 0 && rabbit.HighestLevel > 0)
+            {
+                rabbit.MonthlyStart = rabbit.HighestLevel;
+                rabbit.MonthlyCoinsStart = rabbit.TotalCoinsEarned;
+            }
         }
         else
         {
@@ -639,6 +646,12 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
                 rabbit.LevelsCompleted = targetLevel;
                 rabbit.TotalCoinsEarned = targetCoins;
                 rabbit.UpdatedAt = DateTime.UtcNow;
+            }
+            // Fix bots whose MonthlyStart was never initialized
+            if (rabbit.MonthlyStart <= 0 && rabbit.HighestLevel > 0)
+            {
+                rabbit.MonthlyStart = rabbit.HighestLevel;
+                rabbit.MonthlyCoinsStart = rabbit.TotalCoinsEarned;
             }
         }
     }
@@ -831,7 +844,7 @@ app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal, 
             totalCoinsEarned = x.p != null ? x.p.TotalCoinsEarned : 0,
             monthlyStart = x.p != null ? x.p.MonthlyStart : 0,
             monthlyCoinsStart = x.p != null ? x.p.MonthlyCoinsStart : 0,
-            monthlyGain = x.p != null ? x.p.HighestLevel - x.p.MonthlyStart : 0,
+            progressJson = x.p != null ? x.p.ProgressJson : null,
             paceMode = db.RabbitAssignments
                 .Where(ra => ra.IsActive && ra.BotUserId == x.u.Id)
                 .Select(ra => ra.PaceMode)
@@ -848,7 +861,37 @@ app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal, 
     query = query.OrderByDescending(x => x.highestLevel);
 
     var total = await query.CountAsync();
-    var users = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+    var rawUsers = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+    // Extract difficulty offset from each user's progress blob so the admin
+    // panel can display and edit level numbers in user-facing (display) terms.
+    var users = rawUsers.Select(u =>
+    {
+        int doff = 0;
+        int dt = -1;
+        if (u.progressJson != null)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(u.progressJson);
+                if (doc.RootElement.TryGetProperty("doff", out var doffEl) && doffEl.ValueKind == JsonValueKind.Number)
+                    doff = doffEl.GetInt32();
+                if (doc.RootElement.TryGetProperty("dt", out var dtEl) && dtEl.ValueKind == JsonValueKind.Number)
+                    dt = dtEl.GetInt32();
+            }
+            catch { }
+        }
+        return new
+        {
+            u.id, u.displayName, u.email, u.role, u.showOnLeaderboard, u.avatarData,
+            u.provider, u.lastLoginAt, u.highestLevel, u.totalCoinsEarned,
+            u.monthlyStart, u.monthlyCoinsStart,
+            monthlyGain = u.highestLevel - u.monthlyStart,
+            u.paceMode,
+            difficultyOffset = doff,
+            difficultyTier = dt,
+        };
+    }).ToList();
 
     return Results.Ok(new { users, total, page, pageSize });
 }).RequireAuthorization();

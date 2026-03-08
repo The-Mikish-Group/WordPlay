@@ -315,12 +315,27 @@ function generateLevels(count = 200) {
         // Pick the longest word as the "key word" (displayed letters)
         const keyWord = longWords[longWords.length - 1];
 
+        // Re-filter words to only those spellable from the key word's letters
+        // (the key word may not use all random letters, so some words could
+        // contain letters not on the wheel — that makes levels impossible)
+        const keyLetters = {};
+        for (const ch of keyWord) keyLetters[ch] = (keyLetters[ch] || 0) + 1;
+        const validWords = words.filter(w => {
+            const needed = {};
+            for (const ch of w) {
+                needed[ch] = (needed[ch] || 0) + 1;
+                if (!keyLetters[ch] || needed[ch] > keyLetters[ch]) return false;
+            }
+            return true;
+        });
+        if (validWords.length < 10) continue;
+
         // Split into main words (shown) and bonus words
         // Main words: mix of lengths, 7-12 words
         // Bonus: everything else
-        const mainCount = Math.min(Math.max(7, Math.floor(words.length * 0.5)), 14);
-        const mainWords = selectMainWords(words, mainCount, keyWord);
-        const bonusWords = words.filter(w => !mainWords.includes(w));
+        const mainCount = Math.min(Math.max(7, Math.floor(validWords.length * 0.5)), 14);
+        const mainWords = selectMainWords(validWords, mainCount, keyWord);
+        const bonusWords = validWords.filter(w => !mainWords.includes(w));
 
         usedLetterSets.add(sorted);
         generated.push({
@@ -393,30 +408,52 @@ function getUpgradeRate(levelNum) {
     // Graduated difficulty: more 7-8 letter levels as you progress
     if (levelNum < 8000) return 0;
     if (levelNum < 15000) return 0.05;   //  5% - gentle introduction
-    if (levelNum < 30000) return 0.10;   // 10%
-    if (levelNum < 60000) return 0.20;   // 20%
-    if (levelNum < 100000) return 0.30;  // 30%
+    if (levelNum < 30000) return 0.20;   // 20%
+    if (levelNum < 60000) return 0.35;   // 35%
+    if (levelNum < 100000) return 0.50;  // 50%
     return 0;  // 100k+ already has 7 letters natively
 }
 
 function getUpgradeLetterCount(levelNum) {
     // Early on mostly 7-letter, later mix in 8-letter
     if (levelNum < 15000) return 7;                           // only 7-letter
-    if (levelNum < 30000) return Math.random() < 0.15 ? 8 : 7;  // 15% chance of 8
-    if (levelNum < 60000) return Math.random() < 0.25 ? 8 : 7;  // 25% chance of 8
-    return Math.random() < 0.35 ? 8 : 7;                     // 35% chance of 8
+    if (levelNum < 30000) return Math.random() < 0.25 ? 8 : 7;  // 25% chance of 8
+    if (levelNum < 60000) return Math.random() < 0.35 ? 8 : 7;  // 35% chance of 8
+    return Math.random() < 0.45 ? 8 : 7;                     // 45% chance of 8
 }
 
 // For levels with 7 letters already, upgrade some to 8-letter
 function getUpgradeRate8(levelNum) {
     if (levelNum < 80000) return 0;
-    if (levelNum < 100000) return 0.05;  //  5% become 8-letter
-    if (levelNum < 130000) return 0.10;  // 10% become 8-letter
-    if (levelNum < 155997) return 0.20;  // 20% become 8-letter
+    if (levelNum < 100000) return 0.10;  // 10% become 8-letter
+    if (levelNum < 130000) return 0.20;  // 20% become 8-letter
+    if (levelNum < 155997) return 0.30;  // 30% become 8-letter
     return 0;  // generated levels, skip
 }
 
 function generateOneLevel(numLetters, minWords) {
+    // For 8-letter levels, start from 8-letter dictionary words to guarantee
+    // the key word is actually 8 letters (random letter combos rarely produce
+    // 8-letter words — only ~6% of the time)
+    if (numLetters === 8 && _dictByLen[8] && _dictByLen[8].length > 0) {
+        for (let attempt = 0; attempt < 200; attempt++) {
+            const keyWord = _dictByLen[8][Math.floor(Math.random() * _dictByLen[8].length)];
+            const validWords = findAllWords(keyWord);
+            if (validWords.length < (minWords || 10)) continue;
+
+            const mainCount = Math.min(Math.max(7, Math.floor(validWords.length * 0.5)), 14);
+            const mainWords = selectMainWords(validWords, mainCount, keyWord);
+            const bonusWords = validWords.filter(w => !mainWords.includes(w));
+
+            return {
+                letters: keyWord.toUpperCase(),
+                words: mainWords.map(w => w.toUpperCase()),
+                bonus: bonusWords.map(w => w.toUpperCase()),
+            };
+        }
+        return null;
+    }
+
     const vowels = "aeiou";
     const commonCons = "bcdfghlmnprst";
     const rareCons = "jkqvwxyz";
@@ -449,15 +486,29 @@ function generateOneLevel(numLetters, minWords) {
 
         const letters = letterArr.join("");
         const words = findAllWords(letters);
-        if (words.length < minWords) continue;
+        if (words.length < (minWords || 10)) continue;
 
         const longWords = words.filter(w => w.length >= 6);
         if (longWords.length === 0) continue;
 
         const keyWord = longWords[longWords.length - 1];
-        const mainCount = Math.min(Math.max(7, Math.floor(words.length * 0.5)), 14);
-        const mainWords = selectMainWords(words, mainCount, keyWord);
-        const bonusWords = words.filter(w => !mainWords.includes(w));
+
+        // Re-filter words to only those spellable from the key word's letters
+        const keyLetters = {};
+        for (const ch of keyWord) keyLetters[ch] = (keyLetters[ch] || 0) + 1;
+        const validWords = words.filter(w => {
+            const needed = {};
+            for (const ch of w) {
+                needed[ch] = (needed[ch] || 0) + 1;
+                if (!keyLetters[ch] || needed[ch] > keyLetters[ch]) return false;
+            }
+            return true;
+        });
+        if (validWords.length < (minWords || 10)) continue;
+
+        const mainCount = Math.min(Math.max(7, Math.floor(validWords.length * 0.5)), 14);
+        const mainWords = selectMainWords(validWords, mainCount, keyWord);
+        const bonusWords = validWords.filter(w => !mainWords.includes(w));
 
         return {
             letters: keyWord.toUpperCase(),

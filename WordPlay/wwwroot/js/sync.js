@@ -192,15 +192,11 @@ function mergeProgress(local, server) {
     // Flow completions: max merge
     merged.fc = Math.max(local.fc || 0, server.fc || 0);
 
-    // Difficulty tier: take from whichever has higher tier (up only)
-    const localTier = local.dt !== undefined ? local.dt : -1;
-    const serverTier = server.dt !== undefined ? server.dt : -1;
-    merged.dt = Math.max(localTier, serverTier);
-    // Offset: take from whichever save has higher version (most recent migration).
-    // Don't recompute from tier — existing players have tier>0 but offset=0.
-    const localV = local.v || 0;
-    const serverV = server.v || 0;
-    merged.doff = localV >= serverV ? (local.doff || 0) : (server.doff || 0);
+    // Difficulty tier & offset: take from primary save (higher hl) so that
+    // cl, hl, dt, and doff all stay consistent with each other.  The offset
+    // only has meaning relative to the level numbers it was saved with.
+    merged.dt = primary.dt !== undefined ? primary.dt : -1;
+    merged.doff = primary.doff || 0;
 
     return merged;
 }

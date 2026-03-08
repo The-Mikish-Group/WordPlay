@@ -2,6 +2,8 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
+const APP_VERSION = "1.1.1";
+
 // ---- THEMES ----
 const THEMES = {
     sunrise: {
@@ -400,13 +402,21 @@ async function recompute() {
         _currentLayoutIsFlow = naturalFlow;
     }
 
+    // Always determine the standalone coin word (deterministic per level)
+    const forceStandalone = gridWords.length >= 6 && ((state.currentLevel * 2654435761) >>> 0) % 5 === 0;
+    const extracted = extractStandaloneWord(gridWords, 12, forceStandalone);
+    standaloneWord = extracted.standalone;
+
     if (_currentLayoutIsFlow) {
         crossword = generateFlowGrid(gridWords);
-        standaloneWord = null;
+        // Mark the coin word's placement in the flow grid so it shows coins
+        if (standaloneWord) {
+            for (const p of crossword.placements) {
+                if (p.word === standaloneWord) { p.standalone = true; break; }
+            }
+        }
     } else {
-        const extracted = extractStandaloneWord(gridWords, 12);
         crossword = extracted.crossword;
-        standaloneWord = extracted.standalone;
     }
 
     placedWords = crossword.placements.map(p => p.word);
@@ -502,6 +512,13 @@ function loadProgress() {
                 state.difficultyOffset = 0;
                 d.doff = 0;
                 d.v = 7;
+                localStorage.setItem("wordplay-save", JSON.stringify(d));
+            }
+            // Safety: if offset exceeds highest level, the save is corrupted
+            // (e.g. from a bad merge).  Reset offset so displayLevel doesn't go negative.
+            if (state.difficultyOffset > 0 && state.highestLevel < state.difficultyOffset + 1) {
+                state.difficultyOffset = 0;
+                d.doff = 0;
                 localStorage.setItem("wordplay-save", JSON.stringify(d));
             }
             // Auto-detect tier for existing players who haven't been assigned one.
@@ -680,15 +697,24 @@ function toggleLayout() {
     // Toggle
     _currentLayoutIsFlow = !_currentLayoutIsFlow;
 
-    // Regenerate grid
+    // Regenerate grid — preserve standalone coin word across layout switches
     const gridWords = level.words;
+    const prevStandalone = standaloneWord;
+    const _fs = gridWords.length >= 6 && ((state.currentLevel * 2654435761) >>> 0) % 5 === 0;
+    const extracted = extractStandaloneWord(gridWords, 12, _fs);
+    // Use the same standalone word regardless of which layout we're switching to
+    standaloneWord = prevStandalone || extracted.standalone;
+
     if (_currentLayoutIsFlow) {
         crossword = generateFlowGrid(gridWords);
-        standaloneWord = null;
+        // Mark the coin word's placement in the flow grid so it shows coins
+        if (standaloneWord) {
+            for (const p of crossword.placements) {
+                if (p.word === standaloneWord) { p.standalone = true; break; }
+            }
+        }
     } else {
-        const extracted = extractStandaloneWord(gridWords, 12);
         crossword = extracted.crossword;
-        standaloneWord = extracted.standalone;
     }
     placedWords = crossword.placements.map(p => p.word);
     bonusPool = [...(level.bonus || []), ...gridWords.filter(w => !placedWords.includes(w))];
@@ -713,10 +739,8 @@ function toggleLayout() {
     }
 
     // Ensure standalone found state is consistent
-    if (!_currentLayoutIsFlow && standaloneWord) {
-        if (state.foundWords.includes(standaloneWord)) {
-            state.standaloneFound = true;
-        }
+    if (standaloneWord && state.foundWords.includes(standaloneWord)) {
+        state.standaloneFound = true;
     }
 
     // Re-render
@@ -774,9 +798,14 @@ async function enterDailyMode() {
             const gridWords = level.words;
             if (_currentLayoutIsFlow) {
                 crossword = generateFlowGrid(gridWords);
-                standaloneWord = null;
+                if (standaloneWord) {
+                    for (const p of crossword.placements) {
+                        if (p.word === standaloneWord) { p.standalone = true; break; }
+                    }
+                }
             } else {
-                const extracted = extractStandaloneWord(gridWords, 12);
+                const _fs = gridWords.length >= 6 && ((state.currentLevel * 2654435761) >>> 0) % 5 === 0;
+                const extracted = extractStandaloneWord(gridWords, 12, _fs);
                 crossword = extracted.crossword;
                 standaloneWord = extracted.standalone;
             }
@@ -859,9 +888,14 @@ async function enterBonusMode() {
             const gridWords = level.words;
             if (_currentLayoutIsFlow) {
                 crossword = generateFlowGrid(gridWords);
-                standaloneWord = null;
+                if (standaloneWord) {
+                    for (const p of crossword.placements) {
+                        if (p.word === standaloneWord) { p.standalone = true; break; }
+                    }
+                }
             } else {
-                const extracted = extractStandaloneWord(gridWords, 12);
+                const _fs = gridWords.length >= 6 && ((state.currentLevel * 2654435761) >>> 0) % 5 === 0;
+                const extracted = extractStandaloneWord(gridWords, 12, _fs);
                 crossword = extracted.crossword;
                 standaloneWord = extracted.standalone;
             }
@@ -1070,6 +1104,9 @@ function checkSpeedBonus() {
 
 function startSpeedTimer() {
     if (!_speedTimerActive && !state.isDailyMode && !state.isBonusMode) {
+        // Don't start the timer if words have already been found —
+        // prevents gaming via layout toggle or late first swipe
+        if (state.foundWords.length > 0) return;
         _speedTimerStart = Date.now();
         _speedTimerActive = true;
     }
@@ -2106,7 +2143,7 @@ function renderHome() {
                 <div class="expertise-banner" id="home-expertise-btn">
                     <div class="expertise-title">Expertise</div>
                     <div class="expertise-bottom">
-                        <span class="expertise-icon expertise-pulse">${["\uD83C\uDF31","\uD83C\uDFC5","\uD83D\uDD25","\uD83D\uDC8E","\uD83D\uDC51"][state.difficultyTier] || "\uD83C\uDFC6"}</span>
+                        <span class="expertise-icon expertise-pulse">${["\uD83C\uDF31","\uD83C\uDFC5","\uD83D\uDD25","\uD83C\uDFC6","\uD83D\uDC51"][state.difficultyTier] || "\uD83C\uDFC6"}</span>
                         <span class="expertise-tier">${DIFFICULTY_TIERS[state.difficultyTier] ? DIFFICULTY_TIERS[state.difficultyTier].label : ''}</span>
                     </div>
                     <div class="expertise-row">
@@ -2147,6 +2184,8 @@ function renderHome() {
                     <button class="home-corner-btn" id="home-settings-btn" title="Settings">⚙️</button>
                     <button class="home-corner-btn home-info-corner" id="home-info-btn" title="How to Play"><i style="font-family:Georgia,'Times New Roman',serif;font-weight:700;font-style:italic;font-size:18px">i</i></button>
                 </div>
+                ${window._updatePending ? '<div class="home-update-nudge" id="home-update-nudge">Update available &mdash; tap to refresh</div>' : ''}
+                <div class="home-version">v${APP_VERSION}</div>
             </div>
         </div>
     `;
@@ -2164,6 +2203,8 @@ function renderHome() {
         state.showLeaderboard = true;
         renderLeaderboard();
     };
+    const updateNudge = document.getElementById("home-update-nudge");
+    if (updateNudge) updateNudge.onclick = () => window.location.reload();
     document.getElementById("home-play-btn").onclick = async () => {
         if (applyPendingUpdate()) return;
         state.showHome = false;
@@ -2175,9 +2216,14 @@ function renderHome() {
             const gridWords = level.words;
             if (_currentLayoutIsFlow) {
                 crossword = generateFlowGrid(gridWords);
-                standaloneWord = null;
+                if (standaloneWord) {
+                    for (const p of crossword.placements) {
+                        if (p.word === standaloneWord) { p.standalone = true; break; }
+                    }
+                }
             } else {
-                const extracted = extractStandaloneWord(gridWords, 12);
+                const _fs = gridWords.length >= 6 && ((state.currentLevel * 2654435761) >>> 0) % 5 === 0;
+                const extracted = extractStandaloneWord(gridWords, 12, _fs);
                 crossword = extracted.crossword;
                 standaloneWord = extracted.standalone;
             }
@@ -2411,7 +2457,7 @@ function renderTierChooser() {
     overlay.style.zIndex = "9999";
 
     const tierColors = ["#4CAF50", "#2196F3", "#FF9800", "#f44336", "#9C27B0"];
-    const tierEmojis = ["\uD83C\uDF31", "\uD83D\uDCAA", "\uD83D\uDD25", "\uD83D\uDC8E", "\uD83D\uDC51"];
+    const tierEmojis = ["\uD83C\uDF31", "\uD83D\uDCAA", "\uD83D\uDD25", "\uD83C\uDFC6", "\uD83D\uDC51"];
 
     let btnsHtml = "";
     DIFFICULTY_TIERS.forEach((t, i) => {
@@ -2483,7 +2529,7 @@ function renderTierPromotion(tier) {
     overlay.style.zIndex = "9998";
 
     const tierColors = ["#4CAF50", "#2196F3", "#FF9800", "#f44336", "#9C27B0"];
-    const tierEmojis = ["\uD83C\uDF31", "\uD83D\uDCAA", "\uD83D\uDD25", "\uD83D\uDC8E", "\uD83D\uDC51"];
+    const tierEmojis = ["\uD83C\uDF31", "\uD83D\uDCAA", "\uD83D\uDD25", "\uD83C\uDFC6", "\uD83D\uDC51"];
     const tierIdx = DIFFICULTY_TIERS.indexOf(tier);
     const color = tierColors[tierIdx] || theme.accent;
     const emoji = tierEmojis[tierIdx] || "\uD83C\uDFC6";
@@ -4232,7 +4278,7 @@ function renderMenu() {
     if (state.difficultyTier >= 0) {
         const currentTier = DIFFICULTY_TIERS[state.difficultyTier];
         const levelsPlayed = (state.highestLevel || 1) - state.difficultyOffset;
-        const canGoDown = levelsPlayed < 10;
+        const canGoDown = levelsPlayed < 10 || state.showAdmin;
         let tierOptions = "";
         for (let i = 0; i < DIFFICULTY_TIERS.length; i++) {
             if (!canGoDown && i < state.difficultyTier) continue;
@@ -4411,8 +4457,11 @@ function renderMenu() {
         const newUid = getUser()?.id;
         const lastUid = localStorage.getItem("wordplay-last-uid");
 
-        // Stash anonymous progress before sign-in overwrites it
-        if (!lastUid || !localStorage.getItem("wordplay-uid")) {
+        // Stash anonymous progress before sign-in overwrites it.
+        // Only stash if there's no uid marker — meaning the current wordplay-save
+        // belongs to an anonymous session, not a signed-in user's cloud data.
+        const currentUid = localStorage.getItem("wordplay-uid");
+        if (!currentUid) {
             saveInProgressState();
             const anonRaw = localStorage.getItem("wordplay-save");
             if (anonRaw) localStorage.setItem("wordplay-anon-save", anonRaw);
@@ -4510,7 +4559,21 @@ function renderMenu() {
             // Restore anonymous progress that was stashed before sign-in
             const anonSave = localStorage.getItem("wordplay-anon-save");
             if (anonSave) {
-                localStorage.setItem("wordplay-save", anonSave);
+                // Sanitize: if the stashed save has a tier offset that doesn't
+                // match the anonymous user's level, reset tier to let auto-detect
+                // assign the correct one based on their actual highestLevel.
+                try {
+                    const anonObj = JSON.parse(anonSave);
+                    if (anonObj.doff > 0 && anonObj.hl && anonObj.hl < anonObj.doff + 1) {
+                        anonObj.dt = -1;
+                        anonObj.doff = 0;
+                        localStorage.setItem("wordplay-save", JSON.stringify(anonObj));
+                    } else {
+                        localStorage.setItem("wordplay-save", anonSave);
+                    }
+                } catch (e) {
+                    localStorage.setItem("wordplay-save", anonSave);
+                }
                 localStorage.removeItem("wordplay-anon-save");
                 loadProgress();
             } else {
@@ -4606,7 +4669,7 @@ function renderMenu() {
             const newIdx = parseInt(tierSelect.value);
             if (newIdx === state.difficultyTier) return;
             const lvPlayed = (state.highestLevel || 1) - state.difficultyOffset;
-            if (newIdx < state.difficultyTier && lvPlayed >= 10) return;
+            if (newIdx < state.difficultyTier && lvPlayed >= 10 && !state.showAdmin) return;
             const newTier = DIFFICULTY_TIERS[newIdx];
             // If player is already past this tier's offset, just update the label
             if (state.highestLevel >= newTier.offset + 1) {
@@ -5294,7 +5357,7 @@ function renderAdmin() {
             <div class="admin-toolbar">
                 <input type="text" id="admin-search" class="menu-setting-input" placeholder="Search users..." value="${escapeHtml(_adminSearch)}" style="flex:1">
                 <button class="menu-setting-btn" id="admin-create-bot-btn" style="background:${accent};color:#000;white-space:nowrap;padding:8px 12px">+ Bot</button>
-                <button class="menu-setting-btn" id="admin-rabbits-btn" style="background:rgba(255,255,255,0.1);white-space:nowrap;padding:8px 12px">Rabbits</button>
+                <button class="menu-setting-btn" id="admin-rabbits-btn" style="background:rgba(255,255,255,0.15);color:#fff;white-space:nowrap;padding:8px 12px;border:1px solid rgba(255,255,255,0.3)">Rabbits</button>
             </div>
             <div id="admin-user-list" style="padding:0 4px">
                 <div style="text-align:center;padding:30px;opacity:0.5">Loading...</div>
@@ -5414,7 +5477,7 @@ function renderAdminUserList() {
         <div class="admin-user-row" data-uid="${u.id}">
             <div class="admin-user-info">
                 <div class="admin-user-name" style="display:flex;align-items:center;gap:6px">${renderAvatar(u.avatarData, u.displayName, 24)} ${escapeHtml(u.displayName || "\u2014")} ${roleBadge(u.role, u.paceMode)}</div>
-                <div class="admin-user-meta">Lv ${u.highestLevel.toLocaleString()} \u00b7 ${u.totalCoinsEarned.toLocaleString()} pts \u00b7 +${u.monthlyGain} this mo</div>
+                <div class="admin-user-meta">Lv ${(u.highestLevel - (u.difficultyOffset || 0)).toLocaleString()} \u00b7 ${u.totalCoinsEarned.toLocaleString()} pts \u00b7 +${u.monthlyGain} this mo</div>
             </div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.4;flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
         </div>
@@ -5491,10 +5554,10 @@ function renderAdminUserDetail(overlay) {
                 </div>
             </div>
             <div class="menu-setting">
-                <label class="menu-setting-label">Leaderboard Scores</label>
+                <label class="menu-setting-label">Leaderboard Scores${u.difficultyTier >= 0 ? ' <span style="opacity:0.5;font-size:12px;font-weight:400">' + (["Easy","Medium","Hard","Expert","Master"][u.difficultyTier] || "Tier " + u.difficultyTier) + (u.difficultyOffset ? " (offset " + u.difficultyOffset.toLocaleString() + ")" : "") + '</span>' : ''}</label>
                 <div class="admin-detail-field">
                     <label>All-Time Levels</label>
-                    <input type="number" id="admin-hl" value="${u.highestLevel}" min="0">
+                    <input type="number" id="admin-hl" value="${u.highestLevel - (u.difficultyOffset || 0)}" min="0">
                 </div>
                 <div class="admin-detail-field">
                     <label>All-Time Points</label>
@@ -5585,19 +5648,21 @@ function renderAdminUserDetail(overlay) {
     };
 
     document.getElementById("admin-save-progress").onclick = async () => {
-        const hl = parseInt(document.getElementById("admin-hl").value);
+        const displayHl = parseInt(document.getElementById("admin-hl").value);
+        const doff = u.difficultyOffset || 0;
+        const rawHl = displayHl + doff;  // convert display level back to raw
         const tce = parseInt(document.getElementById("admin-tce").value);
         const ml = parseInt(document.getElementById("admin-ml").value);
         const mp = parseInt(document.getElementById("admin-mp").value);
-        const ms = hl - ml;  // monthly start = all-time minus monthly gain
+        const ms = rawHl - ml;  // monthly start = raw all-time minus monthly gain
         const mcs = tce - mp;
         try {
             await fetch("/api/admin/users/" + u.id + "/progress", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                body: JSON.stringify({ highestLevel: hl, totalCoinsEarned: tce, monthlyStart: ms, monthlyCoinsStart: mcs }),
+                body: JSON.stringify({ highestLevel: rawHl, totalCoinsEarned: tce, monthlyStart: ms, monthlyCoinsStart: mcs }),
             });
-            u.highestLevel = hl;
+            u.highestLevel = rawHl;
             u.totalCoinsEarned = tce;
             u.monthlyStart = ms;
             u.monthlyCoinsStart = mcs;
@@ -6211,7 +6276,7 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83C\uDF0A", title: "Flow Levels", body: "Every 5th level (5, 10, 15, 20\u2026) is a <b>flow level</b>! These use a stacked layout instead of the usual crossword. Same words, same letters \u2014 just a different visual style with <b>3x rewards</b>: 3 coins per word, 15 per bonus word, and 200 for the coin word." },
     { icon: "\u21C4", title: "Grid Layouts", body: "WordPlay has two grid styles: <b>Crossword</b> (interlocking words) and <b>Flow</b> (stacked rows). You can <b>switch between them anytime</b> by tapping the level info at the top of the screen (the pack name and level number). All your progress \u2014 found words, hints, and stars \u2014 carries over when you switch. Set your preferred default in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> under Grid Layout: Auto (game decides), Crossword, or Flow." },
     { icon: "\u26A1", title: "Speed Bonus", body: "Beat the clock for a free prize spin! When you start swiping on a level with 5+ words, a hidden timer starts. Finish the level within <b>7 seconds per word</b> and you\u2019ll earn a \u26A1 Speed Bonus \u2014 a free spin on the prize wheel with chances to win hints, targets, rockets, bonus stars, or 100 coins. Works on regular levels and flow levels!" },
-    { icon: "\uD83C\uDFAF", title: "Difficulty Tiers", body: "WordPlay matches puzzles to your skill level! There are five tiers:<br><br>\uD83C\uDF31 <b>Easy</b> \u2014 Levels 1\u2013250. Short words with 3\u20135 letters, perfect for beginners.<br>\uD83C\uDFC5 <b>Medium</b> \u2014 Levels 251\u20132,000. Full 6-letter puzzles with moderate bonus words.<br>\uD83D\uDD25 <b>Hard</b> \u2014 Levels 2,001\u20135,000. Puzzles loaded with 3\u20139 bonus words.<br>\uD83D\uDC8E <b>Expert</b> \u2014 Levels 5,001\u201315,000. Complex anagrams with 8\u201315+ bonus words.<br>\uD83D\uDC51 <b>Master</b> \u2014 Levels 15,001+. 7\u20138 letter puzzles with massive word counts for true word enthusiasts.<br><br>Your tier is set automatically based on your progress. When you cross a tier boundary, you\u2019ll be <b>auto-promoted</b> with a celebration! You can also manually upgrade in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> (but you can\u2019t go back down).<br><br><b>Note:</b> Speed milestones (5 fast levels = bonus puzzle) are disabled on Easy tier." },
+    { icon: "\uD83C\uDFAF", title: "Difficulty Tiers", body: "WordPlay matches puzzles to your skill level! There are five tiers:<br><br>\uD83C\uDF31 <b>Easy</b> \u2014 Levels 1\u2013250. Short words with 3\u20135 letters, perfect for beginners.<br>\uD83C\uDFC5 <b>Medium</b> \u2014 Levels 251\u20132,000. Full 6-letter puzzles with moderate bonus words.<br>\uD83D\uDD25 <b>Hard</b> \u2014 Levels 2,001\u20135,000. Puzzles loaded with 3\u20139 bonus words.<br>\uD83C\uDFC6 <b>Expert</b> \u2014 Levels 5,001\u201315,000. Complex anagrams with 8\u201315+ bonus words.<br>\uD83D\uDC51 <b>Master</b> \u2014 Levels 15,001+. 7\u20138 letter puzzles with massive word counts for true word enthusiasts.<br><br>Your tier is set automatically based on your progress. When you cross a tier boundary, you\u2019ll be <b>auto-promoted</b> with a celebration! You can also manually upgrade in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> (but you can\u2019t go back down).<br><br><b>Note:</b> Speed milestones (5 fast levels = bonus puzzle) are disabled on Easy tier." },
     { icon: "\uD83D\uDD00", title: "Shuffle", body: "Tap the shuffle button to rearrange the letters on the wheel. Same letters, fresh perspective \u2014 sometimes that\u2019s all you need to spot a hidden word!" },
     { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the <a href=\"#\" class=\"guide-link\" data-action=\"map\">Level Map</a> from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },
     { icon: "\uD83C\uDFA8", title: "Themes", body: "The game features 16 beautiful color themes \u2014 Sunrise, Forest, Ocean, Aurora, and more. Themes change as you progress through different level groups." },

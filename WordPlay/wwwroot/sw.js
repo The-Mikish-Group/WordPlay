@@ -1,14 +1,14 @@
-const CACHE_NAME = 'wordplay-v92';
+const CACHE_NAME = 'wordplay-v94';
 const ASSETS = [
     '/',
     '/index.html',
-    '/css/app.css?v=42',
-    '/js/auth.js?v=42',
-    '/js/sync.js?v=42',
-    '/js/app.js?v=42',
-    '/js/levels.js?v=42',
-    '/js/level-loader.js?v=42',
-    '/js/crossword.js?v=42',
+    '/css/app.css?v=45',
+    '/js/auth.js?v=45',
+    '/js/sync.js?v=45',
+    '/js/app.js?v=45',
+    '/js/levels.js?v=45',
+    '/js/level-loader.js?v=45',
+    '/js/crossword.js?v=45',
     '/manifest.json',
     '/fonts/nunito-latin.woff2',
     '/fonts/nunito-latin-italic.woff2',
@@ -21,7 +21,7 @@ const ASSETS = [
     '/images/bg/solstice-dawn.webp',
 ];
 
-const DATA_CACHE = 'wordplay-data-v3';
+const DATA_CACHE = 'wordplay-data-v4';
 
 self.addEventListener('install', e => {
     e.waitUntil(
