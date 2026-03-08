@@ -5592,6 +5592,10 @@ function renderAdminUserDetail(overlay) {
                 <div id="admin-rabbit-section" style="padding:4px 12px;font-size:13px;opacity:0.5">Loading...</div>
             </div>
             <div class="menu-setting">
+                <label class="menu-setting-label">Recent History</label>
+                <div id="admin-snapshot-section" style="padding:4px 12px;font-size:14px;opacity:0.5">Loading...</div>
+            </div>
+            <div class="menu-setting">
                 <label class="menu-setting-label">Danger Zone</label>
                 <button class="menu-setting-btn" id="admin-delete-user" style="background:rgba(255,80,80,0.2);color:#ff8888;border:1px solid rgba(255,80,80,0.3);width:100%;padding:10px 0;margin:0 12px">Delete User</button>
             </div>
@@ -5682,6 +5686,32 @@ function renderAdminUserDetail(overlay) {
             renderAdmin();
         } catch (err) { showToast("Failed", "#ff8888"); }
     };
+
+    // Fetch and render snapshot history
+    fetch("/api/admin/users/" + u.id + "/snapshots", { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(snapshots => {
+            const section = document.getElementById("admin-snapshot-section");
+            if (!section) return;
+            if (!snapshots || snapshots.length === 0) {
+                section.innerHTML = '<div style="opacity:0.7">No history yet</div>';
+                return;
+            }
+            const tierNames = ["Easy","Medium","Hard","Expert","Master"];
+            section.innerHTML = snapshots.map(s => {
+                const d = new Date(s.createdAt);
+                const dateStr = d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+                const tier = tierNames[s.difficultyTier] || "\u2014";
+                return '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:14px;border-bottom:1px solid rgba(255,255,255,0.06)">' +
+                    '<span>Lv ' + s.highestLevel.toLocaleString() + ' \u00b7 ' + s.totalCoinsEarned.toLocaleString() + ' pts \u00b7 ' + tier + '</span>' +
+                    '<span style="opacity:0.5">' + dateStr + '</span>' +
+                    '</div>';
+            }).join("");
+        })
+        .catch(() => {
+            const section = document.getElementById("admin-snapshot-section");
+            if (section) section.innerHTML = '<div style="opacity:0.7">Failed to load</div>';
+        });
 
     document.getElementById("admin-delete-user").onclick = async () => {
         if (!confirm("Delete " + (u.displayName || "User #" + u.id) + "? All progress, scores, and data for this user will be permanently removed. This cannot be undone.")) return;
