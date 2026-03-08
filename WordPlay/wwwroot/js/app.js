@@ -5491,7 +5491,7 @@ function renderAdminUserList() {
         <div class="admin-user-row" data-uid="${u.id}">
             <div class="admin-user-info">
                 <div class="admin-user-name" style="display:flex;align-items:center;gap:6px">${renderAvatar(u.avatarData, u.displayName, 24)} ${escapeHtml(u.displayName || "\u2014")} ${roleBadge(u.role, u.paceMode)}</div>
-                <div class="admin-user-meta">Lv ${(u.highestLevel - (u.difficultyOffset || 0)).toLocaleString()} \u00b7 ${u.totalCoinsEarned.toLocaleString()} pts \u00b7 +${u.monthlyGain} this mo</div>
+                <div class="admin-user-meta">Lv ${u.highestLevel.toLocaleString()} \u00b7 ${u.totalCoinsEarned.toLocaleString()} pts \u00b7 +${u.monthlyGain} this mo</div>
             </div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.4;flex-shrink:0"><path d="M9 18l6-6-6-6"/></svg>
         </div>
@@ -5571,7 +5571,7 @@ function renderAdminUserDetail(overlay) {
                 <label class="menu-setting-label">Leaderboard Scores${u.difficultyTier >= 0 ? ' <span style="opacity:0.5;font-size:12px;font-weight:400">' + (["Easy","Medium","Hard","Expert","Master"][u.difficultyTier] || "Tier " + u.difficultyTier) + (u.difficultyOffset ? " (offset " + u.difficultyOffset.toLocaleString() + ")" : "") + '</span>' : ''}</label>
                 <div class="admin-detail-field">
                     <label>All-Time Levels</label>
-                    <input type="number" id="admin-hl" value="${u.highestLevel - (u.difficultyOffset || 0)}" min="0">
+                    <input type="number" id="admin-hl" value="${u.highestLevel}" min="0">
                 </div>
                 <div class="admin-detail-field">
                     <label>All-Time Points</label>
@@ -5662,21 +5662,19 @@ function renderAdminUserDetail(overlay) {
     };
 
     document.getElementById("admin-save-progress").onclick = async () => {
-        const displayHl = parseInt(document.getElementById("admin-hl").value);
-        const doff = u.difficultyOffset || 0;
-        const rawHl = displayHl + doff;  // convert display level back to raw
+        const hl = parseInt(document.getElementById("admin-hl").value);
         const tce = parseInt(document.getElementById("admin-tce").value);
         const ml = parseInt(document.getElementById("admin-ml").value);
         const mp = parseInt(document.getElementById("admin-mp").value);
-        const ms = rawHl - ml;  // monthly start = raw all-time minus monthly gain
+        const ms = hl - ml;  // monthly start = all-time minus monthly gain
         const mcs = tce - mp;
         try {
             await fetch("/api/admin/users/" + u.id + "/progress", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                body: JSON.stringify({ highestLevel: rawHl, totalCoinsEarned: tce, monthlyStart: ms, monthlyCoinsStart: mcs }),
+                body: JSON.stringify({ highestLevel: hl, totalCoinsEarned: tce, monthlyStart: ms, monthlyCoinsStart: mcs }),
             });
-            u.highestLevel = rawHl;
+            u.highestLevel = hl;
             u.totalCoinsEarned = tce;
             u.monthlyStart = ms;
             u.monthlyCoinsStart = mcs;
