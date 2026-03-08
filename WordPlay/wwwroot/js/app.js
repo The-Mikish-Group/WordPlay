@@ -5699,6 +5699,15 @@ function renderAdminUserDetail(overlay) {
             u.totalCoinsEarned = tce;
             u.monthlyStart = ms;
             u.monthlyCoinsStart = mcs;
+            // If editing our own account, update local state too so sync doesn't revert
+            const currentUser = typeof getUser === "function" && getUser();
+            if (currentUser && currentUser.id === u.id) {
+                state.highestLevel = hl;
+                state.currentLevel = Math.min(state.currentLevel, hl);
+                state.totalCoinsEarned = tce;
+                state.levelsCompleted = hl;
+                saveProgress();
+            }
             showToast("Scores saved");
             renderAdmin();
         } catch (err) { showToast("Failed", "#ff8888"); }
