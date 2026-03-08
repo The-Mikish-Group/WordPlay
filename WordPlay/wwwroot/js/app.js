@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "1.2.0";
 
 // ---- THEMES ----
 const THEMES = {
@@ -515,15 +515,7 @@ function loadProgress() {
             state.flowsCompleted = d.fc || 0;
             state.difficultyTier = d.dt !== undefined ? d.dt : -1;
             state.difficultyOffset = d.doff || 0;
-            // v6→v7 migration: buggy auto-detect/merge poisoned doff for existing players.
-            // No new players have used tier chooser yet, so any doff>0 is from the bug.
-            // Write to localStorage immediately so sync can't race and overwrite.
-            if (d.v && d.v < 7 && state.difficultyOffset > 0) {
-                state.difficultyOffset = 0;
-                d.doff = 0;
-                d.v = 7;
-                localStorage.setItem("wordplay-save", JSON.stringify(d));
-            }
+
             // v7→v8 migration: convert raw level numbers to display levels.
             // In v7, cl/hl included the tier offset. In v8, they store display
             // levels and the offset is applied only at data lookup time.

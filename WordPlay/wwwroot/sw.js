@@ -1,14 +1,14 @@
-const CACHE_NAME = 'wordplay-v94';
+const CACHE_NAME = 'wordplay-v95';
 const ASSETS = [
     '/',
     '/index.html',
-    '/css/app.css?v=45',
-    '/js/auth.js?v=45',
-    '/js/sync.js?v=45',
-    '/js/app.js?v=45',
-    '/js/levels.js?v=45',
-    '/js/level-loader.js?v=45',
-    '/js/crossword.js?v=45',
+    '/css/app.css?v=46',
+    '/js/auth.js?v=46',
+    '/js/sync.js?v=46',
+    '/js/app.js?v=46',
+    '/js/levels.js?v=46',
+    '/js/level-loader.js?v=46',
+    '/js/crossword.js?v=46',
     '/manifest.json',
     '/fonts/nunito-latin.woff2',
     '/fonts/nunito-latin-italic.woff2',
