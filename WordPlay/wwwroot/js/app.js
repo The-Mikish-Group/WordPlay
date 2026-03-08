@@ -370,12 +370,17 @@ async function recompute() {
     resetSpeedTimer();
     // Try dynamic loader first, fall back to built-in
     let lvData = null;
+    // Compute the data-file level number (display + offset)
+    const dataLevel = (state.isDailyMode || state.isBonusMode)
+        ? state.currentLevel    // daily/bonus levels are raw data positions
+        : state.currentLevel + state.difficultyOffset;
+
     if (typeof getLevel === "function") {
-        lvData = await getLevel(state.currentLevel);
+        lvData = await getLevel(dataLevel);
     }
     // Fallback: old static array (0-based index)
     if (!lvData && typeof ALL_LEVELS !== "undefined") {
-        const idx = state.currentLevel - 1; // convert 1-based to 0-based
+        const idx = dataLevel - 1; // convert 1-based to 0-based
         if (idx >= 0 && idx < ALL_LEVELS.length) {
             lvData = ALL_LEVELS[idx];
         } else {
@@ -383,7 +388,7 @@ async function recompute() {
         }
     }
     if (!lvData) {
-        console.error("No level data for level", state.currentLevel);
+        console.error("No level data for level", state.currentLevel, "(data:", dataLevel + ")");
         return;
     }
     level = lvData;
@@ -428,7 +433,12 @@ async function recompute() {
     totalRequired = placedWords.length;
     rebuildWheelLetters();
     // Preload next chunk
-    if (typeof preloadAround === "function") preloadAround(state.currentLevel);
+    if (typeof preloadAround === "function") {
+        const preloadLevel = (state.isDailyMode || state.isBonusMode)
+            ? state.currentLevel
+            : state.currentLevel + state.difficultyOffset;
+        preloadAround(preloadLevel);
+    }
     // Preload current level's background image
     preloadBgImage(getBgImageKey(level));
 }
@@ -532,6 +542,7 @@ function loadProgress() {
                             if (displayKey >= 1) newIp[displayKey] = val;
                         }
                         d.ip = newIp;
+                        state.inProgress = newIp;
                     }
                 }
                 d.v = 8;
