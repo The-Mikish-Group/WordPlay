@@ -982,12 +982,32 @@ app.MapPut("/api/admin/users/{id}/progress", async (int id, HttpRequest request,
     pNode["lc"] = progress.HighestLevel;
     pNode["tce"] = progress.TotalCoinsEarned;
     pNode["cl"] = progress.HighestLevel;
+    pNode["v"] = 8;  // ensure v8 format
     progress.ProgressJson = pNode.ToJsonString();
     progress.LevelsCompleted = progress.HighestLevel;
     progress.UpdatedAt = DateTime.UtcNow;
 
     await db.SaveChangesAsync();
     return Results.Ok(new { progress.HighestLevel, progress.TotalCoinsEarned, progress.MonthlyStart, progress.MonthlyCoinsStart });
+}).RequireAuthorization();
+
+app.MapGet("/api/admin/users/{id}/snapshots", async (int id, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var snapshots = await db.ProgressSnapshots
+        .Where(s => s.UserId == id)
+        .OrderByDescending(s => s.CreatedAt)
+        .Take(10)
+        .Select(s => new
+        {
+            s.HighestLevel,
+            s.TotalCoinsEarned,
+            s.DifficultyTier,
+            s.DifficultyOffset,
+            s.CreatedAt,
+        })
+        .ToListAsync();
+    return Results.Ok(snapshots);
 }).RequireAuthorization();
 
 app.MapPut("/api/admin/users/{id}/profile", async (int id, HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
