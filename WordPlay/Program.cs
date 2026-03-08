@@ -486,6 +486,44 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
 
     var previousHighest = progress.HighestLevel;
 
+    // Guard: detect corrupted v8 data where hl still includes the offset.
+    // If the jump is >= doff, it's almost certainly a device that got v8-stamped
+    // but still has raw levels baked in.  Auto-correct by subtracting doff.
+    if (progress.HighestLevel > 0 && highestLevel > progress.HighestLevel)
+    {
+        int guardDoff = 0;
+        if (progressEl.TryGetProperty("doff", out var doffGuard)) guardDoff = doffGuard.GetInt32();
+        if (guardDoff > 0 && highestLevel - progress.HighestLevel >= guardDoff)
+        {
+            highestLevel = Math.Max(1, highestLevel - guardDoff);
+            levelsCompleted = Math.Max(0, levelsCompleted - guardDoff);
+            var fixNode = JsonNode.Parse(progressJson)?.AsObject();
+            if (fixNode != null)
+            {
+                fixNode["hl"] = highestLevel;
+                fixNode["lc"] = levelsCompleted;
+                var fixCl = fixNode["cl"]?.GetValue<int>() ?? 1;
+                fixNode["cl"] = Math.Max(1, fixCl > guardDoff ? fixCl - guardDoff : fixCl);
+                if (fixNode["ip"] is JsonObject fixIp)
+                {
+                    var newIp = new JsonObject();
+                    foreach (var kvp in fixIp.ToList())
+                    {
+                        if (int.TryParse(kvp.Key, out var rk))
+                        {
+                            var dk = rk - guardDoff;
+                            if (dk >= 1) newIp[dk.ToString()] = kvp.Value?.DeepClone();
+                        }
+                    }
+                    fixNode["ip"] = newIp;
+                }
+                fixNode["v"] = 8;
+                progressJson = fixNode.ToJsonString();
+                progressEl = JsonDocument.Parse(progressJson).RootElement;
+            }
+        }
+    }
+
     // Guard: reject stale client data that would lower progress.
     // Level can only go up through the API. Corrections go through direct DB updates.
     if (highestLevel < progress.HighestLevel)
