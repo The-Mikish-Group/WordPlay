@@ -2508,8 +2508,8 @@ function renderTierChooser() {
             const tier = DIFFICULTY_TIERS[idx];
             state.difficultyTier = idx;
             state.difficultyOffset = tier.offset;
-            state.currentLevel = tier.offset + 1;
-            state.highestLevel = tier.offset + 1;
+            state.currentLevel = 1;   // always start at display level 1
+            state.highestLevel = 1;
             saveProgress();
             overlay.style.display = "none";
             renderHome();
@@ -2529,10 +2529,11 @@ function renderTierChooser() {
 function checkTierPromotion() {
     if (state.difficultyTier < 0 || state.difficultyTier >= DIFFICULTY_TIERS.length - 1) return;
     const nextTier = DIFFICULTY_TIERS[state.difficultyTier + 1];
-    if (state.highestLevel >= nextTier.offset + 1) {
+    // Threshold in display terms: how many levels until the next tier's data range
+    const threshold = nextTier.offset - state.difficultyOffset + 1;
+    if (state.highestLevel >= threshold) {
         state.difficultyTier++;
-        // Do NOT change difficultyOffset — that only applies when a new player
-        // picks a starting tier. Organic promotion is just a label change.
+        // Do NOT change difficultyOffset — organic promotion is just a label change
         saveProgress();
         setTimeout(() => renderTierPromotion(nextTier), 600);
     }
@@ -4298,7 +4299,7 @@ function renderMenu() {
     // Difficulty Tier
     if (state.difficultyTier >= 0) {
         const currentTier = DIFFICULTY_TIERS[state.difficultyTier];
-        const levelsPlayed = (state.highestLevel || 1) - state.difficultyOffset;
+        const levelsPlayed = state.highestLevel || 1;
         const canGoDown = levelsPlayed < 10 || state.showAdmin;
         let tierOptions = "";
         for (let i = 0; i < DIFFICULTY_TIERS.length; i++) {
@@ -4689,20 +4690,12 @@ function renderMenu() {
         tierSelect.onchange = () => {
             const newIdx = parseInt(tierSelect.value);
             if (newIdx === state.difficultyTier) return;
-            const lvPlayed = (state.highestLevel || 1) - state.difficultyOffset;
-            if (newIdx < state.difficultyTier && lvPlayed >= 10 && !state.showAdmin) return;
+            // Block downgrade after 10+ levels (unless admin)
+            if (newIdx < state.difficultyTier && state.highestLevel >= 10 && !state.showAdmin) return;
             const newTier = DIFFICULTY_TIERS[newIdx];
-            // If player is already past this tier's offset, just update the label
-            if (state.highestLevel >= newTier.offset + 1) {
-                state.difficultyTier = newIdx;
-                // Don't change offset or level position
-            } else {
-                const levelsCompleted = state.highestLevel - state.difficultyOffset;
-                state.difficultyTier = newIdx;
-                state.difficultyOffset = newTier.offset;
-                state.currentLevel = newTier.offset + levelsCompleted;
-                state.highestLevel = newTier.offset + levelsCompleted;
-            }
+            state.difficultyTier = newIdx;
+            state.difficultyOffset = newTier.offset;
+            // Display levels stay the same — only the data range changes
             state.inProgress = {};
             state.foundWords = [];
             state.bonusFound = [];
