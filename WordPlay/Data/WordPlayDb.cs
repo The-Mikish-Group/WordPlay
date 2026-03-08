@@ -10,6 +10,7 @@ public class WordPlayDb : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<UserProgress> UserProgress => Set<UserProgress>();
     public DbSet<RabbitAssignment> RabbitAssignments => Set<RabbitAssignment>();
+    public DbSet<ProgressSnapshot> ProgressSnapshots => Set<ProgressSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,12 @@ public class WordPlayDb : DbContext
             e.HasOne(r => r.TargetUser).WithMany().HasForeignKey(r => r.TargetUserId).OnDelete(DeleteBehavior.NoAction);
             e.HasIndex(r => new { r.TargetUserId, r.IsActive });
             e.Property(r => r.PaceMode).HasMaxLength(10).HasDefaultValue("leading");
+        });
+
+        modelBuilder.Entity<ProgressSnapshot>(e =>
+        {
+            e.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId);
+            e.HasIndex(s => s.UserId);
         });
     }
 }
