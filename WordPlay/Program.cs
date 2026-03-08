@@ -435,7 +435,43 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
     if (progressJson.Length > 65_536)
         return Results.BadRequest(new { error = "Progress data too large" });
 
-    // Extract denormalized fields
+    // Convert v7 (raw levels) to v8 (display levels) on the fly
+    int incomingVersion = 0;
+    if (progressEl.TryGetProperty("v", out var vEl)) incomingVersion = vEl.GetInt32();
+    if (incomingVersion < 8)
+    {
+        int doff = 0;
+        if (progressEl.TryGetProperty("doff", out var doffConv)) doff = doffConv.GetInt32();
+        var node = JsonNode.Parse(progressJson)?.AsObject();
+        if (node != null)
+        {
+            if (doff > 0)
+            {
+                node["cl"] = Math.Max(1, (node["cl"]?.GetValue<int>() ?? 1) - doff);
+                node["hl"] = Math.Max(1, (node["hl"]?.GetValue<int>() ?? 1) - doff);
+                node["lc"] = Math.Max(0, (node["lc"]?.GetValue<int>() ?? 0) - doff);
+                if (node["ip"] is JsonObject ip)
+                {
+                    var newIp = new JsonObject();
+                    foreach (var kvp in ip.ToList())
+                    {
+                        if (int.TryParse(kvp.Key, out var rawKey))
+                        {
+                            var displayKey = rawKey - doff;
+                            if (displayKey >= 1) newIp[displayKey.ToString()] = kvp.Value?.DeepClone();
+                        }
+                    }
+                    node["ip"] = newIp;
+                }
+            }
+            node["v"] = 8;
+            progressJson = node.ToJsonString();
+            // Re-parse so denormalized field extraction below reads converted values
+            progressEl = JsonDocument.Parse(progressJson).RootElement;
+        }
+    }
+
+    // Extract denormalized fields (from converted v8 data if applicable)
     int highestLevel = 0, levelsCompleted = 0, totalCoinsEarned = 0;
     if (progressEl.TryGetProperty("hl", out var hlEl)) highestLevel = hlEl.GetInt32();
     if (progressEl.TryGetProperty("lc", out var lcEl)) levelsCompleted = lcEl.GetInt32();

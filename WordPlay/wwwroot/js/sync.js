@@ -106,8 +106,36 @@ async function syncPull() {
     }
 }
 
+// Normalize a save to v8 display-level format in place.
+// If the save is v7 or earlier with a nonzero doff, subtract doff from
+// level numbers so they become display levels.
+function _normalizeToV8(s) {
+    if (!s || (s.v && s.v >= 8)) return s;
+    const doff = s.doff || 0;
+    if (doff > 0) {
+        s.cl = Math.max(1, (s.cl || 1) - doff);
+        s.hl = Math.max(1, (s.hl || 1) - doff);
+        s.lc = Math.max(0, (s.lc || 0) - doff);
+        if (s.ip && typeof s.ip === "object") {
+            const newIp = {};
+            for (const [key, val] of Object.entries(s.ip)) {
+                const dk = Number(key) - doff;
+                if (dk >= 1) newIp[dk] = val;
+            }
+            s.ip = newIp;
+        }
+    }
+    s.v = 8;
+    return s;
+}
+
 function mergeProgress(local, server) {
-    const merged = { v: Math.max(local.v || 4, server.v || 4) };
+    // Normalize both saves to v8 display levels before comparing,
+    // so raw vs display mismatches can't corrupt the merge.
+    _normalizeToV8(local);
+    _normalizeToV8(server);
+
+    const merged = { v: 8 };
 
     // Scalar max fields
     merged.hl = Math.max(local.hl || 1, server.hl || 1);
@@ -193,8 +221,8 @@ function mergeProgress(local, server) {
     merged.fc = Math.max(local.fc || 0, server.fc || 0);
 
     // Difficulty tier & offset: take from primary save (higher hl) so that
-    // cl, hl, dt, and doff all stay consistent with each other.  The offset
-    // only has meaning relative to the level numbers it was saved with.
+    // cl, hl, dt, and doff all stay consistent.  hl and cl are now display
+    // levels; doff maps them to data-file positions at lookup time.
     merged.dt = primary.dt !== undefined ? primary.dt : -1;
     merged.doff = primary.doff || 0;
 
