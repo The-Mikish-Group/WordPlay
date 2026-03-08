@@ -5996,7 +5996,8 @@ function renderSnakeNodes(pack, accent) {
         const prev = pts[i - 1];
         const cur = pts[i];
         const lvNum = pack.start + i;
-        const done = lvNum <= state.highestLevel;
+        const dLv = lvNum - state.difficultyOffset;
+        const done = dLv <= state.highestLevel;
         const col = done ? accent : 'rgba(255,255,255,0.2)';
         const cpx = (prev.x + cur.x) / 2;
         const cpy = (prev.y + cur.y) / 2;
@@ -6010,9 +6011,9 @@ function renderSnakeNodes(pack, accent) {
     for (let i = 0; i < pts.length; i++) {
         const lvNum = pack.start + i;
         const dLv = lvNum - state.difficultyOffset;
-        const isCompleted = lvNum < state.highestLevel;
-        const isCurrent = lvNum === state.currentLevel;
-        const isAvailable = lvNum <= state.highestLevel;
+        const isCompleted = dLv < state.highestLevel;
+        const isCurrent = dLv === state.currentLevel;
+        const isAvailable = dLv <= state.highestLevel;
         const p = pts[i];
         const digits = String(dLv).length;
         const fs = digits > 5 ? 8 : digits > 4 ? 9 : 10;
@@ -6041,12 +6042,13 @@ function renderSnakeNodes(pack, accent) {
     // Invisible hit targets for tapping nodes (overlaid divs)
     for (let i = 0; i < pts.length; i++) {
         const lvNum = pack.start + i;
-        const isAvailable = lvNum <= state.highestLevel;
+        const dLv = lvNum - state.difficultyOffset;
+        const isAvailable = dLv <= state.highestLevel;
         const p = pts[i];
-        const digits = String(lvNum).length;
+        const digits = String(dLv).length;
         const hitW = Math.max(40, digits * 8 + 16);
-        const cls = isAvailable ? (lvNum < state.highestLevel ? 'map-node completed' : (lvNum === state.currentLevel ? 'map-node current' : 'map-node available')) : 'map-node locked';
-        html += `<div class="${cls}" data-lv="${lvNum}" style="--accent:${accent};position:absolute;left:${p.x * 100 / W}%;top:${p.y * 100 / H}%;width:${hitW}px;height:28px;transform:translate(-50%,-50%);border-radius:14px;background:transparent;border:none"></div>`;
+        const cls = isAvailable ? (dLv < state.highestLevel ? 'map-node completed' : (dLv === state.currentLevel ? 'map-node current' : 'map-node available')) : 'map-node locked';
+        html += `<div class="${cls}" data-lv="${dLv}" style="--accent:${accent};position:absolute;left:${p.x * 100 / W}%;top:${p.y * 100 / H}%;width:${hitW}px;height:28px;transform:translate(-50%,-50%);border-radius:14px;background:transparent;border:none"></div>`;
     }
 
     html += `</div>`;
@@ -6080,7 +6082,9 @@ function renderMap() {
     if (!_mapAutoExpanded) {
         _mapAutoExpanded = true;
         for (const p of packs) {
-            if (state.currentLevel >= p.start && state.currentLevel <= p.end) {
+            const pStartD = p.start - state.difficultyOffset;
+            const pEndD = p.end - state.difficultyOffset;
+            if (state.currentLevel >= pStartD && state.currentLevel <= pEndD) {
                 _mapSelectedGroup = p.group;
                 const key = p.group + "/" + p.pack + "/" + p.start;
                 _mapExpandedPacks = {};
@@ -6118,15 +6122,17 @@ function _renderMapGroupView(overlay, packs) {
     let html = `<div class="map-header" style="justify-content:center;position:relative"><button class="back-arrow-btn" id="map-close-btn" title="Back" style="position:absolute;left:12px">${backSvg}</button><h2 class="map-title" style="color:${theme.accent}">Level Map</h2></div><div class="map-scroll" id="map-scroll">`;
 
     for (const g of groups) {
-        if (g.start > state.highestLevel) continue;
+        const gStartD = g.start - state.difficultyOffset;
+        const gEndD = g.end - state.difficultyOffset;
+        if (gStartD > state.highestLevel) continue;
         if (g.end < state.difficultyOffset + 1) continue; // below tier start
         const gTheme = typeof getThemeForPackStart === "function" ? getThemeForPackStart(g.start) : "sunrise";
         const accent = (THEMES[gTheme] || THEMES.sunrise).accent;
         let completed = 0;
-        const total = g.end - g.start + 1;
-        for (let lv = g.start; lv <= g.end; lv++) { if (lv < state.highestLevel) completed++; }
+        const total = gEndD - gStartD + 1;
+        for (let dlv = gStartD; dlv <= gEndD; dlv++) { if (dlv < state.highestLevel) completed++; }
         const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-        const isActive = state.currentLevel >= g.start && state.currentLevel <= g.end;
+        const isActive = state.currentLevel >= gStartD && state.currentLevel <= gEndD;
         const isDone = completed === total;
 
         html += `<div class="map-pack${isActive ? ' active' : ''}${isDone ? ' done' : ''}" data-map-group="${g.group}">`;
@@ -6155,7 +6161,7 @@ function _renderMapGroupView(overlay, packs) {
             // Auto-expand current pack within this group
             const packs = typeof getLevelPacks === "function" ? getLevelPacks() : [];
             for (const p of packs) {
-                if (p.group === _mapSelectedGroup && state.currentLevel >= p.start && state.currentLevel <= p.end) {
+                if (p.group === _mapSelectedGroup && state.currentLevel >= (p.start - state.difficultyOffset) && state.currentLevel <= (p.end - state.difficultyOffset)) {
                     _mapExpandedPacks[p.group + "/" + p.pack + "/" + p.start] = true;
                     break;
                 }
@@ -6186,17 +6192,19 @@ function _renderMapPackView(overlay, packs) {
 
     for (let pi = 0; pi < groupPacks.length; pi++) {
         const p = groupPacks[pi];
-        if (p.start > state.highestLevel) continue;
+        const pStartD = p.start - state.difficultyOffset;
+        const pEndD = p.end - state.difficultyOffset;
+        if (pStartD > state.highestLevel) continue;
         if (p.end < state.difficultyOffset + 1) continue; // below tier start
         const key = p.group + "/" + p.pack + "/" + p.start;
-        const total = p.end - p.start + 1;
+        const total = pEndD - pStartD + 1;
         const packTheme = typeof getThemeForPackStart === "function" ? getThemeForPackStart(p.start) : "sunrise";
         const accent = (THEMES[packTheme] || THEMES.sunrise).accent;
         let completed = 0;
-        for (let lv = p.start; lv <= p.end; lv++) { if (lv < state.highestLevel) completed++; }
+        for (let dlv = pStartD; dlv <= pEndD; dlv++) { if (dlv < state.highestLevel) completed++; }
         const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-        const isActive = state.currentLevel >= p.start && state.currentLevel <= p.end;
-        const isLocked = state.highestLevel < p.start;
+        const isActive = state.currentLevel >= pStartD && state.currentLevel <= pEndD;
+        const isLocked = state.highestLevel < pStartD;
         const isDone = completed === total;
         const isExpanded = _mapExpandedPacks[key];
         const packLabel = `${p.pack} ${pi + 1}`;
