@@ -393,18 +393,20 @@ html, body {
 
 .circle-btn-badge {
     position: absolute;
-    top: -4px;
-    right: -4px;
-    min-width: 18px;
-    height: 18px;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 20px;
+    height: 20px;
     background: #e74c3c;
-    border-radius: 9px;
-    padding: 0 4px;
-    font-size: 11px;
+    border-radius: 10px;
+    padding: 0 5px;
+    font-size: 12px;
     font-weight: 700;
     color: #fff;
-    line-height: 18px;
+    line-height: 20px;
     text-align: center;
+    white-space: nowrap;
 }
 
 .circle-btn-badge:empty {

@@ -163,9 +163,9 @@ const state = {
 };
 
 // ---- POWERUP CAPS ----
-const MAX_FREE_HINTS = 30;
-const MAX_FREE_TARGETS = 30;
-const MAX_FREE_ROCKETS = 30;
+const MAX_FREE_HINTS = 9999;
+const MAX_FREE_TARGETS = 9999;
+const MAX_FREE_ROCKETS = 9999;
 
 // ---- DEBUG: BONUS TESTING ----
 // Usage: open browser console, run  debugBonus()  or  debugBonus(5)  to preset bonusStarsTotal
@@ -1866,7 +1866,7 @@ function handleShuffle() {
         const gridRows = crossword && crossword.rows ? crossword.rows : 8;
         const maxByWidth = (window.innerWidth - 100) / 2.4;
         const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
-        const wheelR = Math.max(70, Math.min(122, maxByWidth, maxByViewport));
+        const wheelR = Math.max(70, Math.min(112, maxByWidth, maxByViewport));
         const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
         const pad = letterR + 16;
         const cx = wheelR + pad, cy = wheelR + pad;
@@ -3253,7 +3253,7 @@ function renderWheel() {
     const maxByWidth = (window.innerWidth - 100) / 2.4;
     // For grids with many rows, shrink the wheel to leave more vertical room
     const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
-    const wheelR = Math.max(70, Math.min(122, maxByWidth, maxByViewport));
+    const wheelR = Math.max(70, Math.min(112, maxByWidth, maxByViewport));
     const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
     const pad = letterR + 16;
     const cx = wheelR + pad, cy = wheelR + pad;
@@ -3273,7 +3273,7 @@ function renderWheel() {
     const rocketCanUse = state.freeRockets > 0 || state.coins >= 300;
     // Button positions: upper pair flanks the current-word, lower pair below
     const upperBtnTop = 0;
-    const lowerBtnTop = 62; // 52px button + 10px gap below upper
+    const lowerBtnTop = 82; // 52px button + 30px gap (room for centered badge above lower btns)
     section.innerHTML = `
         <div class="current-word" id="current-word" style="color:${theme.accent};text-shadow:0 1px 0 rgba(255,255,255,0.3),0 2px 0 rgba(0,0,0,0.3),0 3px 0 rgba(0,0,0,0.15),0 0 4px ${theme.accent}80">&nbsp;</div>
         <button class="circle-btn" id="shuffle-btn" title="Shuffle" style="left:12px;top:${upperBtnTop}px">
@@ -3953,7 +3953,7 @@ function hitTestWheel(px, py) {
     const gridRows = crossword && crossword.rows ? crossword.rows : 8;
     const maxByWidth = (window.innerWidth - 100) / 2.4;
     const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
-    const wheelR = Math.max(70, Math.min(122, maxByWidth, maxByViewport));
+    const wheelR = Math.max(70, Math.min(112, maxByWidth, maxByViewport));
     const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
     for (let i = 0; i < wheelPositions.length; i++) {
         const dx = px - wheelPositions[i].x, dy = py - wheelPositions[i].y;
