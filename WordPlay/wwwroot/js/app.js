@@ -514,11 +514,27 @@ function loadProgress() {
                 d.v = 7;
                 localStorage.setItem("wordplay-save", JSON.stringify(d));
             }
-            // Safety: if offset exceeds highest level, the save is corrupted
-            // (e.g. from a bad merge).  Reset offset so displayLevel doesn't go negative.
-            if (state.difficultyOffset > 0 && state.highestLevel < state.difficultyOffset + 1) {
-                state.difficultyOffset = 0;
-                d.doff = 0;
+            // v7→v8 migration: convert raw level numbers to display levels.
+            // In v7, cl/hl included the tier offset. In v8, they store display
+            // levels and the offset is applied only at data lookup time.
+            if (d.v && d.v < 8) {
+                const doff = d.doff || 0;
+                if (doff > 0) {
+                    d.cl = Math.max(1, (d.cl || 1) - doff);
+                    d.hl = Math.max(1, (d.hl || 1) - doff);
+                    state.currentLevel = d.cl;
+                    state.highestLevel = d.hl;
+                    // Convert inProgress keys from raw to display levels
+                    if (d.ip && typeof d.ip === "object") {
+                        const newIp = {};
+                        for (const [key, val] of Object.entries(d.ip)) {
+                            const displayKey = Number(key) - doff;
+                            if (displayKey >= 1) newIp[displayKey] = val;
+                        }
+                        d.ip = newIp;
+                    }
+                }
+                d.v = 8;
                 localStorage.setItem("wordplay-save", JSON.stringify(d));
             }
             // Auto-detect tier for existing players who haven't been assigned one.
@@ -549,7 +565,7 @@ function saveProgress() {
     try {
         saveInProgressState();
         localStorage.setItem("wordplay-save", JSON.stringify({
-            v: 7,  // format version
+            v: 8,  // format version
             cl: state.currentLevel,
             fw: state.foundWords,
             bf: state.bonusFound,
