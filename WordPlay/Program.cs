@@ -448,6 +448,8 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         db.UserProgress.Add(progress);
     }
 
+    var previousHighest = progress.HighestLevel;
+
     // Guard: reject stale client data that would lower progress.
     // Level can only go up through the API. Corrections go through direct DB updates.
     if (highestLevel < progress.HighestLevel)
@@ -463,29 +465,14 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
     }
 
     // Allow explicit monthlyStart / monthlyCoinsStart override (e.g. admin fix)
-    var hasExplicitOverride = false;
     if (body.TryGetProperty("monthlyStart", out var msEl))
     {
         progress.MonthlyStart = msEl.GetInt32();
-        hasExplicitOverride = true;
     }
     if (body.TryGetProperty("monthlyCoinsStart", out var mcsEl))
     {
         progress.MonthlyCoinsStart = mcsEl.GetInt32();
-        hasExplicitOverride = true;
     }
-    if (!hasExplicitOverride)
-    {
-        // Large level change (e.g. Set Progress): reset monthly baseline so it doesn't
-        // inflate the leaderboard — their monthly count starts fresh from here
-        var levelDelta = highestLevel - progress.HighestLevel;
-        if (levelDelta > 50 || levelDelta < -10)
-        {
-            progress.MonthlyStart = highestLevel;
-            progress.MonthlyCoinsStart = totalCoinsEarned;
-        }
-    }
-
     // Sanity guards: normal play averages ~100 coins/level.
     // Cap grossly inflated coins (e.g. cross-user contamination).
     // Floor suspiciously low coins (e.g. first sync before tce tracking existed).
@@ -507,6 +494,39 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
     progress.LevelsCompleted = levelsCompleted;
     progress.TotalCoinsEarned = totalCoinsEarned;
     progress.UpdatedAt = DateTime.UtcNow;
+
+    // Snapshot on level completion (new high-water mark)
+    if (highestLevel > previousHighest)
+    {
+        int snapDoff = 0, snapDt = -1;
+        try
+        {
+            if (progressEl.TryGetProperty("doff", out var doffSnap))
+                snapDoff = doffSnap.GetInt32();
+            if (progressEl.TryGetProperty("dt", out var dtSnap))
+                snapDt = dtSnap.GetInt32();
+        }
+        catch { }
+
+        db.ProgressSnapshots.Add(new ProgressSnapshot
+        {
+            UserId = userId.Value,
+            HighestLevel = highestLevel,
+            TotalCoinsEarned = totalCoinsEarned,
+            DifficultyTier = snapDt,
+            DifficultyOffset = snapDoff,
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        // Retain only the newest 10 snapshots per user
+        var oldSnapshots = await db.ProgressSnapshots
+            .Where(s => s.UserId == userId.Value)
+            .OrderByDescending(s => s.CreatedAt)
+            .Skip(10)
+            .ToListAsync();
+        if (oldSnapshots.Count > 0)
+            db.ProgressSnapshots.RemoveRange(oldSnapshots);
+    }
 
     await db.SaveChangesAsync();
 
@@ -1095,6 +1115,70 @@ app.MapPost("/api/admin/bots", async (HttpRequest request, WordPlayDb db, Claims
     await db.SaveChangesAsync();
 
     return Results.Ok(new { bot.Id, bot.DisplayName, bot.Role });
+}).RequireAuthorization();
+
+app.MapPost("/api/admin/migrate-v8", async (WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+
+    var allProgress = await db.UserProgress.ToListAsync();
+    int migrated = 0;
+
+    foreach (var p in allProgress)
+    {
+        if (string.IsNullOrEmpty(p.ProgressJson)) continue;
+
+        try
+        {
+            var node = JsonNode.Parse(p.ProgressJson)?.AsObject();
+            if (node == null) continue;
+
+            var version = node["v"]?.GetValue<int>() ?? 0;
+            if (version >= 8) continue;  // already migrated
+
+            var doff = node["doff"]?.GetValue<int>() ?? 0;
+            if (doff > 0)
+            {
+                var cl = node["cl"]?.GetValue<int>() ?? 1;
+                var hl = node["hl"]?.GetValue<int>() ?? 1;
+                node["cl"] = Math.Max(1, cl - doff);
+                node["hl"] = Math.Max(1, hl - doff);
+
+                // Convert inProgress keys
+                if (node["ip"] is JsonObject ip)
+                {
+                    var newIp = new JsonObject();
+                    foreach (var kvp in ip.ToList())
+                    {
+                        if (int.TryParse(kvp.Key, out var rawKey))
+                        {
+                            var displayKey = rawKey - doff;
+                            if (displayKey >= 1)
+                                newIp[displayKey.ToString()] = kvp.Value?.DeepClone();
+                        }
+                    }
+                    node["ip"] = newIp;
+                }
+
+                // Update denormalized fields
+                p.HighestLevel = Math.Max(1, p.HighestLevel - doff);
+                p.LevelsCompleted = Math.Max(0, p.LevelsCompleted - doff);
+                if (p.MonthlyStart > doff)
+                    p.MonthlyStart = p.MonthlyStart - doff;
+                else
+                    p.MonthlyStart = p.HighestLevel;  // reset monthly if nonsensical
+            }
+
+            node["v"] = 8;
+            p.ProgressJson = node.ToJsonString();
+            p.UpdatedAt = DateTime.UtcNow;
+            migrated++;
+        }
+        catch { /* skip malformed entries */ }
+    }
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new { migrated, total = allProgress.Count });
 }).RequireAuthorization();
 
 app.MapGet("/api/admin/rabbits", async (WordPlayDb db, ClaimsPrincipal principal) =>
