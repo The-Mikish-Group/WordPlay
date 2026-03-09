@@ -41,7 +41,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 | **16 visual themes** | Sunrise, Forest, Canyon, Ocean, Aurora, and more — each with unique color palettes and gradient backgrounds |
 | **Two grid layouts** | Crossword (interlocking) and Flow (stacked rows) — toggle between them mid-game by tapping the header |
 | **Letter wheel** | Drag across letters to spell words with smooth touch interactions |
-| **Difficulty tiers** | Four tiers (Easy, Medium, Hard, Expert) that scale with your progress |
+| **Difficulty tiers** | Five tiers (Easy, Medium, Hard, Expert, Master) that scale with your progress |
 | **3 hint types** | Hint (random letter), Target (tap a cell), Rocket (reveals up to 5 letters) |
 | **Rescue spin wheel** | When completely stuck, spin a prize wheel to win free hints, targets, rockets, or coins |
 | **Bonus words** | Find extra valid words not on the grid; every 10 bonus words earns a free letter reveal |
@@ -87,7 +87,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 ### Free Rewards
 
 - Every **10 bonus words** found earns a free random letter reveal
-- Every **10 levels** completed earns free hints; targets every 20 levels; rockets every 30 levels (max 30 each)
+- Every **10 levels** completed earns free hints; targets every 20 levels; rockets every 30 levels
 - **Speed bonus**: complete a level within 7 seconds per word (5+ words required) for a free prize spin
 
 ### Stars
@@ -110,7 +110,8 @@ Toggle between them during gameplay by tapping the pack name / level info in the
 | Easy | 1–250 | Short words (3–5 letters), perfect for beginners |
 | Medium | 251–2,000 | Full 6-letter puzzles with moderate bonus words |
 | Hard | 2,001–5,000 | Puzzles with 3–9 bonus words |
-| Expert | 5,001+ | Complex anagrams with 8–15+ bonus words |
+| Expert | 5,001–15,000 | Complex anagrams with 8–15+ bonus words |
+| Master | 15,001+ | 7–8 letter puzzles with massive word counts for true word enthusiasts |
 
 Tier is set automatically based on progress and can be manually upgraded (but not downgraded) in Settings.
 
@@ -381,7 +382,7 @@ Game progress is stored in `localStorage` under `"wordplay-save"`:
 | `ls` | Login streak tracking |
 | `lpd` | Last play date |
 | `fc` | Flow levels completed |
-| `dt` | Difficulty tier (0=Easy, 1=Medium, 2=Hard, 3=Expert) |
+| `dt` | Difficulty tier (0=Easy, 1=Medium, 2=Hard, 3=Expert, 4=Master) |
 | `doff` | Difficulty offset (for tier-based level numbering) |
 | `ip` | In-progress state for levels navigated away from |
 
