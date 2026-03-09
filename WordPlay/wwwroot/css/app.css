@@ -2378,6 +2378,29 @@ html, body {
     50% { transform: scale(1.1); }
 }
 
+/* ---- GRAND PRIZE CELEBRATION ---- */
+@keyframes grandPrizeFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes grandPrizeFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes grandPrizeBannerPop {
+    0% { transform: scale(0.3); opacity: 0; }
+    60% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes grandPrizeCoinFall {
+    0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
+    15% { opacity: 1; }
+    100% { transform: translateY(100vh) translateX(var(--drift)) rotate(360deg); opacity: 0; }
+}
+
 /* ---- DAILY COIN CELL ---- */
 .daily-coin-cell {
     position: relative;

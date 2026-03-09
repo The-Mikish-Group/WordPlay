@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 
 // ---- THEMES ----
 const THEMES = {
@@ -1473,23 +1473,16 @@ function renderBonusStar() {
 
 // ---- STAR FLY ANIMATION (spin wheel → specific star slot) ----
 function animateStarFly() {
-    // Figure out which slot just got filled (the star point that was just added)
-    const filledIdx = Math.floor(state.bonusStarsTotal / 3) - 1;
-    const slotId = "home-star-slot-" + Math.max(0, filledIdx);
-    // Re-render first so slots exist, then animate
-    renderAll();
-    const slot = document.getElementById(slotId);
-    const fallback = document.getElementById("home-star-display");
-    const target = slot || fallback;
+    // Animate toward the star display area (game or home screen)
+    const target = document.getElementById("bonus-star-display")
+                || document.getElementById("home-star-display");
     if (!target) return;
     const targetRect = target.getBoundingClientRect();
     const startX = window.innerWidth / 2;
     const startY = window.innerHeight / 2;
-    const endX = targetRect.left + targetRect.width / 2;
+    // Fly to the right edge of the display (where the new star will appear)
+    const endX = targetRect.right || (targetRect.left + targetRect.width);
     const endY = targetRect.top + targetRect.height / 2;
-
-    // Temporarily show the slot as empty so the star "fills" it on arrival
-    if (slot) slot.textContent = "\u2606";
 
     const star = document.createElement("div");
     star.textContent = "\u2B50";
@@ -1513,14 +1506,15 @@ function animateStarFly() {
             requestAnimationFrame(frame);
         } else {
             star.remove();
-            // Fill the slot
-            if (slot) slot.textContent = "\u2B50";
-            // Pulse the filled slot
-            if (target) {
-                target.style.animation = "none";
-                target.offsetHeight;
-                target.style.animation = "starPulse 0.5s ease";
-            }
+            // Append the filled star to the display
+            const filledIdx = Math.floor(state.bonusStarsTotal / 3) - 1;
+            const newSlot = document.createElement("span");
+            newSlot.className = "bonus-star-slot filled";
+            newSlot.id = (document.getElementById("bonus-star-display") ? "game" : "home") + "-star-slot-" + Math.max(0, filledIdx);
+            newSlot.textContent = "\u2B50";
+            target.appendChild(newSlot);
+            // Pulse
+            newSlot.style.animation = "starFillPulse 0.5s ease";
             playSound("spinPrize");
         }
     }
@@ -1866,7 +1860,7 @@ function handleShuffle() {
         const gridRows = crossword && crossword.rows ? crossword.rows : 8;
         const maxByWidth = (window.innerWidth - 100) / 2.4;
         const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
-        const wheelR = Math.max(70, Math.min(112, maxByWidth, maxByViewport));
+        const wheelR = Math.max(70, Math.min(116, maxByWidth, maxByViewport));
         const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
         const pad = letterR + 16;
         const cx = wheelR + pad, cy = wheelR + pad;
@@ -2384,7 +2378,7 @@ function renderHeader() {
                     const sp = Math.floor(state.bonusStarsTotal / 3);
                     if (sp <= 0) return '';
                     return [0,1,2].filter(i => i < sp).map(i =>
-                        '<span class="bonus-star-slot filled">\u2B50</span>'
+                        '<span class="bonus-star-slot filled" id="game-star-slot-' + i + '">\u2B50</span>'
                     ).join('');
                 })()}</div>
             </div>
@@ -3015,12 +3009,63 @@ function checkBonusStars(word) {
                 state.bonusStarsTotal = 0;
                 saveProgress();
                 renderCoins();
-                renderHeader();
-                showToast("\uD83C\uDF1F Grand Prize! +500 \uD83E\uDE99", "#d4a51c");
-                playSound("bonusChime");
+                showGrandPrizeCelebration();
             }, wordStarCells.length * 200 + 800);
         }
     }
+}
+
+function showGrandPrizeCelebration() {
+    playSound("bonusChime");
+    // Create non-blocking celebration overlay
+    const overlay = document.createElement("div");
+    overlay.style.cssText = `
+        position:fixed;inset:0;z-index:99998;pointer-events:none;
+        display:flex;align-items:center;justify-content:center;
+        animation:grandPrizeFadeIn 0.4s ease;
+    `;
+    // Coin shower particles
+    const particleCount = 24;
+    for (let i = 0; i < particleCount; i++) {
+        const p = document.createElement("div");
+        const startX = 30 + Math.random() * 40;
+        const drift = (Math.random() - 0.5) * 60;
+        const delay = Math.random() * 0.6;
+        const dur = 1.5 + Math.random() * 1;
+        const size = 14 + Math.random() * 10;
+        p.textContent = Math.random() > 0.3 ? "\uD83E\uDE99" : "\u2B50";
+        p.style.cssText = `
+            position:absolute;top:-20px;left:${startX}%;font-size:${size}px;
+            opacity:0;pointer-events:none;
+            animation:grandPrizeCoinFall ${dur}s ${delay}s ease-in forwards;
+            --drift:${drift}px;
+        `;
+        overlay.appendChild(p);
+    }
+    // Center banner
+    const banner = document.createElement("div");
+    banner.innerHTML = `
+        <div style="font-size:42px;letter-spacing:6px;margin-bottom:8px">\u2B50\u2B50\u2B50</div>
+        <div style="font-size:22px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.5)">Grand Prize!</div>
+        <div style="font-size:28px;font-weight:800;color:#ffd740;margin-top:4px;text-shadow:0 2px 8px rgba(0,0,0,0.5)">+500 \uD83E\uDE99</div>
+    `;
+    banner.style.cssText = `
+        text-align:center;padding:28px 40px;
+        background:radial-gradient(ellipse,rgba(212,165,28,0.25) 0%,rgba(0,0,0,0.6) 70%);
+        border-radius:20px;border:2px solid rgba(255,215,0,0.4);
+        backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+        animation:grandPrizeBannerPop 0.5s 0.2s ease both;
+    `;
+    overlay.appendChild(banner);
+    document.body.appendChild(overlay);
+    // Auto-dismiss after 2.5s
+    setTimeout(() => {
+        overlay.style.animation = "grandPrizeFadeOut 0.5s ease forwards";
+        setTimeout(() => {
+            overlay.remove();
+            renderHeader();
+        }, 500);
+    }, 2500);
 }
 
 function animateStarFly(cellKey) {
@@ -3253,7 +3298,7 @@ function renderWheel() {
     const maxByWidth = (window.innerWidth - 100) / 2.4;
     // For grids with many rows, shrink the wheel to leave more vertical room
     const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
-    const wheelR = Math.max(70, Math.min(112, maxByWidth, maxByViewport));
+    const wheelR = Math.max(70, Math.min(116, maxByWidth, maxByViewport));
     const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
     const pad = letterR + 16;
     const cx = wheelR + pad, cy = wheelR + pad;
@@ -3273,7 +3318,7 @@ function renderWheel() {
     const rocketCanUse = state.freeRockets > 0 || state.coins >= 300;
     // Button positions: upper pair flanks the current-word, lower pair below
     const upperBtnTop = 0;
-    const lowerBtnTop = 82; // 52px button + 30px gap (room for centered badge above lower btns)
+    const lowerBtnTop = 72; // 52px button + 20px gap (room for centered badge above lower btns)
     section.innerHTML = `
         <div class="current-word" id="current-word" style="color:${theme.accent};text-shadow:0 1px 0 rgba(255,255,255,0.3),0 2px 0 rgba(0,0,0,0.3),0 3px 0 rgba(0,0,0,0.15),0 0 4px ${theme.accent}80">&nbsp;</div>
         <button class="circle-btn" id="shuffle-btn" title="Shuffle" style="left:12px;top:${upperBtnTop}px">
@@ -3953,7 +3998,7 @@ function hitTestWheel(px, py) {
     const gridRows = crossword && crossword.rows ? crossword.rows : 8;
     const maxByWidth = (window.innerWidth - 100) / 2.4;
     const maxByViewport = (window.innerHeight - gridRows * 22 - 120) / 2.6;
-    const wheelR = Math.max(70, Math.min(112, maxByWidth, maxByViewport));
+    const wheelR = Math.max(70, Math.min(116, maxByWidth, maxByViewport));
     const letterR = Math.min(28, Math.max(18, wheelR * 0.23));
     for (let i = 0; i < wheelPositions.length; i++) {
         const dx = px - wheelPositions[i].x, dy = py - wheelPositions[i].y;
