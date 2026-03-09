@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.3.3";
+const APP_VERSION = "1.3.4";
 
 // ---- THEMES ----
 const THEMES = {
@@ -509,6 +509,12 @@ function loadProgress() {
             state.bonusPuzzle = d.bp || null;
             state.bonusHistory = d.bh || [];
             state.bonusStarsTotal = d.bst || 0;
+            // Safety: if grand prize was earned but reset didn't persist, cash it in now
+            if (state.bonusStarsTotal >= 9) {
+                state.coins += 500;
+                state.totalCoinsEarned += 500;
+                state.bonusStarsTotal = 0;
+            }
             state.speedLevels = d.sl || [];
             state.loginStreak = d.ls || 0;
             state.lastPlayDate = d.lpd || null;
