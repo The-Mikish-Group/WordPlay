@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.3.1";
+const APP_VERSION = "1.3.2";
 
 // ---- THEMES ----
 const THEMES = {
@@ -1910,6 +1910,7 @@ function handleShuffle() {
 }
 
 async function advanceToNextLevel() {
+    state._grandPrizeThisLevel = false;
     if (state.isDailyMode) { exitDailyMode(); return; }
     if (applyPendingUpdate()) return;
     // Advance level logic and return to home screen
@@ -2279,8 +2280,8 @@ function renderHome() {
 
 // ---- HEADER ----
 function layoutIcon() {
-    if (_currentLayoutIsFlow) return '\uD83C\uDF0A ';
-    return '<svg width="14" height="14" viewBox="0 0 16 16" style="vertical-align:-2px;margin-right:3px;opacity:0.7"><rect x="0" y="0" width="5" height="5" rx="1" fill="currentColor"/><rect x="6" y="0" width="5" height="5" rx="1" fill="currentColor"/><rect x="11" y="0" width="5" height="5" rx="1" fill="currentColor"/><rect x="0" y="6" width="5" height="5" rx="1" fill="currentColor"/><rect x="6" y="6" width="5" height="5" rx="1" fill="currentColor"/><rect x="0" y="11" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/><rect x="6" y="11" width="5" height="5" rx="1" fill="currentColor"/><rect x="11" y="6" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/></svg>';
+    if (_currentLayoutIsFlow) return '<span style="font-size:14px;line-height:14px;vertical-align:-1px;margin-right:3px">\uD83C\uDF0A</span>';
+    return '<svg width="14" height="14" viewBox="0 0 14 14" style="vertical-align:-2px;margin-right:3px;opacity:0.7;fill:currentColor"><path d="M4.375,1l0,2.375c0,.552-.448,1-1,1l-2.375,0c-.552,0-1-.448-1-1l0-2.375c0-.552.448-1 1-1l2.375,0c.552,0 1,.448 1,1Z"/><path d="M9.188,1l0,2.375c0,.552-.448,1-1,1l-2.375,0c-.552,0-1-.448-1-1l0-2.375c0-.552.448-1 1-1l2.375,0c.552,0 1,.448 1,1Z"/><path d="M14,1l0,2.375c0,.552-.448,1-1,1l-2.375,0c-.552,0-1-.448-1-1l0-2.375c0-.552.448-1 1-1l2.375,0c.552,0 1,.448 1,1Z"/><path d="M4.375,5.813l0,2.375c0,.552-.448,1-1,1l-2.375,0c-.552,0-1-.448-1-1l0-2.375c0-.552.448-1 1-1l2.375,0c.552,0 1,.448 1,1Z"/><path d="M9.188,5.813l0,2.375c0,.552-.448,1-1,1l-2.375,0c-.552,0-1-.448-1-1l0-2.375c0-.552.448-1 1-1l2.375,0c.552,0 1,.448 1,1Z"/><path d="M4.375,10.625l0,2.375c0,.552-.448,1-1,1l-2.375,0c-.552,0-1-.448-1-1l0-2.375c0-.552.448-1 1-1l2.375,0c.552,0 1,.448 1,1Z" fill-opacity=".4"/><path d="M9.188,10.625l0,2.375c0,.552-.448,1-1,1l-2.375,0c-.552,0-1-.448-1-1l0-2.375c0-.552.448-1 1-1l2.375,0c.552,0 1,.448 1,1Z"/><path d="M14,5.813l0,2.375c0,.552-.448,1-1,1l-2.375,0c-.552,0-1-.448-1-1l0-2.375c0-.552.448-1 1-1l2.375,0c.552,0 1,.448 1,1Z" fill-opacity=".4"/></svg>';
 }
 
 function renderHeader() {
@@ -3007,9 +3008,17 @@ function checkBonusStars(word) {
                 state.coins += 500;
                 state.totalCoinsEarned += 500;
                 state.bonusStarsTotal = 0;
+                state._grandPrizeThisLevel = true;
                 saveProgress();
                 renderCoins();
-                showGrandPrizeCelebration();
+                // Only show celebration if level is still in progress;
+                // if level just completed, the complete modal handles it
+                if (!state.showComplete) {
+                    showGrandPrizeCelebration();
+                } else {
+                    renderHeader();
+                    playSound("bonusChime");
+                }
             }, wordStarCells.length * 200 + 800);
         }
     }
@@ -4196,6 +4205,7 @@ function renderCompleteModal() {
                 <p class="modal-subtitle">${flowLevel ? '\uD83C\uDF0A Flow Level \u00B7 ' : ''}${level.group} \u00B7 ${level.pack} \u00B7 Level ${state.currentLevel}</p>
                 ${flowLevel ? '<p class="modal-coins" style="color:#5b8def;font-size:13px;font-weight:700">\uD83C\uDF0A 3x Rewards</p>' : ''}
                 <p class="modal-coins" style="color:${theme.text}">+${flowLevel ? 3 : 1} \uD83E\uDE99${bonusCount > 0 ? " \u00B7 +" + bonusCount + " bonus" : ""}</p>
+                ${state._grandPrizeThisLevel ? '<p class="modal-coins" style="color:#d4a51c;font-size:16px;font-weight:700">\u2B50\u2B50\u2B50 Grand Prize! +500 \uD83E\uDE99</p>' : ''}
                 ${_speedSpinPending ? `
                     <div style="margin:12px 0 4px;padding:10px 16px;background:linear-gradient(135deg,rgba(255,200,0,0.15),rgba(255,140,0,0.1));border:1px solid rgba(255,200,0,0.3);border-radius:12px">
                         <p style="color:#ffd740;font-size:14px;font-weight:700;margin:0 0 2px">\u26A1 Speed Bonus!</p>
