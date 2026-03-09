@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.3.1";
 
 // ---- THEMES ----
 const THEMES = {
@@ -3321,24 +3321,24 @@ function renderWheel() {
     const lowerBtnTop = 72; // 52px button + 20px gap (room for centered badge above lower btns)
     section.innerHTML = `
         <div class="current-word" id="current-word" style="color:${theme.accent};text-shadow:0 1px 0 rgba(255,255,255,0.3),0 2px 0 rgba(0,0,0,0.3),0 3px 0 rgba(0,0,0,0.15),0 0 4px ${theme.accent}80">&nbsp;</div>
-        <button class="circle-btn" id="shuffle-btn" title="Shuffle" style="left:12px;top:${upperBtnTop}px">
+        <button class="circle-btn" id="shuffle-btn" title="Shuffle" style="left:4px;top:${upperBtnTop}px">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="16 3 21 3 21 8" stroke="#5bc0eb"/><line x1="4" y1="20" x2="21" y2="3" stroke="#5bc0eb"/>
                 <polyline points="21 16 21 21 16 21" stroke="#f7b32b"/><line x1="15" y1="15" x2="21" y2="21" stroke="#f7b32b"/>
                 <line x1="4" y1="4" x2="9" y2="9" stroke="#fc6471"/>
             </svg>
         </button>
-        <button class="circle-btn" id="target-btn" title="Choose letter (200 coins)" style="left:12px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.55'}">
+        <button class="circle-btn" id="target-btn" title="Choose letter (200 coins)" style="left:4px;top:${lowerBtnTop}px;opacity:${targetCanUse ? '1' : '0.55'}">
             <span style="font-size:30px;line-height:1;padding-left:1px">🎯</span>
             <span class="circle-btn-badge" id="target-badge">${state.freeTargets > 0 ? state.freeTargets : ''}</span>
             <span class="circle-btn-price">200</span>
         </button>
-        <button class="circle-btn" id="hint-btn" title="Hint (100 coins)" style="right:12px;top:${upperBtnTop}px;opacity:${hintCanUse ? '1' : '0.55'}">
+        <button class="circle-btn" id="hint-btn" title="Hint (100 coins)" style="right:4px;top:${upperBtnTop}px;opacity:${hintCanUse ? '1' : '0.55'}">
             <span style="font-size:24px;line-height:1">💡</span>
             <span class="circle-btn-badge" id="hint-badge">${state.freeHints > 0 ? state.freeHints : ''}</span>
             <span class="circle-btn-price">100</span>
         </button>
-        <button class="circle-btn" id="rocket-btn" title="Rocket hint (300 coins)" style="right:12px;top:${lowerBtnTop}px;opacity:${rocketCanUse ? '1' : '0.55'}">
+        <button class="circle-btn" id="rocket-btn" title="Rocket hint (300 coins)" style="right:4px;top:${lowerBtnTop}px;opacity:${rocketCanUse ? '1' : '0.55'}">
             <span style="font-size:26px;line-height:1">🚀</span>
             <span class="circle-btn-badge" id="rocket-badge">${state.freeRockets > 0 ? state.freeRockets : ''}</span>
             <span class="circle-btn-price">300</span>
