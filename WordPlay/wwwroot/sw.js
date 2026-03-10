@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wordplay-v100';
+const CACHE_NAME = 'wordplay-v101';
 const ASSETS = [
     '/',
     '/index.html',
@@ -21,7 +21,7 @@ const ASSETS = [
     '/images/bg/solstice-dawn.webp',
 ];
 
-const DATA_CACHE = 'wordplay-data-v4';
+const DATA_CACHE = 'wordplay-data-v5';
 
 self.addEventListener('install', e => {
     e.waitUntil(

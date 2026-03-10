@@ -6,6 +6,7 @@
 //   node level-generator.js analyze [chunkFile]    - Analyze existing levels, find missing words
 //   node level-generator.js enhance [chunkFile]    - Enhance levels by adding missing bonus words
 //   node level-generator.js generate [count]       - Generate new harder levels (default: 200)
+//   node level-generator.js fix                    - Fix levels with obscure grid words
 //   node level-generator.js stats                  - Show statistics across all levels
 //   node level-generator.js search <letters>       - Find all words from a letter set
 // ============================================================
@@ -14,13 +15,16 @@ const fs = require("fs");
 const path = require("path");
 
 const DICT_FILE = path.join(__dirname, "enable1.txt");
+const CASUAL_DICT_FILE = path.join(__dirname, "casual-dict.txt");
 const DATA_DIR = path.join(__dirname, "..", "WordPlay", "wwwroot", "data");
 const MANIFEST_FILE = path.join(DATA_DIR, "chunk-manifest.json");
 const INDEX_FILE = path.join(DATA_DIR, "level-index.json");
 
 // ---- DICTIONARY ----
-let _dict = null;        // Set of all valid words (lowercase)
-let _dictByLen = {};     // length -> [words]
+let _dict = null;          // Set of all valid ENABLE words (for bonus words)
+let _dictByLen = {};       // length -> [words] (ENABLE)
+let _casualDict = null;    // Set of casual-friendly words (for grid words)
+let _casualByLen = {};     // length -> [words] (casual)
 
 function loadDictionary() {
     if (_dict) return;
@@ -33,7 +37,25 @@ function loadDictionary() {
         if (!_dictByLen[len]) _dictByLen[len] = [];
         _dictByLen[len].push(w);
     }
-    console.log(`Dictionary loaded: ${_dict.size} words (3-8 letters)`);
+    console.log(`ENABLE dictionary loaded: ${_dict.size} words (3-8 letters)`);
+
+    // Load casual dictionary (for grid word generation)
+    if (fs.existsSync(CASUAL_DICT_FILE)) {
+        const casualRaw = fs.readFileSync(CASUAL_DICT_FILE, "utf-8");
+        const casualWords = casualRaw.split(/\r?\n/).filter(w => w.length >= 3 && w.length <= 8);
+        _casualDict = new Set(casualWords);
+        _casualByLen = {};
+        for (const w of casualWords) {
+            const len = w.length;
+            if (!_casualByLen[len]) _casualByLen[len] = [];
+            _casualByLen[len].push(w);
+        }
+        console.log(`Casual dictionary loaded: ${_casualDict.size} words (for grid words)`);
+    } else {
+        console.log(`Warning: casual-dict.txt not found, using ENABLE for all words`);
+        _casualDict = _dict;
+        _casualByLen = _dictByLen;
+    }
 }
 
 // ---- CORE: Find all valid words from a letter set ----
@@ -48,6 +70,31 @@ function findAllWords(letterSet) {
     for (const word of _dict) {
         if (word.length > letters.length) continue;
         // Check if word can be made from available letters
+        const needed = {};
+        let valid = true;
+        for (const ch of word) {
+            needed[ch] = (needed[ch] || 0) + 1;
+            if (!available[ch] || needed[ch] > available[ch]) {
+                valid = false;
+                break;
+            }
+        }
+        if (valid) results.push(word);
+    }
+    return results.sort((a, b) => a.length - b.length || a.localeCompare(b));
+}
+
+// ---- CORE: Find casual-friendly words from a letter set (for grid words) ----
+function findCasualWords(letterSet) {
+    const letters = letterSet.toLowerCase();
+    const available = {};
+    for (const ch of letters) {
+        available[ch] = (available[ch] || 0) + 1;
+    }
+
+    const results = [];
+    for (const word of _casualDict) {
+        if (word.length > letters.length) continue;
         const needed = {};
         let valid = true;
         for (const ch of word) {
@@ -432,18 +479,25 @@ function getUpgradeRate8(levelNum) {
 }
 
 function generateOneLevel(numLetters, minWords) {
-    // For 8-letter levels, start from 8-letter dictionary words to guarantee
-    // the key word is actually 8 letters (random letter combos rarely produce
-    // 8-letter words — only ~6% of the time)
-    if (numLetters === 8 && _dictByLen[8] && _dictByLen[8].length > 0) {
-        for (let attempt = 0; attempt < 200; attempt++) {
-            const keyWord = _dictByLen[8][Math.floor(Math.random() * _dictByLen[8].length)];
-            const validWords = findAllWords(keyWord);
-            if (validWords.length < (minWords || 10)) continue;
+    // Strategy: pick key words from casual dict so grid words are recognizable.
+    // Bonus words come from full ENABLE dict (they're optional extra credit).
 
-            const mainCount = Math.min(Math.max(7, Math.floor(validWords.length * 0.5)), 14);
-            const mainWords = selectMainWords(validWords, mainCount, keyWord);
-            const bonusWords = validWords.filter(w => !mainWords.includes(w));
+    // For 7-8 letter levels, start from casual dictionary words of that length
+    if (numLetters >= 7 && _casualByLen[numLetters] && _casualByLen[numLetters].length > 0) {
+        for (let attempt = 0; attempt < 300; attempt++) {
+            const keyWord = _casualByLen[numLetters][Math.floor(Math.random() * _casualByLen[numLetters].length)];
+
+            // Grid words: casual dict only (words players must find)
+            const casualWords = findCasualWords(keyWord);
+            if (casualWords.length < (minWords || 10)) continue;
+
+            const mainCount = Math.min(Math.max(7, Math.floor(casualWords.length * 0.5)), 14);
+            const mainWords = selectMainWords(casualWords, mainCount, keyWord);
+
+            // Bonus words: ALL valid ENABLE words not already in grid
+            const allWords = findAllWords(keyWord);
+            const mainSet = new Set(mainWords);
+            const bonusWords = allWords.filter(w => !mainSet.has(w));
 
             return {
                 letters: keyWord.toUpperCase(),
@@ -454,11 +508,12 @@ function generateOneLevel(numLetters, minWords) {
         return null;
     }
 
+    // For 6-letter levels, use random letter combos with casual dict filtering
     const vowels = "aeiou";
     const commonCons = "bcdfghlmnprst";
     const rareCons = "jkqvwxyz";
 
-    for (let attempt = 0; attempt < 200; attempt++) {
+    for (let attempt = 0; attempt < 300; attempt++) {
         const numVowels = numLetters <= 7
             ? (2 + Math.floor(Math.random() * 2))
             : (2 + Math.floor(Math.random() * 3));
@@ -485,18 +540,20 @@ function generateOneLevel(numLetters, minWords) {
         }
 
         const letters = letterArr.join("");
-        const words = findAllWords(letters);
-        if (words.length < (minWords || 10)) continue;
 
-        const longWords = words.filter(w => w.length >= 6);
+        // Grid words from casual dict only
+        const casualWords = findCasualWords(letters);
+        if (casualWords.length < (minWords || 10)) continue;
+
+        const longWords = casualWords.filter(w => w.length >= 6);
         if (longWords.length === 0) continue;
 
         const keyWord = longWords[longWords.length - 1];
 
-        // Re-filter words to only those spellable from the key word's letters
+        // Re-filter casual words to only those spellable from the key word's letters
         const keyLetters = {};
         for (const ch of keyWord) keyLetters[ch] = (keyLetters[ch] || 0) + 1;
-        const validWords = words.filter(w => {
+        const validCasual = casualWords.filter(w => {
             const needed = {};
             for (const ch of w) {
                 needed[ch] = (needed[ch] || 0) + 1;
@@ -504,11 +561,15 @@ function generateOneLevel(numLetters, minWords) {
             }
             return true;
         });
-        if (validWords.length < (minWords || 10)) continue;
+        if (validCasual.length < (minWords || 10)) continue;
 
-        const mainCount = Math.min(Math.max(7, Math.floor(validWords.length * 0.5)), 14);
-        const mainWords = selectMainWords(validWords, mainCount, keyWord);
-        const bonusWords = validWords.filter(w => !mainWords.includes(w));
+        const mainCount = Math.min(Math.max(7, Math.floor(validCasual.length * 0.5)), 14);
+        const mainWords = selectMainWords(validCasual, mainCount, keyWord);
+
+        // Bonus words: ALL valid ENABLE words not in grid
+        const allWords = findAllWords(keyWord);
+        const mainSet = new Set(mainWords);
+        const bonusWords = allWords.filter(w => !mainSet.has(w));
 
         return {
             letters: keyWord.toUpperCase(),
@@ -694,6 +755,100 @@ function saveGeneratedLevels(levels, startLevel) {
     console.log(`New levels: ${startLevel} - ${startLevel + levels.length - 1}`);
 }
 
+// ---- FIX: Regenerate levels with obscure grid words ----
+function fixLevels(dryRun = false) {
+    loadDictionary();
+    const manifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf-8"));
+
+    let totalFixed = 0;
+    let totalFailed = 0;
+    let totalScanned = 0;
+    const fixedByRange = {};
+
+    for (const chunk of manifest) {
+        const filePath = path.join(DATA_DIR, chunk.file);
+        const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        let chunkFixed = 0;
+
+        for (const [lvNum, entry] of Object.entries(data)) {
+            totalScanned++;
+            const [keyWord, gridWords, group, pack] = entry;
+
+            // Check if any grid word is NOT in casual dict
+            const hasObscure = gridWords.some(w => !_casualDict.has(w.toLowerCase()));
+            if (!hasObscure) continue;
+
+            // Try to fix: if key word is in casual dict, re-filter grid words
+            const kwLower = keyWord.toLowerCase();
+            let fixed = false;
+
+            if (_casualDict.has(kwLower)) {
+                // Key word is casual — just re-select grid words from casual dict
+                const casualWords = findCasualWords(kwLower);
+                if (casualWords.length >= 7) {
+                    const mainCount = Math.min(Math.max(7, Math.floor(casualWords.length * 0.5)), 14);
+                    const mainWords = selectMainWords(casualWords, mainCount, kwLower);
+                    const allWords = findAllWords(kwLower);
+                    const mainSet = new Set(mainWords);
+                    const bonusWords = allWords.filter(w => !mainSet.has(w));
+
+                    data[lvNum] = [
+                        keyWord,
+                        mainWords.map(w => w.toUpperCase()),
+                        group,
+                        pack,
+                        bonusWords.map(w => w.toUpperCase()),
+                    ];
+                    fixed = true;
+                }
+            }
+
+            if (!fixed) {
+                // Key word is NOT casual — generate entirely new level
+                const newLevel = generateOneLevel(keyWord.length, 7);
+                if (newLevel) {
+                    data[lvNum] = [
+                        newLevel.letters,
+                        newLevel.words,
+                        group,
+                        pack,
+                        newLevel.bonus,
+                    ];
+                    fixed = true;
+                } else {
+                    totalFailed++;
+                }
+            }
+
+            if (fixed) {
+                chunkFixed++;
+                totalFixed++;
+                const rangeKey = Math.floor(parseInt(lvNum) / 10000) * 10000;
+                fixedByRange[rangeKey] = (fixedByRange[rangeKey] || 0) + 1;
+            }
+        }
+
+        if (chunkFixed > 0 && !dryRun) {
+            fs.writeFileSync(filePath, JSON.stringify(data));
+        }
+        if (totalScanned % 10000 < 200) {
+            process.stderr.write(`\r  Scanned ${totalScanned.toLocaleString()} levels, fixed ${totalFixed.toLocaleString()}...`);
+        }
+    }
+
+    console.log(`\n\n=== Fix Summary ===`);
+    console.log(`Scanned: ${totalScanned.toLocaleString()} levels`);
+    console.log(`Fixed: ${totalFixed.toLocaleString()} levels`);
+    console.log(`Failed to fix: ${totalFailed} levels`);
+    console.log(`\nBy level range:`);
+    for (const range of Object.keys(fixedByRange).sort((a, b) => a - b)) {
+        const r = parseInt(range);
+        const count = fixedByRange[range];
+        console.log(`  ${String(r).padStart(6)}-${String(r + 9999).padStart(6)}: ${String(count).padStart(5)} fixed`);
+    }
+    if (dryRun) console.log("\n(dry run - no files modified)");
+}
+
 // ---- CLI ----
 const [,, command, ...args] = process.argv;
 
@@ -779,17 +934,28 @@ switch (command) {
         upgradeLevels(dryRun);
         break;
     }
+    case "fix": {
+        const dryRun = args.includes("--dry-run");
+        fixLevels(dryRun);
+        break;
+    }
     default:
         console.log(`WordPlay Level Generator & Enhancer
 
+Uses two dictionaries:
+  - casual-dict.txt: 27K casual-friendly words (for grid words players must find)
+  - enable1.txt: 80K ENABLE Scrabble words (for bonus words / extra credit)
+
 Usage:
   node level-generator.js analyze [chunk-file]   Analyze a chunk, find missing words
-  node level-generator.js enhance <chunk-file>   Add missing words as bonus words
+  node level-generator.js enhance <chunk-file>   Add missing words as bonus words (ENABLE)
   node level-generator.js enhance --all          Enhance ALL level chunks
-  node level-generator.js generate [count]       Generate new harder levels
+  node level-generator.js generate [count]       Generate new harder levels (casual dict)
   node level-generator.js generate [count] --save  Generate AND save to data files
   node level-generator.js upgrade                Upgrade 6-letter levels to 7-8 (graduated)
   node level-generator.js upgrade --dry-run      Preview upgrade without modifying files
+  node level-generator.js fix                    Fix levels with obscure grid words
+  node level-generator.js fix --dry-run          Preview fix without modifying files
   node level-generator.js stats                  Show statistics across sampled levels
   node level-generator.js search <letters>       Find all words from letter set
 

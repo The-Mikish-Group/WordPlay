@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.3.4";
+const APP_VERSION = "1.4.0";
 
 // ---- THEMES ----
 const THEMES = {
