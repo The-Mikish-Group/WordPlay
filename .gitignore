@@ -15,6 +15,9 @@ Properties/
 node_modules/
 package-lock.json
 
+## Large data files used by build tools
+tools/word-freq.txt
+
 ## Environment secrets
 .env
 tools/.env
