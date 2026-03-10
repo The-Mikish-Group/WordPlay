@@ -450,6 +450,12 @@ function selectMainWords(allWords, targetCount, keyWord) {
     return main.sort((a, b) => a.length - b.length || a.localeCompare(b));
 }
 
+// ---- HELPER: Filter bonus words to only lengths present in grid ----
+function filterBonusByGridLengths(bonusWords, gridWords) {
+    const gridLengths = new Set(gridWords.map(w => w.length));
+    return bonusWords.filter(w => gridLengths.has(w.length));
+}
+
 // ---- UPGRADE: Replace 6-letter levels with harder 7-8 letter ones ----
 function getUpgradeRate(levelNum) {
     // Graduated difficulty: more 7-8 letter levels as you progress
@@ -494,10 +500,13 @@ function generateOneLevel(numLetters, minWords) {
             const mainCount = Math.min(Math.max(7, Math.floor(casualWords.length * 0.5)), 14);
             const mainWords = selectMainWords(casualWords, mainCount, keyWord);
 
-            // Bonus words: ALL valid ENABLE words not already in grid
+            // Bonus words: ALL valid ENABLE words not already in grid,
+            // filtered to only lengths present in the grid
             const allWords = findAllWords(keyWord);
             const mainSet = new Set(mainWords);
-            const bonusWords = allWords.filter(w => !mainSet.has(w));
+            const bonusWords = filterBonusByGridLengths(
+                allWords.filter(w => !mainSet.has(w)), mainWords
+            );
 
             return {
                 letters: keyWord.toUpperCase(),
@@ -566,10 +575,13 @@ function generateOneLevel(numLetters, minWords) {
         const mainCount = Math.min(Math.max(7, Math.floor(validCasual.length * 0.5)), 14);
         const mainWords = selectMainWords(validCasual, mainCount, keyWord);
 
-        // Bonus words: ALL valid ENABLE words not in grid
+        // Bonus words: ALL valid ENABLE words not in grid,
+        // filtered to only lengths present in the grid
         const allWords = findAllWords(keyWord);
         const mainSet = new Set(mainWords);
-        const bonusWords = allWords.filter(w => !mainSet.has(w));
+        const bonusWords = filterBonusByGridLengths(
+            allWords.filter(w => !mainSet.has(w)), mainWords
+        );
 
         return {
             letters: keyWord.toUpperCase(),
@@ -790,7 +802,9 @@ function fixLevels(dryRun = false) {
                     const mainWords = selectMainWords(casualWords, mainCount, kwLower);
                     const allWords = findAllWords(kwLower);
                     const mainSet = new Set(mainWords);
-                    const bonusWords = allWords.filter(w => !mainSet.has(w));
+                    const bonusWords = filterBonusByGridLengths(
+                        allWords.filter(w => !mainSet.has(w)), mainWords
+                    );
 
                     data[lvNum] = [
                         keyWord,
@@ -846,6 +860,52 @@ function fixLevels(dryRun = false) {
         const count = fixedByRange[range];
         console.log(`  ${String(r).padStart(6)}-${String(r + 9999).padStart(6)}: ${String(count).padStart(5)} fixed`);
     }
+    if (dryRun) console.log("\n(dry run - no files modified)");
+}
+
+// ---- FILTER-BONUS: Remove bonus words whose length doesn't match any grid word ----
+function filterBonusLengths(dryRun = false) {
+    loadDictionary();
+    const manifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf-8"));
+
+    let totalLevels = 0;
+    let totalFiltered = 0;
+    let totalRemoved = 0;
+
+    for (const chunk of manifest) {
+        const filePath = path.join(DATA_DIR, chunk.file);
+        const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        let chunkChanged = false;
+
+        for (const [lvNum, entry] of Object.entries(data)) {
+            totalLevels++;
+            const [, gridWords, , , bonus] = entry;
+            if (!bonus || bonus.length === 0) continue;
+
+            const gridLengths = new Set(gridWords.map(w => w.length));
+            const filtered = bonus.filter(w => gridLengths.has(w.length));
+            const removed = bonus.length - filtered.length;
+
+            if (removed > 0) {
+                entry[4] = filtered;
+                totalFiltered++;
+                totalRemoved += removed;
+                chunkChanged = true;
+            }
+        }
+
+        if (chunkChanged && !dryRun) {
+            fs.writeFileSync(filePath, JSON.stringify(data));
+        }
+        if (totalLevels % 20000 < 200) {
+            process.stderr.write(`\r  Processed ${totalLevels.toLocaleString()} levels...`);
+        }
+    }
+
+    console.log(`\n\n=== Filter Bonus Summary ===`);
+    console.log(`Scanned: ${totalLevels.toLocaleString()} levels`);
+    console.log(`Levels with bonus words removed: ${totalFiltered.toLocaleString()}`);
+    console.log(`Total bonus words removed: ${totalRemoved.toLocaleString()}`);
     if (dryRun) console.log("\n(dry run - no files modified)");
 }
 
@@ -937,6 +997,11 @@ switch (command) {
     case "fix": {
         const dryRun = args.includes("--dry-run");
         fixLevels(dryRun);
+        break;
+    }
+    case "filter-bonus": {
+        const dryRun = args.includes("--dry-run");
+        filterBonusLengths(dryRun);
         break;
     }
     default:

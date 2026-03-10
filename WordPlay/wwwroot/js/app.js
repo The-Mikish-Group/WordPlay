@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.4.1";
 
 // ---- THEMES ----
 const THEMES = {
@@ -204,6 +204,7 @@ window.debugFlow = function(words, letters) {
     standaloneWord = null;
     placedWords = crossword.placements.map(p => p.word);
     bonusPool = [...(level.bonus || [])];
+    { const _gl = new Set(placedWords.map(w => w.length)); bonusPool = bonusPool.filter(w => _gl.has(w.length)); }
     totalRequired = placedWords.length;
     state.foundWords = [];
     state.revealedCells = [];
@@ -428,6 +429,9 @@ async function recompute() {
     // Words that couldn't be placed in the crossword become bonus
     const overflow = gridWords.filter(w => !placedWords.includes(w));
     bonusPool = [...(level.bonus || []), ...overflow];
+    // Only allow bonus words whose length matches a word on the grid
+    const _gridLengths = new Set(placedWords.map(w => w.length));
+    bonusPool = bonusPool.filter(w => _gridLengths.has(w.length));
     // Filter standalone from bonus pool so it doesn't appear there
     if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
     totalRequired = placedWords.length;
@@ -743,6 +747,7 @@ function toggleLayout() {
     }
     placedWords = crossword.placements.map(p => p.word);
     bonusPool = [...(level.bonus || []), ...gridWords.filter(w => !placedWords.includes(w))];
+    { const _gl = new Set(placedWords.map(w => w.length)); bonusPool = bonusPool.filter(w => _gl.has(w.length)); }
     if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
     totalRequired = placedWords.length;
 
@@ -836,6 +841,7 @@ async function enterDailyMode() {
             }
             placedWords = crossword.placements.map(p => p.word);
             bonusPool = [...(level.bonus || []), ...gridWords.filter(w => !placedWords.includes(w))];
+            { const _gl = new Set(placedWords.map(w => w.length)); bonusPool = bonusPool.filter(w => _gl.has(w.length)); }
             if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
             totalRequired = placedWords.length;
             state.foundWords = (state.dailyPuzzle.fw || []).filter(w => placedWords.includes(w));
@@ -926,6 +932,7 @@ async function enterBonusMode() {
             }
             placedWords = crossword.placements.map(p => p.word);
             bonusPool = [...(level.bonus || []), ...gridWords.filter(w => !placedWords.includes(w))];
+            { const _gl = new Set(placedWords.map(w => w.length)); bonusPool = bonusPool.filter(w => _gl.has(w.length)); }
             if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
             totalRequired = placedWords.length;
             state.foundWords = (state.bonusPuzzle.fw || []).filter(w => placedWords.includes(w));
@@ -2243,6 +2250,7 @@ function renderHome() {
             }
             placedWords = crossword.placements.map(p => p.word);
             bonusPool = [...(level.bonus || []), ...gridWords.filter(w => !placedWords.includes(w))];
+            { const _gl = new Set(placedWords.map(w => w.length)); bonusPool = bonusPool.filter(w => _gl.has(w.length)); }
             if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
             totalRequired = placedWords.length;
             // Re-restore found words for new placements
