@@ -39,7 +39,7 @@ const enable = new Set(
 // Build casual word list
 const casualWords = new Set();
 
-// 1. Wordscapes grid words (proven casual-friendly)
+// 1. Original game grid words (proven casual-friendly)
 for (const w of wsGridWords) {
     if (enable.has(w) && w.length >= 3 && w.length <= 8) {
         casualWords.add(w);
@@ -68,7 +68,7 @@ for (const w of enable) {
 for (const w of BLOCKLIST) casualWords.delete(w);
 
 const fromFreq = casualWords.size - fromWS;
-console.log("Casual dict: " + fromWS + " from Wordscapes + " + fromFreq + " from frequency = " + casualWords.size + " total");
+console.log("Casual dict: " + fromWS + " from original game + " + fromFreq + " from frequency = " + casualWords.size + " total");
 
 // Stats by length
 const byLen = {};
