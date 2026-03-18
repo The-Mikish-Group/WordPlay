@@ -417,7 +417,19 @@ function generateLevels(count = 200) {
     return generated;
 }
 
-function selectMainWords(allWords, targetCount, keyWord) {
+// ---- HELPER: Compute level signature for dedup ----
+function levelSig(keyWord, gridWords) {
+    return keyWord.toUpperCase() + "|" + gridWords.map(w => w.toUpperCase()).join(",");
+}
+
+function selectMainWords(allWords, targetCount, keyWord, seed) {
+    // Simple seeded PRNG for deterministic-but-varied selection
+    let _s = ((seed || 0) * 2654435761) >>> 0;  // Knuth multiplicative hash
+    function seededRand() {
+        _s = (_s * 1664525 + 1013904223) >>> 0;
+        return (_s >>> 0) / 0x100000000;
+    }
+
     // Always include the key word
     const main = [keyWord];
     const remaining = allWords.filter(w => w !== keyWord);
@@ -430,18 +442,27 @@ function selectMainWords(allWords, targetCount, keyWord) {
         byLen[len].push(w);
     }
 
-    // Ensure we have a mix of lengths
-    // Priority: include at least one of each available length
+    // Shuffle each bucket using seeded random (this is the key variation mechanism)
+    for (const len of Object.keys(byLen)) {
+        const arr = byLen[len];
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(seededRand() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+    }
+
+    // Pick one from each length bucket
     const lengths = Object.keys(byLen).sort((a, b) => a - b);
     for (const len of lengths) {
         if (main.length >= targetCount) break;
-        const pick = byLen[len][Math.floor(Math.random() * byLen[len].length)];
+        const pick = byLen[len][0];  // first of shuffled bucket
         if (!main.includes(pick)) main.push(pick);
     }
 
-    // Fill remaining slots from longer words (more challenging)
+    // Fill remaining slots from shuffled longer words
     const remainingPool = remaining.filter(w => !main.includes(w));
-    remainingPool.sort((a, b) => b.length - a.length); // prefer longer words
+    // Sort by length desc, but within same length keep shuffled order
+    remainingPool.sort((a, b) => b.length - a.length);
     for (const w of remainingPool) {
         if (main.length >= targetCount) break;
         main.push(w);
