@@ -801,6 +801,17 @@ function fixLevels(dryRun = false) {
     loadDictionary();
     const manifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf-8"));
 
+    // Pre-populate signatures from ALL existing levels
+    const usedSignatures = new Set();
+    for (const chunk of manifest) {
+        const filePath = path.join(DATA_DIR, chunk.file);
+        const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        for (const [, entry] of Object.entries(data)) {
+            usedSignatures.add(levelSig(entry[0], entry[1]));
+        }
+    }
+    console.log(`Pre-loaded ${usedSignatures.size} unique signatures`);
+
     let totalFixed = 0;
     let totalFailed = 0;
     let totalScanned = 0;
@@ -824,31 +835,40 @@ function fixLevels(dryRun = false) {
             let fixed = false;
 
             if (_casualDict.has(kwLower)) {
-                // Key word is casual — just re-select grid words from casual dict
+                // Key word is casual — try re-selecting grid words with level-specific seed
                 const casualWords = findCasualWords(kwLower);
                 if (casualWords.length >= 7) {
-                    const mainCount = Math.min(Math.max(7, Math.floor(casualWords.length * 0.5)), 14);
-                    const mainWords = selectMainWords(casualWords, mainCount, kwLower);
-                    const allWords = findAllWords(kwLower);
-                    const mainSet = new Set(mainWords);
-                    const bonusWords = filterBonusByGridLengths(
-                        allWords.filter(w => !mainSet.has(w)), mainWords
-                    );
+                    // Try multiple seeds to find a unique combination
+                    for (let seedAttempt = 0; seedAttempt < 50; seedAttempt++) {
+                        const seed = parseInt(lvNum) * 31 + seedAttempt;
+                        const mainCount = Math.min(Math.max(7, Math.floor(casualWords.length * 0.5)), 14);
+                        const mainWords = selectMainWords(casualWords, mainCount, kwLower, seed);
+                        const sig = levelSig(kwLower, mainWords);
+                        if (usedSignatures.has(sig)) continue;
 
-                    data[lvNum] = [
-                        keyWord,
-                        mainWords.map(w => w.toUpperCase()),
-                        group,
-                        pack,
-                        bonusWords.map(w => w.toUpperCase()),
-                    ];
-                    fixed = true;
+                        const allWords = findAllWords(kwLower);
+                        const mainSet = new Set(mainWords);
+                        const bonusWords = filterBonusByGridLengths(
+                            allWords.filter(w => !mainSet.has(w)), mainWords
+                        );
+
+                        usedSignatures.add(sig);
+                        data[lvNum] = [
+                            keyWord,
+                            mainWords.map(w => w.toUpperCase()),
+                            group,
+                            pack,
+                            bonusWords.map(w => w.toUpperCase()),
+                        ];
+                        fixed = true;
+                        break;
+                    }
                 }
             }
 
             if (!fixed) {
-                // Key word is NOT casual — generate entirely new level
-                const newLevel = generateOneLevel(keyWord.length, 7);
+                // Key word is NOT casual (or couldn't produce unique variant) — generate entirely new level
+                const newLevel = generateOneLevel(keyWord.length, 7, usedSignatures, parseInt(lvNum));
                 if (newLevel) {
                     data[lvNum] = [
                         newLevel.letters,
