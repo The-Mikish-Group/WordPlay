@@ -7,6 +7,7 @@
 //   node level-generator.js enhance [chunkFile]    - Enhance levels by adding missing bonus words
 //   node level-generator.js generate [count]       - Generate new harder levels (default: 200)
 //   node level-generator.js fix                    - Fix levels with obscure grid words
+//   node level-generator.js dedup                  - Deduplicate all levels
 //   node level-generator.js stats                  - Show statistics across all levels
 //   node level-generator.js search <letters>       - Find all words from a letter set
 // ============================================================
@@ -958,6 +959,108 @@ function filterBonusLengths(dryRun = false) {
     if (dryRun) console.log("\n(dry run - no files modified)");
 }
 
+// ---- DEDUP: Find and regenerate duplicate levels ----
+function dedupLevels(dryRun = false) {
+    loadDictionary();
+    const manifest = JSON.parse(fs.readFileSync(MANIFEST_FILE, "utf-8"));
+
+    // Pass 1: Build signature map — first occurrence wins
+    const sigToFirst = new Map();   // sig -> level number (first seen)
+    const dupesByChunk = new Map();  // chunkFile -> [{ lvNum, letterLen }]
+    let totalDupes = 0;
+
+    for (const chunk of manifest) {
+        const filePath = path.join(DATA_DIR, chunk.file);
+        const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        const chunkDupes = [];
+
+        for (const [lvNum, entry] of Object.entries(data)) {
+            const sig = levelSig(entry[0], entry[1]);
+            if (sigToFirst.has(sig)) {
+                chunkDupes.push({ lvNum, letterLen: entry[0].length });
+                totalDupes++;
+            } else {
+                sigToFirst.set(sig, parseInt(lvNum));
+            }
+        }
+
+        if (chunkDupes.length > 0) {
+            dupesByChunk.set(chunk.file, chunkDupes);
+        }
+    }
+
+    console.log(`\nFound ${totalDupes} duplicate levels to regenerate`);
+    if (totalDupes === 0) {
+        console.log("No duplicates found!");
+        return;
+    }
+
+    // Build usedSignatures from all first-occurrences
+    const usedSignatures = new Set(sigToFirst.keys());
+    console.log(`Tracking ${usedSignatures.size} existing unique signatures`);
+
+    // Pass 2: Regenerate each duplicate
+    let regenerated = 0;
+    let failed = 0;
+
+    for (const chunk of manifest) {
+        if (!dupesByChunk.has(chunk.file)) continue;
+
+        const filePath = path.join(DATA_DIR, chunk.file);
+        const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        const dupes = dupesByChunk.get(chunk.file);
+        let chunkRegen = 0;
+
+        for (const { lvNum, letterLen } of dupes) {
+            const [, , group, pack] = data[lvNum];
+
+            // Try to generate a unique replacement at the same letter length
+            const newLevel = generateOneLevel(letterLen, 7, usedSignatures, parseInt(lvNum));
+            if (newLevel) {
+                data[lvNum] = [
+                    newLevel.letters,
+                    newLevel.words,
+                    group,
+                    pack,
+                    newLevel.bonus,
+                ];
+                chunkRegen++;
+                regenerated++;
+            } else {
+                // Try adjacent letter lengths as fallback
+                const fallbackLen = letterLen <= 6 ? 7 : letterLen - 1;
+                const fallback = generateOneLevel(fallbackLen, 7, usedSignatures, parseInt(lvNum) + 10000);
+                if (fallback) {
+                    data[lvNum] = [
+                        fallback.letters,
+                        fallback.words,
+                        group,
+                        pack,
+                        fallback.bonus,
+                    ];
+                    chunkRegen++;
+                    regenerated++;
+                } else {
+                    failed++;
+                }
+            }
+        }
+
+        if (chunkRegen > 0 && !dryRun) {
+            fs.writeFileSync(filePath, JSON.stringify(data));
+        }
+        if (chunkRegen > 0) {
+            process.stderr.write(`\r  ${chunk.file}: regenerated ${chunkRegen}/${dupes.length} duplicates`);
+        }
+    }
+
+    console.log(`\n\n=== Dedup Summary ===`);
+    console.log(`Duplicates found: ${totalDupes}`);
+    console.log(`Regenerated: ${regenerated}`);
+    console.log(`Failed: ${failed}`);
+    if (dryRun) console.log("\n(dry run - no files modified)");
+}
+
 // ---- CLI ----
 const [,, command, ...args] = process.argv;
 
@@ -1053,6 +1156,11 @@ switch (command) {
         filterBonusLengths(dryRun);
         break;
     }
+    case "dedup": {
+        const dryRun = args.includes("--dry-run");
+        dedupLevels(dryRun);
+        break;
+    }
     default:
         console.log(`WordPlay Level Generator & Enhancer
 
@@ -1070,6 +1178,8 @@ Usage:
   node level-generator.js upgrade --dry-run      Preview upgrade without modifying files
   node level-generator.js fix                    Fix levels with obscure grid words
   node level-generator.js fix --dry-run          Preview fix without modifying files
+  node level-generator.js dedup                  Deduplicate all levels
+  node level-generator.js dedup --dry-run        Preview dedup without modifying files
   node level-generator.js stats                  Show statistics across sampled levels
   node level-generator.js search <letters>       Find all words from letter set
 
