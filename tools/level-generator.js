@@ -505,7 +505,7 @@ function getUpgradeRate8(levelNum) {
     return 0;  // generated levels, skip
 }
 
-function generateOneLevel(numLetters, minWords) {
+function generateOneLevel(numLetters, minWords, usedSignatures, levelNum) {
     // Strategy: pick key words from casual dict so grid words are recognizable.
     // Bonus words come from full ENABLE dict (they're optional extra credit).
 
@@ -519,7 +519,7 @@ function generateOneLevel(numLetters, minWords) {
             if (casualWords.length < (minWords || 10)) continue;
 
             const mainCount = Math.min(Math.max(7, Math.floor(casualWords.length * 0.5)), 14);
-            const mainWords = selectMainWords(casualWords, mainCount, keyWord);
+            const mainWords = selectMainWords(casualWords, mainCount, keyWord, levelNum || attempt);
 
             // Bonus words: ALL valid ENABLE words not already in grid,
             // filtered to only lengths present in the grid
@@ -529,6 +529,10 @@ function generateOneLevel(numLetters, minWords) {
                 allWords.filter(w => !mainSet.has(w)), mainWords
             );
 
+            const sig = levelSig(keyWord, mainWords);
+            if (usedSignatures && usedSignatures.has(sig)) continue;  // try another key word
+
+            if (usedSignatures) usedSignatures.add(sig);
             return {
                 letters: keyWord.toUpperCase(),
                 words: mainWords.map(w => w.toUpperCase()),
@@ -594,7 +598,7 @@ function generateOneLevel(numLetters, minWords) {
         if (validCasual.length < (minWords || 10)) continue;
 
         const mainCount = Math.min(Math.max(7, Math.floor(validCasual.length * 0.5)), 14);
-        const mainWords = selectMainWords(validCasual, mainCount, keyWord);
+        const mainWords = selectMainWords(validCasual, mainCount, keyWord, levelNum || attempt);
 
         // Bonus words: ALL valid ENABLE words not in grid,
         // filtered to only lengths present in the grid
@@ -604,6 +608,10 @@ function generateOneLevel(numLetters, minWords) {
             allWords.filter(w => !mainSet.has(w)), mainWords
         );
 
+        const sig = levelSig(keyWord, mainWords);
+        if (usedSignatures && usedSignatures.has(sig)) continue;  // try another combo
+
+        if (usedSignatures) usedSignatures.add(sig);
         return {
             letters: keyWord.toUpperCase(),
             words: mainWords.map(w => w.toUpperCase()),
