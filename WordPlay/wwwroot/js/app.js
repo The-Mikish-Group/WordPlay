@@ -2533,6 +2533,7 @@ function renderTierChooser() {
 
 function checkTierPromotion() {
     if (state.difficultyTier < 0 || state.difficultyTier >= DIFFICULTY_TIERS.length - 1) return;
+    if (state.tierCeiling >= 0 && state.difficultyTier >= state.tierCeiling) return;
     const nextTier = DIFFICULTY_TIERS[state.difficultyTier + 1];
     // Threshold in display terms: how many levels until the next tier's data range
     const threshold = nextTier.offset - state.difficultyOffset + 1;
