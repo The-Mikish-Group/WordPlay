@@ -160,6 +160,7 @@ const state = {
     isDailyMode: false,
     difficultyTier: -1,       // tier index (0=Easy,1=Medium,2=Hard,3=Expert), -1 = not chosen yet
     difficultyOffset: 0,      // level offset for current tier
+    tierCeiling: -1,           // manual tier cap; -1 = no cap (organic promotion allowed)
 };
 
 // ---- POWERUP CAPS ----
@@ -364,6 +365,7 @@ function resetStateToDefaults() {
     state.flowsCompleted = 0;
     state.difficultyTier = 0;
     state.difficultyOffset = 0;
+    state.tierCeiling = -1;
 }
 
 
@@ -525,6 +527,7 @@ function loadProgress() {
             state.flowsCompleted = d.fc || 0;
             state.difficultyTier = d.dt !== undefined ? d.dt : -1;
             state.difficultyOffset = d.doff || 0;
+            state.tierCeiling = d.tc !== undefined ? d.tc : -1;
 
             // v7→v8 migration: convert raw level numbers to display levels.
             // In v7, cl/hl included the tier offset. In v8, they store display
@@ -606,6 +609,7 @@ function saveProgress() {
             fc: state.flowsCompleted,
             dt: state.difficultyTier,
             doff: state.difficultyOffset,
+            tc: state.tierCeiling,
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
     } catch (e) { /* ignore */ }
