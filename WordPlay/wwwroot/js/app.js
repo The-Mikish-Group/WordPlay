@@ -4364,22 +4364,26 @@ function renderMenu() {
 
     // Difficulty Tier
     if (state.difficultyTier >= 0) {
-        const currentTier = DIFFICULTY_TIERS[state.difficultyTier];
-        const levelsPlayed = state.highestLevel || 1;
-        const canGoDown = levelsPlayed < 10 || state.showAdmin;
         let tierOptions = "";
         for (let i = 0; i < DIFFICULTY_TIERS.length; i++) {
-            if (!canGoDown && i < state.difficultyTier) continue;
             const t = DIFFICULTY_TIERS[i];
+            // Compute capacity: levels available in this tier
+            const capacity = (i < DIFFICULTY_TIERS.length - 1)
+                ? DIFFICULTY_TIERS[i + 1].offset - t.offset
+                : Infinity;
+            if (state.highestLevel > capacity) continue; // tier too small
             tierOptions += `<option value="${i}" ${i === state.difficultyTier ? "selected" : ""}>${t.label} \u2014 ${t.tagline}</option>`;
         }
+        const hint = state.tierCeiling >= 0
+            ? "Auto-promotion paused. Select a higher tier to resume."
+            : "Higher tiers have harder puzzles.";
         html += `
             <div class="menu-setting">
                 <label class="menu-setting-label">Difficulty Tier</label>
                 <select id="menu-tier-select" class="menu-setting-select" style="accent-color:${theme.accent}">
                     ${tierOptions}
                 </select>
-                <div class="menu-setting-hint">${canGoDown ? "Fewer than 10 levels played — you can still change freely." : "Higher tiers have harder puzzles. You can move up but not down."}</div>
+                <div class="menu-setting-hint">${hint}</div>
             </div>
         `;
     }
