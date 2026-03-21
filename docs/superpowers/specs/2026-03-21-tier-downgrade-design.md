@@ -56,7 +56,7 @@ Replace the `canGoDown` / `levelsPlayed < 10` logic:
 
 - For each tier, compute capacity: if a next tier exists, `capacity = nextTier.offset - tier.offset`; for Master, capacity is unlimited.
 - Show the tier in the dropdown only if `state.highestLevel <= capacity` (or capacity is unlimited).
-- Update hint text to reflect which tiers are available rather than the old "can move up but not down" message.
+- Replace hint text. When `tierCeiling >= 0`: `"Auto-promotion paused. Select a higher tier to resume."` Otherwise: `"Higher tiers have harder puzzles."`
 
 ### 4. Tier change handler (~lines 4749-4770)
 
@@ -75,13 +75,19 @@ if (state.tierCeiling >= 0 && state.difficultyTier >= state.tierCeiling) return;
 
 This prevents auto-promotion from overriding the player's deliberate tier choice.
 
-### 6. Sync (sync.js ~line 223)
+### 6. resetStateToDefaults() (~line 367)
 
-Add `tc` to the merge logic:
+Add `state.tierCeiling = -1;` after `state.difficultyOffset = 0;` so game resets clear the ceiling.
+
+### 7. Sync (sync.js ~line 223)
+
+Add `tc` to the merge logic, taking from the primary (higher `highestLevel`) device:
 
 ```javascript
 merged.tc = primary.tc !== undefined ? primary.tc : -1;
 ```
+
+This means a deliberate downgrade on a secondary device can be overwritten by the primary. This is intentional — the device that is further along owns the tier configuration, keeping `tc` consistent with `dt` and `doff`.
 
 ## What Does NOT Change
 
@@ -97,3 +103,5 @@ merged.tc = primary.tc !== undefined ? primary.tc : -1;
 - **Tier cap overflow**: Prevented by hiding tiers from the dropdown when `highestLevel > capacity`.
 - **Auto-promotion after downgrade**: Prevented by `tierCeiling`.
 - **Admin override**: The `showAdmin` flag continues to bypass restrictions (though the capacity check still applies to prevent truly impossible states).
+- **Speed milestones on Easy**: `checkSpeedMilestone()` blocks speed bonuses when `difficultyTier === 0`. After a downgrade to Easy, speed milestones will be blocked. This is correct for gameplay balance.
+- **Game reset**: `resetStateToDefaults()` clears `tierCeiling` to `-1`, ensuring a fresh start.
