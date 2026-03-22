@@ -113,7 +113,7 @@ Toggle between them during gameplay by tapping the pack name / level info in the
 | Expert | 5,001–15,000 | Complex anagrams with 8–15+ bonus words |
 | Master | 15,001+ | 7–8 letter puzzles with massive word counts for true word enthusiasts |
 
-Tier is set automatically based on progress and can be manually upgraded (but not downgraded) in Settings.
+Tier is set automatically based on progress and can be changed in Settings. Tiers whose level capacity is smaller than your current level are hidden.
 
 ### Daily Puzzle
 
