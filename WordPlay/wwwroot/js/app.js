@@ -4760,9 +4760,13 @@ function renderMenu() {
         tierSelect.onchange = () => {
             const newIdx = parseInt(tierSelect.value);
             if (newIdx === state.difficultyTier) return;
-            // Block downgrade after 10+ levels (unless admin)
-            if (newIdx < state.difficultyTier && state.highestLevel >= 10 && !state.showAdmin) return;
             const newTier = DIFFICULTY_TIERS[newIdx];
+            // Set or clear the auto-promotion ceiling
+            if (newIdx < state.difficultyTier) {
+                state.tierCeiling = newIdx; // downgrade: cap auto-promotion
+            } else {
+                state.tierCeiling = -1;     // upgrade: restore organic promotion
+            }
             state.difficultyTier = newIdx;
             state.difficultyOffset = newTier.offset;
             // Display levels stay the same — only the data range changes
