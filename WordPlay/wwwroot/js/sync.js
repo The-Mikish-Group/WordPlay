@@ -225,6 +225,7 @@ function mergeProgress(local, server) {
     // levels; doff maps them to data-file positions at lookup time.
     merged.dt = primary.dt !== undefined ? primary.dt : -1;
     merged.doff = primary.doff || 0;
+    merged.tc = primary.tc !== undefined ? primary.tc : -1;
 
     return merged;
 }
