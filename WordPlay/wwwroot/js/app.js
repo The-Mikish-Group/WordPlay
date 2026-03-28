@@ -338,6 +338,24 @@ function preloadBgImage(key) {
 // ---- COMPUTED ----
 let level, theme, crossword, placedWords, bonusPool, totalRequired, wheelLetters;
 let standaloneWord = null;
+let DEFINITIONS = null;
+let _cellToWord = {};     // "row,col" → word (only for cells owned by exactly 1 word)
+
+function buildCellWordMaps() {
+    const count = {};
+    _cellToWord = {};
+    if (!crossword) return;
+    for (const p of crossword.placements) {
+        for (const c of p.cells) {
+            const k = c.row + "," + c.col;
+            count[k] = (count[k] || 0) + 1;
+            _cellToWord[k] = p.word;
+        }
+    }
+    for (const k in count) {
+        if (count[k] > 1) delete _cellToWord[k];
+    }
+}
 
 function resetStateToDefaults() {
     state.currentLevel = 1;
@@ -437,6 +455,7 @@ async function recompute() {
     // Filter standalone from bonus pool so it doesn't appear there
     if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
     totalRequired = placedWords.length;
+    buildCellWordMaps();
     rebuildWheelLetters();
     // Preload next chunk
     if (typeof preloadAround === "function") {
@@ -754,6 +773,7 @@ function toggleLayout() {
     { const _gl = new Set(placedWords.map(w => w.length)); bonusPool = bonusPool.filter(w => _gl.has(w.length)); }
     if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
     totalRequired = placedWords.length;
+    buildCellWordMaps();
     // Reconcile bonus words that are now grid words after layout change
     state.bonusFound = state.bonusFound.filter(w => !placedWords.includes(w));
 
@@ -2652,6 +2672,48 @@ function renderBonusModal(show) {
     };
 }
 
+// ---- DEFINITION MODAL ----
+function showDefinition(word) {
+    if (!DEFINITIONS) return;
+    const entry = DEFINITIONS[word];
+    if (!entry) {
+        showToast("No definition available", "rgba(255,255,255,0.5)", true);
+        return;
+    }
+    let overlay = document.getElementById("definition-modal");
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "definition-modal";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+
+    const defsHtml = entry.d.map((def, i) =>
+        `<div class="def-entry"><span class="def-num" style="color:${theme.accent}">${i + 1}.</span> ${def}</div>`
+    ).join("");
+
+    overlay.innerHTML = `
+        <div class="modal-box def-modal-box">
+            <div class="def-close" id="def-close-x">&times;</div>
+            <div class="def-title" style="color:${theme.accent}">${word}</div>
+            <div class="def-panel">
+                <div class="def-pos">${entry.p}</div>
+                ${defsHtml}
+            </div>
+            <button class="modal-next-btn" id="def-close-btn"
+                style="background:linear-gradient(180deg,${theme.accent},${theme.accent}bb);border:2px solid ${theme.accent};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3);margin-top:16px">
+                Close
+            </button>
+        </div>
+    `;
+
+    const close = () => { overlay.style.display = "none"; };
+    document.getElementById("def-close-btn").onclick = close;
+    document.getElementById("def-close-x").onclick = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+}
+
 // ---- GRID ----
 function renderGrid() {
     let area = document.getElementById("grid-area");
@@ -2801,6 +2863,15 @@ function renderGrid() {
                 div.style.color = "#fff";
                 div.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
                 div.textContent = cell;
+                // Definition tap: non-intersection cells of fully found words
+                const defWord = _cellToWord[k];
+                if (defWord && !state.pickMode && DEFINITIONS && state.foundWords.includes(defWord)) {
+                    div.style.cursor = "pointer";
+                    div.onclick = () => showDefinition(defWord);
+                } else {
+                    div.style.cursor = "";
+                    div.onclick = null;
+                }
             } else if (standaloneCells.has(k)) {
                 // Unsolved standalone coin cell
                 div.style.background = state.pickMode ? "rgba(255,255,200,1)" : "rgba(220,215,230,1)";
@@ -6442,6 +6513,7 @@ const GUIDE_SECTIONS = [
     { icon: "\u2B50", title: "Bonus Puzzle", body: "Earn bonus puzzles through achievements \u2014 complete a level pack, finish 5 levels in an hour, maintain a 3-day play streak, or beat the daily puzzle. A gold <b>\u2B50 Bonus Puzzle</b> button appears on the home screen. Inside, 9 stars are scattered across the grid. Find starred words to collect stars and earn 10 coins each! Every 3 stars fills one of your 3 star slots. Collect all 9 stars for a <b>500-coin grand prize</b>. But be careful \u2014 leaving the puzzle forfeits your progress!" },
     { icon: "\uD83C\uDF0A", title: "Flow Levels", body: "Every 5th level (5, 10, 15, 20\u2026) is a <b>flow level</b>! These use a stacked layout instead of the usual crossword. Same words, same letters \u2014 just a different visual style with <b>3x rewards</b>: 3 coins per word, 15 per bonus word, and 200 for the coin word." },
     { icon: "\u21C4", title: "Grid Layouts", body: "WordPlay has two grid styles: <b>Crossword</b> (interlocking words) and <b>Flow</b> (stacked rows). You can <b>switch between them anytime</b> by tapping the level info at the top of the screen (the pack name and level number). All your progress \u2014 found words, hints, and stars \u2014 carries over when you switch. Set your preferred default in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> under Grid Layout: Auto (game decides), Crossword, or Flow." },
+    { icon: "\uD83D\uDCD6", title: "Word Definitions", body: "Curious about a word? Tap any found word in the grid to see its definition! A popup shows the part of speech and meaning. Only non-intersecting letters are tappable \u2014 look for cells that belong to just one word." },
     { icon: "\u26A1", title: "Speed Bonus", body: "Beat the clock for a free prize spin! When you start swiping on a level with 5+ words, a hidden timer starts. Finish the level within <b>7 seconds per word</b> and you\u2019ll earn a \u26A1 Speed Bonus \u2014 a free spin on the prize wheel with chances to win hints, targets, rockets, bonus stars, or 100 coins. Works on regular levels and flow levels!" },
     { icon: "\uD83C\uDFAF", title: "Difficulty Tiers", body: "WordPlay matches puzzles to your skill level! There are five tiers:<br><br>\uD83C\uDF31 <b>Easy</b> \u2014 Levels 1\u2013250. Short words with 3\u20135 letters, perfect for beginners.<br>\uD83C\uDFC5 <b>Medium</b> \u2014 Levels 251\u20132,000. Full 6-letter puzzles with moderate bonus words.<br>\uD83D\uDD25 <b>Hard</b> \u2014 Levels 2,001\u20135,000. Puzzles loaded with 3\u20139 bonus words.<br>\uD83C\uDFC6 <b>Expert</b> \u2014 Levels 5,001\u201315,000. Complex anagrams with 8\u201315+ bonus words.<br>\uD83D\uDC51 <b>Master</b> \u2014 Levels 15,001+. 7\u20138 letter puzzles with massive word counts for true word enthusiasts.<br><br>Your tier is set automatically based on your progress. When you cross a tier boundary, you\u2019ll be <b>auto-promoted</b> with a celebration! You can change your tier in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> \u2014 switch to a lower tier if puzzles feel too hard. Tiers that can\u2019t fit your level count are hidden. Lowering your tier pauses auto-promotion until you move back up.<br><br><b>Note:</b> Speed milestones (5 fast levels = bonus puzzle) are disabled on Easy tier." },
     { icon: "\uD83D\uDD00", title: "Shuffle", body: "Tap the shuffle button to rearrange the letters on the wheel. Same letters, fresh perspective \u2014 sometimes that\u2019s all you need to spot a hidden word!" },
@@ -7213,6 +7285,13 @@ function renderAvatarEditor(options) {
 // ============================================================
 // INITIALIZE
 // ============================================================
+async function loadDefinitions() {
+    try {
+        const resp = await fetch('/data/definitions.json?v=1');
+        if (resp.ok) DEFINITIONS = await resp.json();
+    } catch (e) { /* offline before first cache — definitions unavailable */ }
+}
+
 async function init() {
     // Show loading state
     const app = document.getElementById("app");
@@ -7255,6 +7334,7 @@ async function init() {
     }
 
     await recompute();
+    loadDefinitions(); // non-blocking, no await — definitions load in background
     restoreLevelState();
 
     // Auto-complete any words whose cells are all already visible (fixes stuck levels)

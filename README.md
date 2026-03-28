@@ -103,6 +103,10 @@ Two layout styles are available:
 
 Toggle between them during gameplay by tapping the pack name / level info in the header. A **Grid Layout** preference in Settings controls the default: Auto (game decides), Crossword, or Flow. All progress carries over when switching.
 
+### Word Definitions
+
+Tap any found word in the grid to see its definition. A modal shows the part of speech and numbered meanings. Only non-intersecting cells are tappable. Definitions are bundled offline as a pre-generated data file.
+
 ### Difficulty Tiers
 
 | Tier | Levels | Description |

@@ -502,6 +502,17 @@ html, body {
     animation: pop 0.4s ease;
 }
 
+/* Definition modal */
+.def-modal-box { position: relative; max-width: 320px; }
+.def-close { position: absolute; top: 12px; right: 16px; color: rgba(255,255,255,0.4); font-size: 24px; cursor: pointer; line-height: 1; }
+.def-close:hover { color: rgba(255,255,255,0.7); }
+.def-title { font-size: 26px; font-weight: 800; letter-spacing: 2px; text-align: center; margin-bottom: 16px; }
+.def-panel { background: rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; max-height: 45vh; overflow-y: auto; text-align: left; }
+.def-pos { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.7); margin-bottom: 10px; }
+.def-entry { font-size: 15px; line-height: 1.55; color: #e8e0f0; margin-bottom: 10px; }
+.def-entry:last-child { margin-bottom: 0; }
+.def-num { font-weight: 700; margin-right: 4px; }
+
 .modal-emoji {
     font-size: 52px;
 }
