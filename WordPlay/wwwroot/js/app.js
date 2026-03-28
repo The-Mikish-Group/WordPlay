@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.4.3";
+const APP_VERSION = "1.4.4";
 
 // ---- THEMES ----
 const THEMES = {
@@ -648,7 +648,7 @@ function restoreLevelState() {
     const ip = state.inProgress[lv];
     if (ip) {
         state.foundWords = (ip.fw || []).filter(w => placedWords.includes(w));
-        state.bonusFound = ip.bf || [];
+        state.bonusFound = (ip.bf || []).filter(w => !placedWords.includes(w));
         state.revealedCells = ip.rc || [];
         state.standaloneFound = ip.sf || false;
         if (ip.wo && ip.wo.length === level.letters.length &&
@@ -754,6 +754,8 @@ function toggleLayout() {
     { const _gl = new Set(placedWords.map(w => w.length)); bonusPool = bonusPool.filter(w => _gl.has(w.length)); }
     if (standaloneWord) bonusPool = bonusPool.filter(w => w !== standaloneWord);
     totalRequired = placedWords.length;
+    // Reconcile bonus words that are now grid words after layout change
+    state.bonusFound = state.bonusFound.filter(w => !placedWords.includes(w));
 
     // Re-map revealed cells
     state.revealedCells = remapCells(oldRevealedCells, oldPlacements, crossword.placements);
@@ -814,7 +816,7 @@ async function enterDailyMode() {
     await recompute();
     _forceFlowLayout = false;
     state.foundWords = (state.dailyPuzzle.fw || []).filter(w => placedWords.includes(w));
-    state.bonusFound = state.dailyPuzzle.bf || [];
+    state.bonusFound = (state.dailyPuzzle.bf || []).filter(w => !placedWords.includes(w));
     state.revealedCells = state.dailyPuzzle.rc || [];
     state.standaloneFound = state.dailyPuzzle.sf || false;
     if (state.standaloneFound && standaloneWord && !state.foundWords.includes(standaloneWord)) {
@@ -905,7 +907,7 @@ async function enterBonusMode() {
     state.currentLevel = state.bonusPuzzle.levelNum;
     await recompute();
     state.foundWords = (state.bonusPuzzle.fw || []).filter(w => placedWords.includes(w));
-    state.bonusFound = state.bonusPuzzle.bf || [];
+    state.bonusFound = (state.bonusPuzzle.bf || []).filter(w => !placedWords.includes(w));
     state.revealedCells = state.bonusPuzzle.rc || [];
     state.standaloneFound = state.bonusPuzzle.sf || false;
     if (state.bonusPuzzle.wo && state.bonusPuzzle.wo.length === level.letters.length &&
@@ -1300,7 +1302,14 @@ function handleWord(word) {
         return;
     }
 
-    if (state.foundWords.includes(w) || state.bonusFound.includes(w)) {
+    if (state.foundWords.includes(w)) {
+        showToast("Already found", "rgba(255,255,255,0.5)", true);
+        return;
+    }
+    // Grid words take priority — fix any word misclassified as bonus
+    if (state.bonusFound.includes(w) && placedWords.includes(w)) {
+        state.bonusFound = state.bonusFound.filter(x => x !== w);
+    } else if (state.bonusFound.includes(w)) {
         showToast("Already found", "rgba(255,255,255,0.5)", true);
         return;
     }
