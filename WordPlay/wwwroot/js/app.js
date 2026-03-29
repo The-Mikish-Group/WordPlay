@@ -339,6 +339,8 @@ function preloadBgImage(key) {
 let level, theme, crossword, placedWords, bonusPool, totalRequired, wheelLetters;
 let standaloneWord = null;
 let DEFINITIONS = null;
+let _bannedWords = new Set();
+let _myWordVotes = new Set();
 let _cellToWord = {};     // "row,col" → word (only for cells owned by exactly 1 word)
 
 function buildCellWordMaps() {
@@ -414,6 +416,14 @@ async function recompute() {
     }
     level = lvData;
     theme = THEMES[level.theme] || THEMES.sunrise;
+
+    // Filter banned words from level data
+    if (_bannedWords.size > 0) {
+        const unfilteredWords = level.words;
+        level.words = level.words.filter(w => !_bannedWords.has(w));
+        if (level.words.length < 2) level.words = unfilteredWords; // safety fallback
+        if (level.bonus) level.bonus = level.bonus.filter(w => !_bannedWords.has(w));
+    }
 
     // Determine grid words vs bonus words
     const gridWords = level.words;
@@ -668,6 +678,7 @@ function restoreLevelState() {
     if (ip) {
         state.foundWords = (ip.fw || []).filter(w => placedWords.includes(w));
         state.bonusFound = (ip.bf || []).filter(w => !placedWords.includes(w));
+        if (_bannedWords.size > 0) state.bonusFound = state.bonusFound.filter(w => !_bannedWords.has(w));
         state.revealedCells = ip.rc || [];
         state.standaloneFound = ip.sf || false;
         if (ip.wo && ip.wo.length === level.letters.length &&
@@ -7292,6 +7303,36 @@ async function loadDefinitions() {
     } catch (e) { /* offline before first cache — definitions unavailable */ }
 }
 
+async function loadBannedWords() {
+    try {
+        const cached = localStorage.getItem("wordplay-banned");
+        if (cached) {
+            const { words, ts } = JSON.parse(cached);
+            if (Date.now() - ts < 3600000) { // 1 hour TTL
+                _bannedWords = new Set(words);
+                return;
+            }
+        }
+        const resp = await fetch('/api/banned-words');
+        if (resp.ok) {
+            const words = await resp.json();
+            _bannedWords = new Set(words);
+            localStorage.setItem("wordplay-banned", JSON.stringify({ words, ts: Date.now() }));
+        }
+    } catch (e) { /* offline, no cache — no filtering */ }
+}
+
+async function loadMyVotes() {
+    if (typeof isSignedIn !== "function" || !isSignedIn()) return;
+    try {
+        const resp = await fetch('/api/word-votes/mine', { headers: getAuthHeaders() });
+        if (resp.ok) {
+            const words = await resp.json();
+            _myWordVotes = new Set(words);
+        }
+    } catch (e) { /* offline — votes unavailable */ }
+}
+
 async function init() {
     // Show loading state
     const app = document.getElementById("app");
@@ -7333,6 +7374,8 @@ async function init() {
         }
     }
 
+    await loadBannedWords(); // must complete before recompute — filtering depends on it
+    loadMyVotes(); // non-blocking — only affects definition modal UI
     await recompute();
     loadDefinitions(); // non-blocking, no await — definitions load in background
     restoreLevelState();
