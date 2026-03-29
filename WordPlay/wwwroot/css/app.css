@@ -518,6 +518,18 @@ html, body {
 .def-flag-btn:hover { border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.7); }
 .def-flag-btn.flagged { background: rgba(255,80,80,0.15); border-color: rgba(255,80,80,0.4); color: #ff6b6b; }
 
+/* Admin flagged words */
+.flagged-word-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.flagged-word-info { flex: 1; min-width: 0; }
+.flagged-word-name { font-weight: 700; font-size: 15px; color: #fff; margin-right: 8px; }
+.flagged-word-votes { font-size: 14px; color: #ff6b6b; font-weight: 600; }
+.flagged-word-def { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flagged-word-actions { display: flex; gap: 6px; flex-shrink: 0; margin-left: 8px; }
+.flagged-ban-btn, .flagged-dismiss-btn, .flagged-unban-btn { padding: 5px 10px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; font-weight: 600; }
+.flagged-ban-btn { background: rgba(255,80,80,0.2); color: #ff6b6b; border: 1px solid rgba(255,80,80,0.4); }
+.flagged-dismiss-btn { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.15); }
+.flagged-unban-btn { background: rgba(80,200,120,0.2); color: #50c878; border: 1px solid rgba(80,200,120,0.4); }
+
 .modal-emoji {
     font-size: 52px;
 }

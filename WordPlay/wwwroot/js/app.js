@@ -5530,7 +5530,7 @@ let _adminUsers = [];
 let _adminSearch = "";
 let _adminSelectedUser = null;
 let _adminRabbits = [];
-let _adminView = "users"; // "users" | "user-detail" | "rabbits"
+let _adminView = "users"; // "users" | "user-detail" | "rabbits" | "flagged-words"
 let _adminPage = 1;
 let _adminTotal = 0;
 let _adminHasMore = true;
@@ -5560,6 +5560,10 @@ function renderAdmin() {
         renderAdminRabbits(overlay);
         return;
     }
+    if (_adminView === "flagged-words") {
+        renderAdminFlaggedWords(overlay);
+        return;
+    }
 
     const accent = theme.accent;
     overlay.innerHTML = `
@@ -5576,6 +5580,7 @@ function renderAdmin() {
                 <input type="text" id="admin-search" class="menu-setting-input" placeholder="Search users..." value="${escapeHtml(_adminSearch)}" style="flex:1">
                 <button class="menu-setting-btn" id="admin-create-bot-btn" style="background:${accent};color:#000;white-space:nowrap;padding:8px 12px">+ Bot</button>
                 <button class="menu-setting-btn" id="admin-rabbits-btn" style="background:rgba(255,255,255,0.15);color:#fff;white-space:nowrap;padding:8px 12px;border:1px solid rgba(255,255,255,0.3)">Rabbits</button>
+                <button class="menu-setting-btn" id="admin-flagged-btn" style="background:rgba(255,80,80,0.25);color:#ff6b6b;white-space:nowrap;padding:8px 12px;border:1px solid rgba(255,80,80,0.4);font-size:14px">🚩 Flagged</button>
                 <button class="menu-setting-btn" id="admin-migrate-v8-btn" style="background:rgba(255,160,0,0.25);color:#ffb347;white-space:nowrap;padding:8px 12px;border:1px solid rgba(255,160,0,0.4);font-size:13px">Migrate v8</button>
             </div>
             <div id="admin-user-list" style="padding:0 4px">
@@ -5634,6 +5639,11 @@ function renderAdmin() {
 
     document.getElementById("admin-rabbits-btn").onclick = () => {
         _adminView = "rabbits";
+        renderAdmin();
+    };
+
+    document.getElementById("admin-flagged-btn").onclick = () => {
+        _adminView = "flagged-words";
         renderAdmin();
     };
 
@@ -6217,6 +6227,131 @@ const TRAIL_PATTERNS = [
         [48, 74], [70, 77], [78, 81], [58, 85], [40, 88],
     ],
 ];
+
+async function renderAdminFlaggedWords(overlay) {
+    const accent = theme.accent;
+    overlay.innerHTML = `
+        <div class="menu-header" style="justify-content:center;position:relative;cursor:default">
+            <button class="back-arrow-btn" id="admin-flagged-back" title="Back" style="position:absolute;left:12px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="${theme.text}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h2 class="menu-title" style="color:${accent}">🚩 Flagged Words</h2>
+        </div>
+        <div class="menu-scroll" id="flagged-content">
+            <div style="text-align:center;padding:30px;opacity:0.5">Loading...</div>
+        </div>
+    `;
+
+    document.getElementById("admin-flagged-back").onclick = () => {
+        _adminView = "users";
+        renderAdmin();
+    };
+
+    try {
+        const [votesResp, bannedResp] = await Promise.all([
+            fetch('/api/admin/word-votes', { headers: getAuthHeaders() }),
+            fetch('/api/admin/banned-words', { headers: getAuthHeaders() })
+        ]);
+        const votes = votesResp.ok ? await votesResp.json() : [];
+        const banned = bannedResp.ok ? await bannedResp.json() : [];
+
+        let html = '';
+
+        if (votes.length > 0) {
+            html += `<div class="menu-setting"><label class="menu-setting-label">Words Flagged by Players</label></div>`;
+            for (const v of votes) {
+                const def = DEFINITIONS && DEFINITIONS[v.word] ? DEFINITIONS[v.word].d[0] : 'No definition available';
+                const truncDef = def.length > 60 ? def.substring(0, 57) + '...' : def;
+                html += `
+                    <div class="flagged-word-row">
+                        <div class="flagged-word-info">
+                            <span class="flagged-word-name">${v.word}</span>
+                            <span class="flagged-word-votes">${v.votes} vote${v.votes !== 1 ? 's' : ''}</span>
+                            <div class="flagged-word-def">${truncDef}</div>
+                        </div>
+                        <div class="flagged-word-actions">
+                            <button class="flagged-ban-btn" data-word="${v.word}">Ban</button>
+                            <button class="flagged-dismiss-btn" data-word="${v.word}">Dismiss</button>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            html += `<div style="text-align:center;padding:30px;opacity:0.5">No flagged words</div>`;
+        }
+
+        html += `<div class="menu-setting" style="margin-top:20px"><label class="menu-setting-label">Banned Words</label></div>`;
+        if (banned.length > 0) {
+            for (const b of banned) {
+                const date = new Date(b.bannedAt).toLocaleDateString();
+                html += `
+                    <div class="flagged-word-row">
+                        <div class="flagged-word-info">
+                            <span class="flagged-word-name">${b.word}</span>
+                            <div class="flagged-word-def">Banned ${date}</div>
+                        </div>
+                        <div class="flagged-word-actions">
+                            <button class="flagged-unban-btn" data-word="${b.word}">Unban</button>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            html += `<div style="text-align:center;padding:20px;opacity:0.5">No banned words</div>`;
+        }
+
+        document.getElementById("flagged-content").innerHTML = html;
+
+        document.querySelectorAll(".flagged-ban-btn").forEach(btn => {
+            btn.onclick = async () => {
+                const resp = await fetch('/api/admin/banned-words', {
+                    method: 'POST',
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ word: btn.dataset.word })
+                });
+                if (resp.ok) {
+                    showToast("Banned: " + btn.dataset.word, "#ff6b6b");
+                    _bannedWords.add(btn.dataset.word);
+                    _myWordVotes.delete(btn.dataset.word);
+                    localStorage.removeItem("wordplay-banned");
+                    renderAdminFlaggedWords(overlay);
+                }
+            };
+        });
+
+        document.querySelectorAll(".flagged-dismiss-btn").forEach(btn => {
+            btn.onclick = async () => {
+                const resp = await fetch('/api/admin/word-votes/' + encodeURIComponent(btn.dataset.word), {
+                    method: 'DELETE', headers: getAuthHeaders()
+                });
+                if (resp.ok) {
+                    showToast("Dismissed votes for: " + btn.dataset.word);
+                    renderAdminFlaggedWords(overlay);
+                }
+            };
+        });
+
+        document.querySelectorAll(".flagged-unban-btn").forEach(btn => {
+            btn.onclick = async () => {
+                const resp = await fetch('/api/admin/banned-words/' + encodeURIComponent(btn.dataset.word), {
+                    method: 'DELETE', headers: getAuthHeaders()
+                });
+                if (resp.ok) {
+                    showToast("Unbanned: " + btn.dataset.word, accent);
+                    _bannedWords.delete(btn.dataset.word);
+                    localStorage.removeItem("wordplay-banned");
+                    renderAdminFlaggedWords(overlay);
+                }
+            };
+        });
+
+    } catch (e) {
+        document.getElementById("flagged-content").innerHTML =
+            '<div style="text-align:center;padding:30px;color:#ff6b6b">Failed to load flagged words</div>';
+    }
+}
 
 function renderSnakeNodes(pack, accent) {
     const total = pack.end - pack.start + 1;
