@@ -11,6 +11,8 @@ public class WordPlayDb : DbContext
     public DbSet<UserProgress> UserProgress => Set<UserProgress>();
     public DbSet<RabbitAssignment> RabbitAssignments => Set<RabbitAssignment>();
     public DbSet<ProgressSnapshot> ProgressSnapshots => Set<ProgressSnapshot>();
+    public DbSet<WordVote> WordVotes => Set<WordVote>();
+    public DbSet<BannedWord> BannedWords => Set<BannedWord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,6 +47,21 @@ public class WordPlayDb : DbContext
         {
             e.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId);
             e.HasIndex(s => s.UserId);
+        });
+
+        modelBuilder.Entity<WordVote>(e =>
+        {
+            e.Property(v => v.Word).HasMaxLength(20);
+            e.HasIndex(v => new { v.Word, v.UserId }).IsUnique();
+            e.HasIndex(v => v.Word);
+            e.HasOne(v => v.User).WithMany().HasForeignKey(v => v.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BannedWord>(e =>
+        {
+            e.Property(b => b.Word).HasMaxLength(20);
+            e.HasIndex(b => b.Word).IsUnique();
+            e.HasOne(b => b.BannedBy).WithMany().HasForeignKey(b => b.BannedById).OnDelete(DeleteBehavior.NoAction);
         });
     }
 }
