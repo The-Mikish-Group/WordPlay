@@ -912,6 +912,66 @@ app.MapPost("/api/contact", async (HttpRequest request, IConfiguration config) =
 });
 
 // ============================================================
+// Banned words (public — no auth required)
+// ============================================================
+
+app.MapGet("/api/banned-words", async (WordPlayDb db) =>
+{
+    var words = await db.BannedWords.Select(b => b.Word).ToListAsync();
+    return Results.Ok(words);
+});
+
+// ============================================================
+// Word voting endpoints
+// ============================================================
+
+app.MapPost("/api/word-votes", async (HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
+
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+    if (!body.TryGetProperty("word", out var wordEl)) return Results.BadRequest(new { error = "word required" });
+
+    var word = wordEl.GetString()?.Trim().ToUpperInvariant() ?? "";
+    if (word.Length < 2 || word.Length > 20 || !word.All(char.IsLetter))
+        return Results.BadRequest(new { error = "Invalid word" });
+
+    var exists = await db.WordVotes.AnyAsync(v => v.Word == word && v.UserId == userId.Value);
+    if (exists) return Results.Conflict(new { error = "Already voted" });
+
+    db.WordVotes.Add(new WordVote { Word = word, UserId = userId.Value });
+    await db.SaveChangesAsync();
+    return Results.Ok(new { word });
+}).RequireAuthorization();
+
+app.MapDelete("/api/word-votes/{word}", async (string word, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
+
+    var normalized = word.Trim().ToUpperInvariant();
+    var vote = await db.WordVotes.FirstOrDefaultAsync(v => v.Word == normalized && v.UserId == userId.Value);
+    if (vote == null) return Results.NotFound();
+
+    db.WordVotes.Remove(vote);
+    await db.SaveChangesAsync();
+    return Results.Ok();
+}).RequireAuthorization();
+
+app.MapGet("/api/word-votes/mine", async (WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
+
+    var words = await db.WordVotes
+        .Where(v => v.UserId == userId.Value)
+        .Select(v => v.Word)
+        .ToListAsync();
+    return Results.Ok(words);
+}).RequireAuthorization();
+
+// ============================================================
 // Admin endpoints (require admin role)
 // ============================================================
 
