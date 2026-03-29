@@ -513,6 +513,11 @@ html, body {
 .def-entry:last-child { margin-bottom: 0; }
 .def-num { font-weight: 700; margin-right: 4px; }
 
+/* Flag button in definition modal */
+.def-flag-btn { display: block; width: 100%; margin-top: 12px; padding: 8px 16px; background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+.def-flag-btn:hover { border-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.7); }
+.def-flag-btn.flagged { background: rgba(255,80,80,0.15); border-color: rgba(255,80,80,0.4); color: #ff6b6b; }
+
 .modal-emoji {
     font-size: 52px;
 }

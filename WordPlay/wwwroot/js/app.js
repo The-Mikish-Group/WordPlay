@@ -2712,6 +2712,12 @@ function showDefinition(word) {
                 <div class="def-pos">${entry.p}</div>
                 ${defsHtml}
             </div>
+            ${typeof isSignedIn === "function" && isSignedIn() ? `
+                <button class="def-flag-btn ${_myWordVotes.has(word) ? 'flagged' : ''}" id="def-flag-btn"
+                    data-word="${word}">
+                    🚩 ${_myWordVotes.has(word) ? 'Flagged' : 'Flag for Review'}
+                </button>
+            ` : ''}
             <button class="modal-next-btn" id="def-close-btn"
                 style="background:linear-gradient(180deg,${theme.accent},${theme.accent}bb);border:2px solid ${theme.accent};box-shadow:0 4px 14px ${theme.accent}60,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3);margin-top:16px">
                 Close
@@ -2723,6 +2729,39 @@ function showDefinition(word) {
     document.getElementById("def-close-btn").onclick = close;
     document.getElementById("def-close-x").onclick = close;
     overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+    const flagBtn = document.getElementById("def-flag-btn");
+    if (flagBtn) {
+        flagBtn.onclick = async () => {
+            const w = flagBtn.dataset.word;
+            const isFlagged = _myWordVotes.has(w);
+            try {
+                if (isFlagged) {
+                    const resp = await fetch('/api/word-votes/' + encodeURIComponent(w), {
+                        method: 'DELETE', headers: getAuthHeaders()
+                    });
+                    if (resp.ok) {
+                        _myWordVotes.delete(w);
+                        flagBtn.className = 'def-flag-btn';
+                        flagBtn.textContent = '🚩 Flag for Review';
+                    }
+                } else {
+                    const resp = await fetch('/api/word-votes', {
+                        method: 'POST',
+                        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ word: w })
+                    });
+                    if (resp.ok || resp.status === 409) {
+                        _myWordVotes.add(w);
+                        flagBtn.className = 'def-flag-btn flagged';
+                        flagBtn.textContent = '🚩 Flagged';
+                    }
+                }
+            } catch (e) {
+                showToast("Couldn't save vote", "rgba(255,255,255,0.5)", true);
+            }
+        };
+    }
 }
 
 // ---- GRID ----
