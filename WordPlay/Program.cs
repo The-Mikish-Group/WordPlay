@@ -1475,6 +1475,81 @@ app.MapPut("/api/admin/rabbits/{id}/active", async (int id, HttpRequest request,
 }).RequireAuthorization();
 
 // ============================================================
+// Admin word voting & banned words endpoints
+// ============================================================
+
+app.MapGet("/api/admin/word-votes", async (WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+
+    var votes = await db.WordVotes
+        .GroupBy(v => v.Word)
+        .Select(g => new { word = g.Key, votes = g.Count() })
+        .OrderByDescending(x => x.votes)
+        .ToListAsync();
+    return Results.Ok(votes);
+}).RequireAuthorization();
+
+app.MapGet("/api/admin/banned-words", async (WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+
+    var banned = await db.BannedWords
+        .OrderByDescending(b => b.BannedAt)
+        .Select(b => new { word = b.Word, bannedAt = b.BannedAt, bannedById = b.BannedById })
+        .ToListAsync();
+    return Results.Ok(banned);
+}).RequireAuthorization();
+
+app.MapPost("/api/admin/banned-words", async (HttpRequest request, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
+
+    var body = await JsonSerializer.DeserializeAsync<JsonElement>(request.Body);
+    if (!body.TryGetProperty("word", out var wordEl)) return Results.BadRequest(new { error = "word required" });
+
+    var word = wordEl.GetString()?.Trim().ToUpperInvariant() ?? "";
+    if (word.Length < 2 || word.Length > 20) return Results.BadRequest(new { error = "Invalid word" });
+
+    var exists = await db.BannedWords.AnyAsync(b => b.Word == word);
+    if (!exists)
+    {
+        db.BannedWords.Add(new BannedWord { Word = word, BannedById = userId.Value });
+    }
+    // Also clear all votes for this word
+    var votes = await db.WordVotes.Where(v => v.Word == word).ToListAsync();
+    db.WordVotes.RemoveRange(votes);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { word, banned = true });
+}).RequireAuthorization();
+
+app.MapDelete("/api/admin/banned-words/{word}", async (string word, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+
+    var normalized = word.Trim().ToUpperInvariant();
+    var entry = await db.BannedWords.FirstOrDefaultAsync(b => b.Word == normalized);
+    if (entry == null) return Results.NotFound();
+
+    db.BannedWords.Remove(entry);
+    await db.SaveChangesAsync();
+    return Results.Ok();
+}).RequireAuthorization();
+
+app.MapDelete("/api/admin/word-votes/{word}", async (string word, WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+
+    var normalized = word.Trim().ToUpperInvariant();
+    var votes = await db.WordVotes.Where(v => v.Word == normalized).ToListAsync();
+    db.WordVotes.RemoveRange(votes);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { dismissed = votes.Count });
+}).RequireAuthorization();
+
+// ============================================================
 // Anti-scraping: hotlink protection for background images
 // ============================================================
 
