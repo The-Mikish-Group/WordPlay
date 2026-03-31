@@ -4298,8 +4298,8 @@ function isWheelReady() {
         state.showPrivacy || state.showTerms || state.showCookiePolicy || state.showAdmin)
         return false;
     if (state.pickMode) return false;
-    if (document.getElementById("definition-modal")?.style.display === "flex")
-        return false;
+    const modals = document.querySelectorAll(".modal-overlay");
+    for (const m of modals) if (m.style.display !== "none") return false;
     if (!wheelLetters || wheelLetters.length === 0) return false;
     return true;
 }
