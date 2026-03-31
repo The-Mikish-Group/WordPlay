@@ -4351,11 +4351,11 @@ function onKeyDown(e) {
         e.preventDefault();
         const letter = key.toUpperCase();
         // Find first unselected wheel index matching this letter
-        const idx = wheelLetters.findIndex((l, i) => l === letter && !wheelState.sel.includes(i));
+        const idx = wheelLetters.findIndex((l, i) => l.toUpperCase() === letter && !wheelState.sel.includes(i));
         if (idx < 0) return; // letter not available
         if (wheelState.sel.length === 0) startSpeedTimer();
         wheelState.sel.push(idx);
-        wheelState.word += letter;
+        wheelState.word += wheelLetters[idx];
         playSound("letterClick");
         updateWheelVisuals();
     }
