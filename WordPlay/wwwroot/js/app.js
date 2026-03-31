@@ -4298,8 +4298,7 @@ function isWheelReady() {
         state.showPrivacy || state.showTerms || state.showCookiePolicy || state.showAdmin)
         return false;
     if (state.pickMode) return false;
-    if (document.getElementById("definition-modal")?.style.display !== "none" &&
-        document.getElementById("definition-modal")?.style.display !== "")
+    if (document.getElementById("definition-modal")?.style.display === "flex")
         return false;
     if (!wheelLetters || wheelLetters.length === 0) return false;
     return true;
