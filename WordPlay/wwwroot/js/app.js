@@ -4291,6 +4291,79 @@ function updateWheelVisuals() {
     }
 }
 
+// ---- KEYBOARD INPUT FOR WHEEL ----
+function isWheelReady() {
+    if (state.showHome || state.showComplete || state.showMenu || state.showMap ||
+        state.showGuide || state.showLeaderboard || state.showContact ||
+        state.showPrivacy || state.showTerms || state.showCookiePolicy || state.showAdmin)
+        return false;
+    if (state.pickMode) return false;
+    if (document.getElementById("definition-modal")?.style.display !== "none" &&
+        document.getElementById("definition-modal")?.style.display !== "")
+        return false;
+    if (!wheelLetters || wheelLetters.length === 0) return false;
+    return true;
+}
+
+function onKeyDown(e) {
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (!isWheelReady()) return;
+    // Don't intercept if user is mid-drag with mouse/touch
+    if (wheelState.dragging) return;
+
+    const key = e.key;
+
+    if (key === "Enter") {
+        if (wheelState.sel.length === 0) return;
+        e.preventDefault();
+        if (wheelState.word.length >= 3) {
+            handleWord(wheelState.word);
+        } else {
+            showToast("Too short", "rgba(255,255,255,0.5)", true);
+        }
+        wheelState.sel = [];
+        wheelState.word = "";
+        wheelState.ptr = null;
+        updateWheelVisuals();
+        return;
+    }
+
+    if (key === "Escape") {
+        if (wheelState.sel.length === 0) return;
+        e.preventDefault();
+        wheelState.sel = [];
+        wheelState.word = "";
+        wheelState.ptr = null;
+        updateWheelVisuals();
+        return;
+    }
+
+    if (key === "Backspace") {
+        if (wheelState.sel.length === 0) return;
+        e.preventDefault();
+        wheelState.sel.pop();
+        wheelState.word = wheelState.word.slice(0, -1);
+        updateWheelVisuals();
+        return;
+    }
+
+    // Letter keys
+    if (key.length === 1 && /^[a-zA-Z]$/.test(key)) {
+        e.preventDefault();
+        const letter = key.toUpperCase();
+        // Find first unselected wheel index matching this letter
+        const idx = wheelLetters.findIndex((l, i) => l === letter && !wheelState.sel.includes(i));
+        if (idx < 0) return; // letter not available
+        if (wheelState.sel.length === 0) startSpeedTimer();
+        wheelState.sel.push(idx);
+        wheelState.word += letter;
+        playSound("letterClick");
+        updateWheelVisuals();
+    }
+}
+
+document.addEventListener("keydown", onKeyDown);
+
 // ---- COMPLETE MODAL ----
 function renderCompleteModal() {
     let overlay = document.getElementById("complete-modal");
