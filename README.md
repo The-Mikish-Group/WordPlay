@@ -40,7 +40,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 | **156,000+ levels** | Organized into themed packs (Nature, Animals, Food, Science, and many more) |
 | **16 visual themes** | Sunrise, Forest, Canyon, Ocean, Aurora, and more — each with unique color palettes and gradient backgrounds |
 | **Two grid layouts** | Crossword (interlocking) and Flow (stacked rows) — toggle between them mid-game by tapping the header |
-| **Letter wheel** | Drag across letters to spell words with smooth touch interactions |
+| **Letter wheel** | Drag across letters to spell words with smooth touch interactions; desktop users can also type words on the keyboard |
 | **Difficulty tiers** | Five tiers (Easy, Medium, Hard, Expert, Master) that scale with your progress |
 | **3 hint types** | Hint (random letter), Target (tap a cell), Rocket (reveals up to 5 letters) |
 | **Rescue spin wheel** | When completely stuck, spin a prize wheel to win free hints, targets, rockets, or coins |

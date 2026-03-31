@@ -6752,6 +6752,7 @@ function _renderMapPackView(overlay, packs) {
 // ---- GUIDE OVERLAY ----
 const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDC46", title: "Swipe & Spell", body: "Drag your finger across the letter wheel to spell words. Letters connect as you swipe \u2014 lift your finger to submit. Find all the words to fill the crossword and move on!" },
+    { icon: "⌨️", title: "Keyboard Input", body: "Playing on a desktop? Type letters on your keyboard to select them on the wheel. Press <b>Enter</b> to submit your word, <b>Backspace</b> to undo the last letter, or <b>Escape</b> to cancel. Works alongside touch and mouse!" },
     { icon: "\uD83E\uDE99", title: "Earning Coins", body: "Every word you find earns coins! Grid words = 1 coin. Bonus words = 5 coins. The special coin word = 100 coins! On <b>flow levels</b> (every 5th level), rewards are boosted: 3 coins per word, 15 per bonus word, and 200 for the coin word. Grab your daily bonus for 100 free coins too." },
     { icon: "\uD83D\uDCA1", title: "Hints", body: "Stuck? Use hints! <b>Hint</b> (\uD83D\uDCA1 100 coins) reveals a random letter. <b>Target</b> (\uD83C\uDFAF 200 coins) lets you tap any cell. <b>Rocket</b> (\uD83D\uDE80 300 coins) blasts up to 5 letters at once! You earn free hints every 10 levels, targets every 20, and rockets every 30." },
     { icon: "\u2B50", title: "Bonus Words", body: "Found a real word that\u2019s not on the grid? That\u2019s a bonus word! Worth 5 coins each, and every 10 bonus words earns you a free letter reveal. Watch the star counter fill up!" },
