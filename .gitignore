@@ -29,6 +29,17 @@ scraper/
 
 ## Claude Code
 .claude/
+.superpowers/
+docs/superpowers/
+docs/plans/
+
+## Tool artifacts
+tools/failed-words.txt
+tools/final-failed-words.txt
+tools/still-failed-words.txt
+tools/batch-defs.js
+tools/fetch-definitions-fast.js
+tools/refetch-failed.js
 
 ## Generated background images (~60MB, deployed separately)
 WordPlay/wwwroot/images/bg/*.webp
