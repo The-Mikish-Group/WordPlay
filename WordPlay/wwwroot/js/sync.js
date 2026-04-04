@@ -161,8 +161,9 @@ function mergeProgress(local, server) {
     merged.rc = primary.rc || [];
     merged.sf = primary.sf || false;
 
-    // Sound: always local (device preference)
+    // Sound & layout: always local (device preference)
     merged.se = local.se !== undefined ? local.se : true;
+    merged.lp = local.lp || server.lp || "auto";
 
     // Last daily claim: latest date
     if (local.ldc && server.ldc) {
