@@ -137,15 +137,20 @@ function mergeProgress(local, server) {
 
     const merged = { v: 8 };
 
-    // Scalar max fields
+    // Monotonically-increasing fields — always take the max
     merged.hl = Math.max(local.hl || 1, server.hl || 1);
-    merged.co = Math.max(local.co || 0, server.co || 0);
     merged.lc = Math.max(local.lc || 0, server.lc || 0);
-    merged.fh = Math.max(local.fh || 0, server.fh || 0);
-    merged.ft = Math.max(local.ft || 0, server.ft || 0);
-    merged.fr = Math.max(local.fr || 0, server.fr || 0);
     merged.bc = Math.max(local.bc || 0, server.bc || 0);
     merged.tce = Math.max(local.tce || 0, server.tce || 0);
+
+    // Spendable balances (coins, free hints/targets/rockets) — take from the
+    // most-recently-saved device so spending on one device isn't overridden by
+    // a stale higher balance on another.
+    const latest = (local.sa || 0) >= (server.sa || 0) ? local : server;
+    merged.co = latest.co || 0;
+    merged.fh = latest.fh || 0;
+    merged.ft = latest.ft || 0;
+    merged.fr = latest.fr || 0;
 
     // Current-level state: take from whichever save has higher hl
     const localAhead = (local.hl || 1) >= (server.hl || 1);
@@ -226,6 +231,9 @@ function mergeProgress(local, server) {
     merged.dt = primary.dt !== undefined ? primary.dt : -1;
     merged.doff = primary.doff || 0;
     merged.tc = primary.tc !== undefined ? primary.tc : -1;
+
+    // Carry forward the latest savedAt timestamp
+    merged.sa = Math.max(local.sa || 0, server.sa || 0);
 
     return merged;
 }

@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.6.2";
+const APP_VERSION = "1.6.3";
 
 // ---- THEMES ----
 const THEMES = {
@@ -639,6 +639,7 @@ function saveProgress() {
             dt: state.difficultyTier,
             doff: state.difficultyOffset,
             tc: state.tierCeiling,
+            sa: Date.now(),  // savedAt — used by merge to resolve balance conflicts
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
     } catch (e) { /* ignore */ }
