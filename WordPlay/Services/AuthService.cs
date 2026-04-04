@@ -9,7 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace WordPlay.Services;
 
-public class AuthService
+public partial class AuthService
 {
     private readonly IConfiguration _config;
     private readonly ConfigurationManager<OpenIdConnectConfiguration>? _msOidc;
@@ -29,7 +29,7 @@ public class AuthService
     {
         var settings = new GoogleJsonWebSignature.ValidationSettings
         {
-            Audience = new[] { _config["Auth:Google:ClientId"]! }
+            Audience = [_config["Auth:Google:ClientId"]!]
         };
         var payload = await GoogleJsonWebSignature.ValidateAsync(idToken, settings);
         return (payload.Subject, payload.Email);
@@ -44,15 +44,15 @@ public class AuthService
             ValidAudience = _config["Auth:Microsoft:ClientId"],
             IssuerSigningKeys = oidcConfig.SigningKeys,
             ValidateLifetime = true,
-        };
-        // Microsoft common tenant issues tokens with tenant-specific issuers;
-        // validate using a pattern to accept any Azure AD v2 tenant issuer
-        validationParams.ValidateIssuer = true;
-        validationParams.IssuerValidator = (issuer, token, parameters) =>
-        {
-            if (Regex.IsMatch(issuer, @"^https://login\.microsoftonline\.com/[0-9a-f\-]+/v2\.0$"))
-                return issuer;
-            throw new SecurityTokenInvalidIssuerException($"Invalid issuer: {issuer}");
+            // Microsoft common tenant issues tokens with tenant-specific issuers;
+            // validate using a pattern to accept any Azure AD v2 tenant issuer
+            ValidateIssuer = true,
+            IssuerValidator = (issuer, token, parameters) =>
+            {
+                if (MsIssuerRegex().IsMatch(issuer))
+                    return issuer;
+                throw new SecurityTokenInvalidIssuerException($"Invalid issuer: {issuer}");
+            },
         };
 
         var handler = new JwtSecurityTokenHandler();
@@ -64,6 +64,9 @@ public class AuthService
         return (sub, email);
     }
 
+    [GeneratedRegex(@"^https://login\.microsoftonline\.com/[0-9a-f\-]+/v2\.0$")]
+    private static partial Regex MsIssuerRegex();
+
     public string IssueJwt(int userId, string role = "user")
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Auth:Jwt:Secret"]!));
@@ -71,7 +74,7 @@ public class AuthService
         var token = new JwtSecurityToken(
             issuer: _config["Auth:Jwt:Issuer"],
             audience: _config["Auth:Jwt:Audience"],
-            claims: new[] { new Claim("uid", userId.ToString()), new Claim("role", role) },
+            claims: [new Claim("uid", userId.ToString()), new Claim("role", role)],
             expires: DateTime.UtcNow.AddDays(30),
             signingCredentials: creds);
         return new JwtSecurityTokenHandler().WriteToken(token);

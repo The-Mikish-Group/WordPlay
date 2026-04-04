@@ -19,7 +19,7 @@ var _centralTz = TimeZoneInfo.FindSystemTimeZoneById(
 string CentralMonth() => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _centralTz).ToString("yyyy-MM");
 
 var _jsonIndented = new JsonSerializerOptions { WriteIndented = true };
-var _alphanumericRegex = new Regex(@"^[a-zA-Z0-9 ]+$", RegexOptions.Compiled);
+// Regex instances are generated at compile-time via partial class at bottom of file
 var _contactRateLimit = new ConcurrentDictionary<string, List<DateTime>>();
 
 int? GetUserId(ClaimsPrincipal principal)
@@ -81,11 +81,11 @@ var app = builder.Build();
 app.Use(async (context, next) =>
 {
     var headers = context.Response.Headers;
-    headers["X-Content-Type-Options"] = "nosniff";
-    headers["X-Frame-Options"] = "DENY";
+    headers.XContentTypeOptions = "nosniff";
+    headers.XFrameOptions = "DENY";
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=()";
-    headers["Content-Security-Policy"] =
+    headers.ContentSecurityPolicy =
         "default-src 'self'; " +
         "script-src 'self' 'unsafe-inline' https://accounts.google.com https://alcdn.msauth.net https://cdnjs.cloudflare.com; " +
         "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
@@ -139,7 +139,7 @@ app.MapGet("/api/proxy", async (string url, IHttpClientFactory factory) =>
 });
 
 // Deploy endpoint: browser scraper sends chunk data, server writes to wwwroot/data/
-var _chunkFilenameRegex = new Regex(@"^levels-\d{6}-\d{6}\.json$", RegexOptions.Compiled);
+// _chunkFilenameRegex → ChunkFilenameRegex() generated in partial class below
 
 app.MapPost("/api/deploy-data", async (HttpRequest request, IConfiguration config) =>
 {
@@ -181,7 +181,7 @@ app.MapPost("/api/deploy-data", async (HttpRequest request, IConfiguration confi
     {
         foreach (var chunk in chunks.EnumerateObject())
         {
-            if (!_chunkFilenameRegex.IsMatch(chunk.Name))
+            if (!ChunkFilenameRegex().IsMatch(chunk.Name))
                 continue; // skip invalid filenames
 
             await File.WriteAllTextAsync(
@@ -316,7 +316,7 @@ app.MapPost("/api/auth/set-name", async (HttpRequest request, WordPlayDb db, Cla
     var name = nameEl.GetString()?.Trim() ?? "";
     if (name.Length < 3 || name.Length > 20)
         return Results.BadRequest(new { error = "Name must be 3-20 characters" });
-    if (!_alphanumericRegex.IsMatch(name))
+    if (!AlphanumericRegex().IsMatch(name))
         return Results.BadRequest(new { error = "Name must be alphanumeric (spaces allowed)" });
 
     var user = await db.Users.FindAsync(userId);
@@ -559,8 +559,8 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
             totalCoinsEarned = highestLevel * 100;
 
         if (totalCoinsEarned != originalTce)
-            progressJson = System.Text.RegularExpressions.Regex.Replace(
-                progressJson, @"""tce"":\d+", $"\"tce\":{totalCoinsEarned}");
+            progressJson = TceJsonRegex().Replace(
+                progressJson, $"\"tce\":{totalCoinsEarned}");
     }
 
     progress.ProgressJson = progressJson;
@@ -670,7 +670,7 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
                     trailingCoins = (int)(rabbit.MonthlyCoinsStart + userMonthlyCoins * 0.85) - rng.Next(10, 101);
 
                 var rabbitNode = JsonNode.Parse(rabbit.ProgressJson ?? "{}")?.AsObject()
-                    ?? new JsonObject();
+                    ?? [];
                 rabbitNode["hl"] = trailingLevel;
                 rabbitNode["lc"] = trailingLevel;
                 rabbitNode["tce"] = trailingCoins;
@@ -729,7 +729,7 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
                     targetCoins = rabbit.MonthlyCoinsStart + userMonthlyCoins + rng.Next(50, 301);
 
                 var rabbitNode = JsonNode.Parse(rabbit.ProgressJson ?? "{}")?.AsObject()
-                    ?? new JsonObject();
+                    ?? [];
                 rabbitNode["hl"] = targetLevel;
                 rabbitNode["lc"] = targetLevel;
                 rabbitNode["tce"] = targetCoins;
@@ -869,7 +869,7 @@ app.MapPost("/api/contact", async (HttpRequest request, IConfiguration config) =
     // Rate limit: 3 per 10 minutes per IP
     var ip = request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     var now = DateTime.UtcNow;
-    var timestamps = _contactRateLimit.GetOrAdd(ip, _ => new List<DateTime>());
+    var timestamps = _contactRateLimit.GetOrAdd(ip, _ => []);
     lock (timestamps)
     {
         timestamps.RemoveAll(t => now - t > TimeSpan.FromMinutes(10));
@@ -1007,9 +1007,8 @@ app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal, 
 
     if (!string.IsNullOrWhiteSpace(search))
     {
-        var term = search.ToLower();
-        query = query.Where(x => (x.displayName != null && x.displayName.ToLower().Contains(term))
-                                || (x.email != null && x.email.ToLower().Contains(term)));
+            query = query.Where(x => (x.displayName != null && x.displayName.Contains(search, StringComparison.OrdinalIgnoreCase))
+                                || (x.email != null && x.email.Contains(search, StringComparison.OrdinalIgnoreCase)));
     }
 
     query = query.OrderByDescending(x => x.highestLevel);
@@ -1084,25 +1083,25 @@ app.MapPut("/api/admin/users/{id}/progress", async (int id, HttpRequest request,
     if (body.TryGetProperty("totalCoinsEarned", out var tceEl)) progress.TotalCoinsEarned = tceEl.GetInt32();
     if (body.TryGetProperty("coins", out var coEl))
     {
-        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? [];
         node["co"] = coEl.GetInt32();
         progress.ProgressJson = node.ToJsonString();
     }
     if (body.TryGetProperty("freeHints", out var fhEl))
     {
-        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? [];
         node["fh"] = fhEl.GetInt32();
         progress.ProgressJson = node.ToJsonString();
     }
     if (body.TryGetProperty("freeTargets", out var ftEl))
     {
-        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? [];
         node["ft"] = ftEl.GetInt32();
         progress.ProgressJson = node.ToJsonString();
     }
     if (body.TryGetProperty("freeRockets", out var frEl))
     {
-        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+        var node = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? [];
         node["fr"] = frEl.GetInt32();
         progress.ProgressJson = node.ToJsonString();
     }
@@ -1111,7 +1110,7 @@ app.MapPut("/api/admin/users/{id}/progress", async (int id, HttpRequest request,
     if (body.TryGetProperty("monthlyCoinsStart", out var mcsEl)) progress.MonthlyCoinsStart = mcsEl.GetInt32();
 
     // Sync denormalized JSON fields
-    var pNode = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+    var pNode = JsonNode.Parse(progress.ProgressJson ?? "{}")?.AsObject() ?? [];
     pNode["hl"] = progress.HighestLevel;
     pNode["lc"] = progress.HighestLevel;
     pNode["tce"] = progress.TotalCoinsEarned;
@@ -1318,7 +1317,7 @@ app.MapPost("/api/admin/migrate-v8", async (WordPlayDb db, ClaimsPrincipal princ
                 p.HighestLevel = Math.Max(1, p.HighestLevel - doff);
                 p.LevelsCompleted = Math.Max(0, p.LevelsCompleted - doff);
                 if (p.MonthlyStart > doff)
-                    p.MonthlyStart = p.MonthlyStart - doff;
+                    p.MonthlyStart -= doff;
                 else
                     p.MonthlyStart = p.HighestLevel;  // reset monthly if nonsensical
             }
@@ -1422,7 +1421,7 @@ app.MapPost("/api/admin/rabbits", async (HttpRequest request, WordPlayDb db, Cla
         // Only bump up, never decrease
         if (initLevel > botProgress.HighestLevel)
         {
-            var botNode = JsonNode.Parse(botProgress.ProgressJson ?? "{}")?.AsObject() ?? new JsonObject();
+            var botNode = JsonNode.Parse(botProgress.ProgressJson ?? "{}")?.AsObject() ?? [];
             botNode["hl"] = initLevel;
             botNode["lc"] = initLevel;
             botNode["tce"] = initCoins;
@@ -1558,14 +1557,13 @@ app.Use(async (ctx, next) =>
     var path = ctx.Request.Path.Value ?? "";
     if (path.StartsWith("/images/bg/", StringComparison.OrdinalIgnoreCase))
     {
-        var referer = ctx.Request.Headers["Referer"].FirstOrDefault();
+        var referer = ctx.Request.Headers.Referer.FirstOrDefault();
         // Allow: no referer (direct browser navigation, bookmarks, SW fetch),
         //        or referer from our own domain
         if (!string.IsNullOrEmpty(referer))
         {
-            var allowed = new[] { "wordplay.illustrate.net", "localhost" };
             var refUri = Uri.TryCreate(referer, UriKind.Absolute, out var u) ? u : null;
-            if (refUri != null && !allowed.Any(h => refUri.Host.Contains(h, StringComparison.OrdinalIgnoreCase)))
+            if (refUri != null && !AllowedRefererHosts.Any(h => refUri.Host.Contains(h, StringComparison.OrdinalIgnoreCase)))
             {
                 ctx.Response.StatusCode = 403;
                 return;
@@ -1602,7 +1600,7 @@ app.Use(async (ctx, next) =>
         if (entry.count > 30)
         {
             ctx.Response.StatusCode = 429;
-            ctx.Response.Headers["Retry-After"] = "60";
+            ctx.Response.Headers.RetryAfter = "60";
             return;
         }
     }
@@ -1622,9 +1620,23 @@ app.UseStaticFiles(new StaticFileOptions
         var name = ctx.File.Name;
         if (name == "sw.js" || name == "index.html")
         {
-            ctx.Context.Response.Headers["Cache-Control"] = "no-cache, no-store";
+            ctx.Context.Response.Headers.CacheControl = "no-cache, no-store";
         }
     }
 });
 
 app.Run();
+
+partial class Program
+{
+    [GeneratedRegex(@"^[a-zA-Z0-9 ]+$")]
+    private static partial Regex AlphanumericRegex();
+
+    [GeneratedRegex(@"^levels-\d{6}-\d{6}\.json$")]
+    private static partial Regex ChunkFilenameRegex();
+
+    [GeneratedRegex(@"""tce"":\d+")]
+    private static partial Regex TceJsonRegex();
+
+    private static readonly string[] AllowedRefererHosts = ["wordplay.illustrate.net", "localhost"];
+}
