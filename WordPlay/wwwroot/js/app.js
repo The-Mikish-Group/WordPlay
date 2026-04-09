@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.6.4";
+const APP_VERSION = "1.6.5";
 
 // ---- THEMES ----
 const THEMES = {
@@ -6315,12 +6315,14 @@ async function renderAdminFlaggedWords(overlay) {
     };
 
     try {
-        const [votesResp, bannedResp] = await Promise.all([
+        const [votesResp, bannedResp, auditResp] = await Promise.all([
             fetch('/api/admin/word-votes', { headers: getAuthHeaders() }),
-            fetch('/api/admin/banned-words', { headers: getAuthHeaders() })
+            fetch('/api/admin/banned-words', { headers: getAuthHeaders() }),
+            fetch('/api/admin/word-audit-log', { headers: getAuthHeaders() })
         ]);
         const votes = votesResp.ok ? await votesResp.json() : [];
         const banned = bannedResp.ok ? await bannedResp.json() : [];
+        const auditLog = auditResp.ok ? await auditResp.json() : [];
 
         let html = '';
 
@@ -6367,6 +6369,27 @@ async function renderAdminFlaggedWords(overlay) {
             html += `<div style="text-align:center;padding:20px;opacity:0.5">No banned words</div>`;
         }
 
+        // Audit log section
+        const bannedSet = new Set(banned.map(b => b.word));
+        if (auditLog.length > 0) {
+            html += `<div class="menu-setting" style="margin-top:20px"><label class="menu-setting-label">Recent Activity</label></div>`;
+            for (const entry of auditLog) {
+                const date = new Date(entry.createdAt).toLocaleDateString();
+                const actionLabel = entry.action === 'ban' ? 'Banned' : entry.action === 'unban' ? 'Unbanned' : 'Dismissed';
+                const actionColor = entry.action === 'ban' ? '#ff6b6b' : entry.action === 'unban' ? accent : '#888';
+                const canReban = entry.action === 'unban' && !bannedSet.has(entry.word);
+                html += `
+                    <div class="flagged-word-row">
+                        <div class="flagged-word-info">
+                            <span class="flagged-word-name">${entry.word}</span>
+                            <div class="flagged-word-def"><span style="color:${actionColor}">${actionLabel}</span> ${date}</div>
+                        </div>
+                        ${canReban ? `<div class="flagged-word-actions"><button class="flagged-reban-btn" data-word="${entry.word}">Re-ban</button></div>` : ''}
+                    </div>
+                `;
+            }
+        }
+
         document.getElementById("flagged-content").innerHTML = html;
 
         document.querySelectorAll(".flagged-ban-btn").forEach(btn => {
@@ -6400,12 +6423,29 @@ async function renderAdminFlaggedWords(overlay) {
 
         document.querySelectorAll(".flagged-unban-btn").forEach(btn => {
             btn.onclick = async () => {
+                if (!confirm(`Unban "${btn.dataset.word}"? This will allow it back into puzzles.`)) return;
                 const resp = await fetch('/api/admin/banned-words/' + encodeURIComponent(btn.dataset.word), {
                     method: 'DELETE', headers: getAuthHeaders()
                 });
                 if (resp.ok) {
                     showToast("Unbanned: " + btn.dataset.word, accent);
                     _bannedWords.delete(btn.dataset.word);
+                    localStorage.removeItem("wordplay-banned");
+                    renderAdminFlaggedWords(overlay);
+                }
+            };
+        });
+
+        document.querySelectorAll(".flagged-reban-btn").forEach(btn => {
+            btn.onclick = async () => {
+                const resp = await fetch('/api/admin/banned-words', {
+                    method: 'POST',
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ word: btn.dataset.word })
+                });
+                if (resp.ok) {
+                    showToast("Re-banned: " + btn.dataset.word, "#ff6b6b");
+                    _bannedWords.add(btn.dataset.word);
                     localStorage.removeItem("wordplay-banned");
                     renderAdminFlaggedWords(overlay);
                 }

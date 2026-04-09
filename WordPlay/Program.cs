@@ -1520,6 +1520,7 @@ app.MapPost("/api/admin/banned-words", async (HttpRequest request, WordPlayDb db
     // Also clear all votes for this word
     var votes = await db.WordVotes.Where(v => v.Word == word).ToListAsync();
     db.WordVotes.RemoveRange(votes);
+    db.WordAuditLogs.Add(new WordAuditLog { Word = word, Action = "ban", AdminId = userId.Value });
     await db.SaveChangesAsync();
     return Results.Ok(new { word, banned = true });
 }).RequireAuthorization();
@@ -1527,12 +1528,15 @@ app.MapPost("/api/admin/banned-words", async (HttpRequest request, WordPlayDb db
 app.MapDelete("/api/admin/banned-words/{word}", async (string word, WordPlayDb db, ClaimsPrincipal principal) =>
 {
     if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
 
     var normalized = word.Trim().ToUpperInvariant();
     var entry = await db.BannedWords.FirstOrDefaultAsync(b => b.Word == normalized);
     if (entry == null) return Results.NotFound();
 
     db.BannedWords.Remove(entry);
+    db.WordAuditLogs.Add(new WordAuditLog { Word = normalized, Action = "unban", AdminId = userId.Value });
     await db.SaveChangesAsync();
     return Results.Ok();
 }).RequireAuthorization();
@@ -1540,12 +1544,27 @@ app.MapDelete("/api/admin/banned-words/{word}", async (string word, WordPlayDb d
 app.MapDelete("/api/admin/word-votes/{word}", async (string word, WordPlayDb db, ClaimsPrincipal principal) =>
 {
     if (GetUserRole(principal) != "admin") return Results.Forbid();
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
 
     var normalized = word.Trim().ToUpperInvariant();
     var votes = await db.WordVotes.Where(v => v.Word == normalized).ToListAsync();
     db.WordVotes.RemoveRange(votes);
+    db.WordAuditLogs.Add(new WordAuditLog { Word = normalized, Action = "dismiss", AdminId = userId.Value });
     await db.SaveChangesAsync();
     return Results.Ok(new { dismissed = votes.Count });
+}).RequireAuthorization();
+
+app.MapGet("/api/admin/word-audit-log", async (WordPlayDb db, ClaimsPrincipal principal, int limit = 50) =>
+{
+    if (GetUserRole(principal) != "admin") return Results.Forbid();
+
+    var logs = await db.WordAuditLogs
+        .OrderByDescending(a => a.CreatedAt)
+        .Take(Math.Min(limit, 200))
+        .Select(a => new { a.Word, a.Action, a.CreatedAt, a.AdminId })
+        .ToListAsync();
+    return Results.Ok(logs);
 }).RequireAuthorization();
 
 // ============================================================
