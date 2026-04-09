@@ -223,6 +223,28 @@ function mergeProgress(local, server) {
     merged.ls = Math.max(local.ls || 0, server.ls || 0);
     merged.lpd = (local.lpd && server.lpd) ? (local.lpd > server.lpd ? local.lpd : server.lpd) : (local.lpd || server.lpd || null);
 
+    // Daily puzzle completion streak: same lastDailyCompleted → higher streak wins;
+    // different dates → take the more recent side's streak and date.
+    const ldc2L = local.ldc2 || null;
+    const ldc2S = server.ldc2 || null;
+    if (ldc2L && ldc2S) {
+        if (ldc2L === ldc2S) {
+            merged.ds = Math.max(local.ds || 0, server.ds || 0);
+            merged.ldc2 = ldc2L;
+        } else {
+            const newer = ldc2L > ldc2S ? local : server;
+            merged.ds = newer.ds || 0;
+            merged.ldc2 = newer.ldc2;
+        }
+    } else if (ldc2L || ldc2S) {
+        const has = ldc2L ? local : server;
+        merged.ds = has.ds || 0;
+        merged.ldc2 = has.ldc2;
+    } else {
+        merged.ds = 0;
+        merged.ldc2 = null;
+    }
+
     // Flow completions: max merge
     merged.fc = Math.max(local.fc || 0, server.fc || 0);
 
