@@ -47,6 +47,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 | **Bonus words** | Find extra valid words not on the grid; every 10 bonus words earns a free letter reveal |
 | **Standalone coin word** | Special word worth 100 coins (200 on flow levels), shown with a pulsing coin animation |
 | **Daily puzzle** | A fresh shared puzzle every day with a roaming coin for bonus rewards |
+| **7-day daily streak** | Complete the daily puzzle 7 days in a row to earn 1,000 bonus coins — resets and repeats |
 | **Bonus puzzle** | Earn star-filled puzzles through achievements — collect all 9 stars for a 500-coin grand prize |
 | **Regular game stars** | ~35% of regular levels feature bonus stars worth 10 coins each; collect 9 for a grand prize |
 | **Speed bonus** | Complete a level within 7 seconds per word to earn a free prize spin |
@@ -73,6 +74,8 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 | Find a placed word | +1 | +3 |
 | Find a bonus word | +5 | +15 |
 | Find the standalone coin word | +100 | +200 |
+| Complete daily puzzle | +100 | — |
+| 7-day daily streak bonus | +1,000 | — |
 | Claim daily bonus | +100 | — |
 | Rescue spin wheel | +50 or +100 | — |
 | Collect a bonus star | +10 | — |
@@ -126,6 +129,8 @@ Tier is set automatically based on progress and can be changed in Settings. Tier
 ### Daily Puzzle
 
 A fresh puzzle shared by all players each day. A coin appears on one word in the grid — find it for 25 bonus coins, then the coin moves to a new word. Complete the entire puzzle for a 100-coin bonus. Some dailies use a flow layout for variety.
+
+**7-Day Streak:** Complete the daily puzzle 7 consecutive days to earn a 1,000-coin bonus with a celebration banner. The streak counter ("X/7 🔥") appears on the daily puzzle button, and progress is shown in the completion modal. After collecting the reward, the streak resets and you can earn it again every week. This is independent of the 3-day play streak that awards bonus puzzles.
 
 ### Bonus Puzzle
 
