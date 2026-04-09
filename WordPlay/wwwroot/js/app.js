@@ -1278,11 +1278,82 @@ function checkDailyCoinWord() {
     }
 }
 
+function updateDailyStreak() {
+    const today = getTodayStr();
+    if (state.lastDailyCompleted === today) return; // already counted today
+
+    if (state.lastDailyCompleted) {
+        const last = new Date(state.lastDailyCompleted + "T00:00:00");
+        const now = new Date(today + "T00:00:00");
+        const diffDays = Math.round((now - last) / (1000 * 60 * 60 * 24));
+        state.dailyStreak = diffDays === 1 ? state.dailyStreak + 1 : 1;
+    } else {
+        state.dailyStreak = 1;
+    }
+    state.lastDailyCompleted = today;
+
+    if (state.dailyStreak >= 7) {
+        state.coins += 1000;
+        state.totalCoinsEarned += 1000;
+        _dailyCoinsEarned += 1000;
+        state.dailyStreak = 0;
+        state.lastDailyCompleted = null;
+    }
+}
+
+function showDailyStreakCelebration() {
+    let overlay = document.getElementById("streak-celebration");
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "streak-celebration";
+        document.getElementById("app").appendChild(overlay);
+    }
+    overlay.className = "modal-overlay";
+    overlay.style.display = "flex";
+    overlay.style.zIndex = "9999";
+
+    overlay.innerHTML = `
+        <div class="modal-box" style="border:2px solid #ffd70050;box-shadow:0 0 60px #ffd70030">
+            <div class="tier-confetti" id="streak-confetti"></div>
+            <div class="modal-emoji" style="font-size:48px">\uD83D\uDD25</div>
+            <h2 class="modal-title" style="color:#ffd700;font-size:28px">7-Day Streak!</h2>
+            <p class="modal-subtitle" style="font-size:18px;margin:8px 0 16px">You completed the daily puzzle 7 days in a row!</p>
+            <p class="modal-coins" style="color:#ffd700;font-size:24px;font-weight:bold" id="streak-coin-target">+1,000 \uD83E\uDE99</p>
+            <button class="modal-next-btn" id="streak-dismiss-btn"
+                style="background:linear-gradient(180deg,#ffd700 0%,#b8960f 100%);border:2px solid #ffd700;border-bottom-color:#b8960f;box-shadow:0 4px 14px #ffd70060,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
+                Collect!
+            </button>
+        </div>
+    `;
+
+    // Confetti burst
+    const confettiEl = document.getElementById("streak-confetti");
+    if (confettiEl) {
+        let confettiHtml = "";
+        for (let i = 0; i < 40; i++) {
+            const x = Math.random() * 100;
+            const delay = Math.random() * 0.5;
+            const hue = Math.random() * 360;
+            const size = 4 + Math.random() * 6;
+            confettiHtml += '<div class="confetti-piece" style="left:' + x + '%;animation-delay:' + delay + 's;background:hsl(' + hue + ',80%,60%);width:' + size + 'px;height:' + size + 'px"></div>';
+        }
+        confettiEl.innerHTML = confettiHtml;
+    }
+
+    if (typeof playSound === "function") playSound("bonusChime");
+    animateCoinGain(1000, "streak-coin-target");
+
+    document.getElementById("streak-dismiss-btn").onclick = () => {
+        overlay.style.display = "none";
+    };
+}
+
 function handleDailyCompletion() {
     state.coins += 100;
     state.totalCoinsEarned += 100;
     _dailyCoinsEarned += 100;
     state.dailyPuzzle.completed = true;
+    updateDailyStreak();
     saveDailyState();
     triggerBonusPuzzle("daily");
     setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
