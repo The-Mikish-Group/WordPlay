@@ -157,6 +157,8 @@ const state = {
     speedLevels: [],           // timestamps of recent level completions (for 5-in-an-hour)
     loginStreak: 0,            // consecutive days played
     lastPlayDate: null,        // "YYYY-MM-DD" of last play
+    dailyStreak: 0,            // consecutive days daily puzzle completed (0-7)
+    lastDailyCompleted: null,  // "YYYY-MM-DD" of last daily puzzle completion
     isDailyMode: false,
     difficultyTier: -1,       // tier index (0=Easy,1=Medium,2=Hard,3=Expert), -1 = not chosen yet
     difficultyOffset: 0,      // level offset for current tier
@@ -553,6 +555,8 @@ function loadProgress() {
             state.speedLevels = d.sl || [];
             state.loginStreak = d.ls || 0;
             state.lastPlayDate = d.lpd || null;
+            state.dailyStreak = d.ds || 0;
+            state.lastDailyCompleted = d.ldc2 || null;
             state.flowsCompleted = d.fc || 0;
             state.difficultyTier = d.dt !== undefined ? d.dt : -1;
             state.difficultyOffset = d.doff || 0;
@@ -635,6 +639,8 @@ function saveProgress() {
             sl: state.speedLevels,
             ls: state.loginStreak,
             lpd: state.lastPlayDate,
+            ds: state.dailyStreak,
+            ldc2: state.lastDailyCompleted,
             fc: state.flowsCompleted,
             dt: state.difficultyTier,
             doff: state.difficultyOffset,
