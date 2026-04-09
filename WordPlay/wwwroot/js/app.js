@@ -1295,7 +1295,6 @@ function updateDailyStreak() {
     if (state.dailyStreak >= 7) {
         state.coins += 1000;
         state.totalCoinsEarned += 1000;
-        _dailyCoinsEarned += 1000;
         state.dailyStreak = 0;
         state.lastDailyCompleted = null;
     }
@@ -1349,6 +1348,7 @@ function showDailyStreakCelebration() {
 }
 
 function handleDailyCompletion() {
+    if (state.dailyPuzzle.completed) return;
     state.coins += 100;
     state.totalCoinsEarned += 100;
     _dailyCoinsEarned += 100;
