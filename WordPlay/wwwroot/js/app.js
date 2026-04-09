@@ -2299,9 +2299,16 @@ function renderHome() {
             ${(function() {
                 const dp = state.dailyPuzzle;
                 const completed = dp && dp.date === getTodayStr() && dp.completed;
-                if (completed) return '';
+                if (completed) {
+                    // Show streak progress even after completion (if active)
+                    if (state.dailyStreak > 0) {
+                        return '<div class="home-daily-puzzle-row"><div class="daily-streak-badge">' + state.dailyStreak + '/7 \uD83D\uDD25</div></div>';
+                    }
+                    return '';
+                }
                 const inProgress = dp && dp.date === getTodayStr() && (dp.fw || []).length > 0 && !dp.completed;
-                return '<div class="home-daily-puzzle-row"><button class="home-daily-puzzle-btn' + (inProgress ? ' in-progress' : '') + '" id="home-daily-puzzle-btn"><span class="daily-icon-pulse">\uD83D\uDCC5</span> ' + (inProgress ? 'Continue Daily Puzzle' : 'Daily Puzzle') + '</button></div>';
+                const streakBadge = state.dailyStreak > 0 ? '<span class="daily-streak-pill">' + state.dailyStreak + '/7 \uD83D\uDD25</span>' : '';
+                return '<div class="home-daily-puzzle-row"><button class="home-daily-puzzle-btn' + (inProgress ? ' in-progress' : '') + '" id="home-daily-puzzle-btn"><span class="daily-icon-pulse">\uD83D\uDCC5</span> ' + (inProgress ? 'Continue Daily Puzzle' : 'Daily Puzzle') + streakBadge + '</button></div>';
             })()}
             ${(function() {
                 if (!state.bonusPuzzle || !state.bonusPuzzle.available || isBonusPuzzleExpired()) {
