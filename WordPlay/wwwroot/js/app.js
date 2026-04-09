@@ -4485,19 +4485,31 @@ function renderCompleteModal() {
         `;
         document.getElementById("next-btn").onclick = () => exitBonusMode(false);
     } else if (state.isDailyMode) {
+        const streakJustCompleted = state.dailyStreak === 0 && state.lastDailyCompleted === null;
+        const streakMsg = (!streakJustCompleted && state.dailyStreak > 0)
+            ? `<p class="modal-subtitle" style="color:#ffaa33;font-size:16px;margin-top:8px">\uD83D\uDD25 Day ${state.dailyStreak} of 7 \u2014 ${7 - state.dailyStreak} more for 1,000 coins!</p>`
+            : '';
         overlay.innerHTML = `
             <div class="modal-box" style="border:2px solid #22a86650;box-shadow:0 0 40px #22a86620">
                 <div class="modal-emoji">\uD83D\uDCC5</div>
                 <h2 class="modal-title" style="color:#22a866">Daily Puzzle Complete!</h2>
                 <p class="modal-subtitle">${getTodayStr()}</p>
                 <p class="modal-coins" style="color:${theme.text}">+${_dailyCoinsEarned} \uD83E\uDE99 earned</p>
+                ${streakMsg}
                 <button class="modal-next-btn" id="next-btn"
                     style="background:linear-gradient(180deg,#22a866 0%,#158040 100%);border:2px solid #22a866;border-bottom-color:#158040;box-shadow:0 4px 14px #22a86660,inset 0 1px 1px rgba(255,255,255,0.4);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)">
                     Done \u2713
                 </button>
             </div>
         `;
-        document.getElementById("next-btn").onclick = () => exitDailyMode();
+        document.getElementById("next-btn").onclick = () => {
+            if (streakJustCompleted) {
+                exitDailyMode();
+                setTimeout(showDailyStreakCelebration, 400);
+            } else {
+                exitDailyMode();
+            }
+        };
     } else {
         const maxLv = ((typeof getMaxLevel === "function" && getMaxLevel() > 0) ? getMaxLevel() : (typeof ALL_LEVELS !== "undefined" ? ALL_LEVELS.length : 999999)) - state.difficultyOffset;
         const isLast = state.currentLevel >= maxLv;
