@@ -142,6 +142,7 @@ const state = {
     standaloneFound: false, // whether the standalone coin word has been solved
     showLeaderboard: false,
     showGuide: false,
+    showQuest: false,
     showContact: false,
     showPrivacy: false,
     showTerms: false,
@@ -2604,6 +2605,49 @@ function pickRandomBgKey() {
     return keys[Math.floor(Math.random() * keys.length)];
 }
 
+function _rewardIconList(r) {
+    if (!r) return "";
+    const parts = [];
+    if (r.coins) parts.push(`🪙${r.coins}`);
+    if (r.bees) parts.push(`🐝${r.bees}`);
+    if (r.hints) parts.push(`💡${r.hints}`);
+    if (r.targets) parts.push(`🎯${r.targets}`);
+    if (r.rockets) parts.push(`🚀${r.rockets}`);
+    return parts.join(" ");
+}
+
+function renderQuestBanner(q, qDef) {
+    const milestones = qDef.milestones || [];
+    const claimed = q.claimedTiers || [];
+    const next = milestones.find((_, i) => !claimed.includes(i));
+    const nextAt = next ? next.at : (milestones[milestones.length - 1] && milestones[milestones.length - 1].at) || 0;
+    const pct = nextAt > 0 ? Math.min(100, Math.floor((q.jars / nextAt) * 100)) : 100;
+
+    // Time left
+    const endTs = Date.parse(qDef.end + "T23:59:59");
+    const msLeft = endTs - Date.now();
+    const dLeft = Math.max(0, Math.floor(msLeft / 86400000));
+    const hLeft = Math.max(0, Math.floor((msLeft % 86400000) / 3600000));
+
+    const nextRewardIcons = next ? _rewardIconList(next.reward) : "✓ All complete";
+
+    return `
+    <div class="quest-banner" data-action="open-quest">
+        <div class="quest-banner-icon">${qDef.icon || "🐝"}</div>
+        <div class="quest-banner-body">
+            <div class="quest-banner-name">${qDef.name}</div>
+            <div class="quest-banner-time">Ends in ${dLeft}d ${hLeft}h</div>
+            <div class="quest-banner-progress">
+                <div class="quest-banner-progress-fill" style="width: ${pct}%;"></div>
+            </div>
+            <div class="quest-banner-meta">
+                <span>${q.jars} / ${nextAt} 🍯</span>
+                <span class="quest-banner-next">Next: ${nextRewardIcons}</span>
+            </div>
+        </div>
+    </div>`;
+}
+
 function renderHome() {
     const app = document.getElementById("app");
     // Pick a random background each time we visit the home screen
@@ -2672,6 +2716,14 @@ function renderHome() {
                     <span>COINS</span>
                 </button>
             </div>
+            ${(function() {
+                const _qm = window.quests && window.quests.getCachedManifest();
+                if (state.quest && _qm) {
+                    const qDef = window.quests.getQuestDefinition(_qm, state.quest.id);
+                    if (qDef) return renderQuestBanner(state.quest, qDef);
+                }
+                return '';
+            })()}
             <div class="home-bottom">
                 <div class="home-bottom-btns">
                     <button class="home-corner-btn" id="home-settings-btn" title="Settings">⚙️</button>
@@ -2762,6 +2814,12 @@ function renderHome() {
     if (bpBtn) {
         bpBtn.onclick = () => enterBonusMode();
     }
+    document.querySelectorAll("[data-action='open-quest']").forEach(el => {
+        el.addEventListener("click", () => {
+            state.showQuest = true;
+            renderHome();
+        });
+    });
 }
 
 // ---- HEADER ----
