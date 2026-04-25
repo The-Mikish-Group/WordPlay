@@ -1218,6 +1218,46 @@ function isBeeLevel(displayLevel) {
     return displayLevel % getBeeFrequency(displayLevel) === 0;
 }
 
+// Choose which wheel letter receives a bee for this level.
+// Strategy: pick a letter from the SHORTEST grid word so the player can
+// solve the bee word early without effort.  Among ties, pick the letter
+// that occurs in the FEWEST other grid words (so the bee letter itself
+// isn't doing too much work — the bee reveal does the work).
+//
+// Returns the index into `wheelLetters` array, or -1 if no suitable choice.
+function pickBeeLetter() {
+    if (!placedWords || placedWords.length === 0) return -1;
+    if (!wheelLetters || wheelLetters.length === 0) return -1;
+
+    // Find shortest grid word (excluding standalone, which is its own thing)
+    const candidates = placedWords
+        .filter(w => !standaloneWord || w !== standaloneWord)
+        .sort((a, b) => a.length - b.length);
+    if (candidates.length === 0) return -1;
+
+    const shortest = candidates[0];
+    const shortestLetters = new Set(shortest.split(""));
+
+    // For each wheel letter that's in the shortest word, count how many
+    // OTHER grid words contain it.  Pick the one with the lowest count.
+    let bestIdx = -1;
+    let bestCount = Infinity;
+    for (let i = 0; i < wheelLetters.length; i++) {
+        const ch = wheelLetters[i];
+        if (!shortestLetters.has(ch)) continue;
+        let count = 0;
+        for (const w of placedWords) {
+            if (w === shortest) continue;
+            if (w.includes(ch)) count++;
+        }
+        if (count < bestCount) {
+            bestCount = count;
+            bestIdx = i;
+        }
+    }
+    return bestIdx;
+}
+
 // ---- SPEED BONUS CHECK (7 sec per word) ----
 function checkSpeedBonus() {
     if (!_speedTimerActive || state.isDailyMode || state.isBonusMode) return;
