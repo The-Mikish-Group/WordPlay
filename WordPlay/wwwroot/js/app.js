@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.7.2";
+const APP_VERSION = "1.7.3";
 
 // ---- THEMES ----
 const THEMES = {
@@ -2677,36 +2677,35 @@ function _rewardIconList(r) {
     return parts.join(" ");
 }
 
-function renderQuestBanner(q, qDef) {
+function renderQuestSideButton(q, qDef) {
     const milestones = qDef.milestones || [];
     const claimed = q.claimedTiers || [];
     const next = milestones.find((_, i) => !claimed.includes(i));
     const nextAt = next ? next.at : (milestones[milestones.length - 1] && milestones[milestones.length - 1].at) || 0;
     const pct = nextAt > 0 ? Math.min(100, Math.floor((q.jars / nextAt) * 100)) : 100;
 
-    // Time left
-    const endTs = Date.parse(qDef.end + "T23:59:59");
-    const msLeft = endTs - Date.now();
-    const dLeft = Math.max(0, Math.floor(msLeft / 86400000));
-    const hLeft = Math.max(0, Math.floor((msLeft % 86400000) / 3600000));
+    // Are all of today's daily goals done? Then we're in a "waiting for refresh" state.
+    const goals = (state.dailyGoals && state.dailyGoals.goals) || [];
+    const allDone = goals.length > 0 && goals.every(g => g.claimed);
 
-    const nextRewardIcons = next ? _rewardIconList(next.reward) : "✓ All complete";
+    // SVG progress ring math: r=30 → circumference = 188.5
+    const CIRCUM = 188.5;
+    const dashOffset = CIRCUM - (CIRCUM * pct / 100);
+
+    const titleText = qDef.name + " — " + q.jars + " / " + nextAt + " honey jars" + (allDone ? " (all today's goals done — refreshes at midnight)" : "");
 
     return `
-    <div class="quest-banner" data-action="open-quest">
-        <div class="quest-banner-icon">${qDef.icon || "🐝"}</div>
-        <div class="quest-banner-body">
-            <div class="quest-banner-name">${qDef.name}</div>
-            <div class="quest-banner-time">Ends in ${dLeft}d ${hLeft}h</div>
-            <div class="quest-banner-progress">
-                <div class="quest-banner-progress-fill" style="width: ${pct}%;"></div>
-            </div>
-            <div class="quest-banner-meta">
-                <span>${q.jars} / ${nextAt} 🍯</span>
-                <span class="quest-banner-next">Next: ${nextRewardIcons}</span>
-            </div>
-        </div>
-    </div>`;
+    <button class="quest-side-btn ${allDone ? 'quest-side-waiting' : ''}" data-action="open-quest" title="${titleText.replace(/"/g, '&quot;')}">
+        <svg class="quest-progress-ring" width="68" height="68" viewBox="0 0 68 68">
+            <circle cx="34" cy="34" r="30" stroke="rgba(255,255,255,0.20)" stroke-width="5" fill="none"></circle>
+            <circle cx="34" cy="34" r="30" stroke="var(--accent, #f4a535)" stroke-width="5" fill="none"
+                    stroke-dasharray="${CIRCUM}" stroke-dashoffset="${dashOffset}"
+                    stroke-linecap="round" transform="rotate(-90 34 34)"></circle>
+        </svg>
+        <span class="quest-side-icon">${qDef.icon || "🐝"}</span>
+        ${allDone ? '<span class="quest-side-zzz" aria-hidden="true">💤</span>' : ''}
+        <span class="quest-side-pct">${pct}%</span>
+    </button>`;
 }
 
 function renderHome() {
@@ -2782,7 +2781,10 @@ function renderHome() {
                 const _qm = window.quests && window.quests.getCachedManifest();
                 if (state.quest && _qm) {
                     const qDef = window.quests.getQuestDefinition(_qm, state.quest.id);
-                    if (qDef) return renderQuestBanner(state.quest, qDef);
+                    if (qDef) {
+                        // Side rail can hold multiple quest buttons in the future.
+                        return '<div class="quest-side-rail">' + renderQuestSideButton(state.quest, qDef) + '</div>';
+                    }
                 }
                 return '';
             })()}
@@ -7808,6 +7810,7 @@ function renderQuestScreen() {
     const rM = Math.floor((refreshMs % 3600000) / 60000);
 
     const goals = (state.dailyGoals && state.dailyGoals.goals) || [];
+    const allDone = goals.length > 0 && goals.every(g => g.claimed);
     const goalsHtml = goals.map(g => {
         const tpl = window.quests && window.quests.GOAL_TEMPLATES && window.quests.GOAL_TEMPLATES[g.template];
         if (!tpl) return "";
@@ -7828,6 +7831,10 @@ function renderQuestScreen() {
             </div>`;
     }).join("");
 
+    const allDoneBanner = allDone
+        ? '<div class="goals-all-done">💤 All today’s goals done! Fresh goals in <strong>' + rH + 'h ' + rM + 'm</strong>. Keep playing for coins, bonus words, and stars while you wait.</div>'
+        : '';
+
     root.innerHTML = `
         <div class="quest-screen">
             <button class="quest-close" data-action="close-quest">✕</button>
@@ -7838,6 +7845,7 @@ function renderQuestScreen() {
             </div>
             <div class="milestones-row">${milestoneHtml}</div>
             <div class="quest-jars-total">${jars} 🍯 collected</div>
+            ${allDoneBanner}
             <div class="goals-section">
                 <div class="goals-header">
                     <span>Daily Goals</span>
