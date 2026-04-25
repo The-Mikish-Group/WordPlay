@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.7.3";
+const APP_VERSION = "1.7.4";
 
 // ---- THEMES ----
 const THEMES = {
@@ -208,17 +208,17 @@ window.debugBonus = function(presetStars) {
 // ---- DEBUG: BEE TESTING ----
 // Usage:
 //   debugBee()        — diagnostic dump + explanation of why bees did/didn't deploy
-//   debugBee(true)    — force a queued bee on the next level you enter (sets state.questedBees++)
-//   debugBee("clear") — clear stale bd/bdIdx flags from inProgress (recovery)
+//   debugBee(true)    — queue +1 bee for next level
+//   debugBee("clear") — clear stale bd/bdCell flags from current level (recovery)
 window.debugBee = function(arg) {
     const lv = state.currentLevel;
     const tier = state.difficultyTier;
     const freq = (typeof getBeeFrequency === "function") ? getBeeFrequency(lv) : "?";
     const isBee = (typeof isBeeLevel === "function") ? isBeeLevel(lv) : "?";
     const queued = state.questedBees || 0;
-    const onWheel = (typeof _beesOnWheel !== "undefined") ? _beesOnWheel : null;
+    const onGrid = (typeof _beesOnGrid !== "undefined") ? _beesOnGrid : null;
     const ip = (state.inProgress && state.inProgress[lv]) || {};
-    const bdIdxValid = typeof ip.bdIdx === "number" && ip.bdIdx >= 0;
+    const bdCellValid = typeof ip.bdCell === "string" && /^\d+,\d+$/.test(ip.bdCell);
 
     console.log("=== BEE DEBUG ===");
     console.log("APP_VERSION:", APP_VERSION);
@@ -226,25 +226,25 @@ window.debugBee = function(arg) {
     console.log("difficultyTier:", tier, "→ bee frequency: every", freq + "th level");
     console.log("isBeeLevel(" + lv + "):", isBee);
     console.log("state.questedBees:", queued);
-    console.log("inProgress[" + lv + "].bd / .bdIdx:", ip.bd, "/", ip.bdIdx, bdIdxValid ? "(valid)" : "(invalid)");
-    console.log("_beesOnWheel:", onWheel);
-    console.log("wheelLetters:", typeof wheelLetters !== "undefined" ? wheelLetters : null);
-    if (typeof pickBeeLetter === "function" && typeof wheelLetters !== "undefined" && wheelLetters) {
-        console.log("pickBeeLetter() would return:", pickBeeLetter());
+    console.log("inProgress[" + lv + "].bd / .bdCell:", ip.bd, "/", ip.bdCell, bdCellValid ? "(valid)" : "(invalid)");
+    if (ip.bdIdx !== undefined) console.log("LEGACY bdIdx field present:", ip.bdIdx, "(will be cleared on next recompute)");
+    console.log("_beesOnGrid:", onGrid);
+    if (typeof pickBeeCell === "function") {
+        console.log("pickBeeCell() would return:", pickBeeCell(new Set()));
     }
 
-    // Explain what would happen on next recompute()
     console.log("--- diagnosis ---");
     if (state.isDailyMode || state.isBonusMode) {
         console.log("In daily/bonus mode — bee init is skipped entirely.");
     } else if (queued === 0 && !isBee) {
-        console.log("No queued bees AND not a Bee level — bee won't appear. Win one or wait for level " + (Math.ceil(lv / freq) + 1) * freq + ".");
-    } else if (queued > 0 && ip.bd && !bdIdxValid) {
-        console.log("STALE STATE: ip.bd=true but bdIdx is invalid. Run debugBee('clear') to recover.");
-    } else if (queued > 0 && ip.bd) {
-        console.log("Queued bee visible from previous deploy at letterIdx", ip.bdIdx + ".");
+        const nextBee = (Math.floor(lv / freq) + 1) * freq;
+        console.log("No queued bees AND not a Bee level — wait for level " + nextBee + ", or win one from Quest milestones / spin wheel.");
+    } else if (queued > 0 && ip.bd && !bdCellValid) {
+        console.log("STALE STATE: ip.bd=true but bdCell missing/invalid (likely legacy v1.7.x save). Run debugBee('clear').");
+    } else if (queued > 0 && ip.bd && bdCellValid) {
+        console.log("Queued bee already deployed on this level at cell", ip.bdCell + ".");
     } else if (queued > 0) {
-        console.log("Queued bee will deploy on next recompute() (e.g. when you enter this level fresh).");
+        console.log("Queued bee will deploy on next recompute() — re-enter the level fresh.");
     } else if (isBee) {
         console.log("This IS a Bee level — spawned bee should appear.");
     }
@@ -252,13 +252,14 @@ window.debugBee = function(arg) {
     if (arg === true) {
         state.questedBees = (state.questedBees || 0) + 1;
         saveProgress();
-        console.log("→ Queued bee count is now", state.questedBees + ". Re-enter the level (or advance) to see it deploy.");
+        console.log("→ questedBees is now", state.questedBees + ". Re-enter the level to see it deploy.");
     } else if (arg === "clear") {
         if (state.inProgress[lv]) {
             delete state.inProgress[lv].bd;
+            delete state.inProgress[lv].bdCell;
             delete state.inProgress[lv].bdIdx;
             saveProgress();
-            console.log("→ Cleared bd/bdIdx for level " + lv + ". A queued bee will now be free to deploy here.");
+            console.log("→ Cleared bd/bdCell for level " + lv + ". A queued bee will now be free to deploy here.");
         } else {
             console.log("Nothing to clear — no inProgress entry for level " + lv + ".");
         }
@@ -303,7 +304,7 @@ let _forceFlowLayout = false;       // transient flag for daily flow layout vari
 
 // ---- QUEST TRACKING STATE ----
 let _hintsUsedThisLevel = 0;  // hints used in current level (excluding bee reveals)
-let _beesOnWheel = [];  // bees placed on the wheel for the current level
+let _beesOnGrid = [];  // bees placed on grid cells for the current level: [{ row, col, type, triggered }]
 
 // ---- SPEED BONUS STATE ----
 let _speedTimerStart = 0;        // timestamp of first wheel touch this level
@@ -553,59 +554,64 @@ async function recompute() {
 
     // Initialize bee state for this level.
     // - Spawned bees: deterministic from level number (Bee level)
-    // - Queued bees: deploy 1 from state.questedBees if available; bd flag prevents
-    //   re-deploying when the player resumes a level mid-play.
-    _beesOnWheel = []; // array of { letterIdx, type: "spawned" | "queued", triggered: false }
+    // - Queued bees: deploy 1 from state.questedBees if available. The bd flag
+    //   plus bdCell ("row,col" string) preserves the bee's position across
+    //   resume / restart / sync.
+    _beesOnGrid = []; // array of { row, col, type: "spawned" | "queued", triggered: false }
 
     if (!state.isDailyMode && !state.isBonusMode) {
         const ip = state.inProgress[state.currentLevel] || {};
-        const bdIdxValid = typeof ip.bdIdx === "number" && ip.bdIdx >= 0;
-        // If bd is set but bdIdx is missing/invalid, the entry is stale (from older
-        // debug state or a corruption). Treat as not deployed so a queued bee can land.
-        if (ip.bd && !bdIdxValid) {
-            ip.bd = false;
+        const bdCellValid = typeof ip.bdCell === "string" && /^\d+,\d+$/.test(ip.bdCell);
+        // Stale state: bd=true but bdCell is missing/invalid (or pre-grid format with bdIdx).
+        // Clear it so a queued bee can deploy fresh.
+        if (ip.bd && !bdCellValid) {
             if (state.inProgress[state.currentLevel]) {
                 delete state.inProgress[state.currentLevel].bd;
-                delete state.inProgress[state.currentLevel].bdIdx;
+                delete state.inProgress[state.currentLevel].bdCell;
+                delete state.inProgress[state.currentLevel].bdIdx; // legacy v1.7.x
             }
+            ip.bd = false;
         }
         const alreadyDeployed = !!ip.bd;
 
-        // Spawned bee?
+        // Spawned bee on Bee levels.
         if (typeof isBeeLevel === "function" && isBeeLevel(state.currentLevel)) {
-            const idx = pickBeeLetter();
-            if (idx >= 0) {
-                _beesOnWheel.push({ letterIdx: idx, type: "spawned", triggered: false });
+            const cell = pickBeeCell(new Set());
+            if (cell) {
+                _beesOnGrid.push({ row: cell.row, col: cell.col, type: "spawned", triggered: false });
             }
         }
 
+        const usedKeys = new Set(_beesOnGrid.map(b => b.row + "," + b.col));
+
         let queuedShown = false;
-        if (alreadyDeployed && bdIdxValid) {
-            // Resume path: re-show the queued bee on its previously-placed letter.
-            const used = new Set(_beesOnWheel.map(b => b.letterIdx));
-            if (!used.has(ip.bdIdx) && _beesOnWheel.length < 2) {
-                _beesOnWheel.push({ letterIdx: ip.bdIdx, type: "queued", triggered: false });
+        if (alreadyDeployed && bdCellValid) {
+            // Resume path: re-show the queued bee on its saved cell.
+            if (!usedKeys.has(ip.bdCell) && _beesOnGrid.length < 2) {
+                const [r, c] = ip.bdCell.split(",").map(Number);
+                _beesOnGrid.push({ row: r, col: c, type: "queued", triggered: false });
+                usedKeys.add(ip.bdCell);
                 queuedShown = true;
             }
         }
-        if (!queuedShown && !alreadyDeployed && state.questedBees > 0 && _beesOnWheel.length < 2) {
-            // Fresh deploy from queue.
-            const used = new Set(_beesOnWheel.map(b => b.letterIdx));
-            const idx = pickBeeLetter();
-            if (idx >= 0 && !used.has(idx)) {
-                _beesOnWheel.push({ letterIdx: idx, type: "queued", triggered: false });
+        if (!queuedShown && !alreadyDeployed && state.questedBees > 0 && _beesOnGrid.length < 2) {
+            // Fresh deploy from queue, on a different cell than the spawned bee.
+            const cell = pickBeeCell(usedKeys);
+            if (cell) {
+                const k = cell.row + "," + cell.col;
+                _beesOnGrid.push({ row: cell.row, col: cell.col, type: "queued", triggered: false });
                 state.questedBees--;
                 state.inProgress[state.currentLevel] = state.inProgress[state.currentLevel] || {};
                 state.inProgress[state.currentLevel].bd = true;
-                state.inProgress[state.currentLevel].bdIdx = idx;
+                state.inProgress[state.currentLevel].bdCell = k;
                 if (typeof saveProgress === "function") saveProgress();
             }
-            // If pickBeeLetter() returned the spawned letter or -1, the queued bee
-            // remains in state.questedBees and will try again on the next level.
+            // If pickBeeCell() returned null (no eligible cell), the queued bee
+            // remains in state.questedBees and tries again next level.
         }
     }
 
-    if (_beesOnWheel.length > 0 && !localStorage.getItem("wp-bee-tut")) {
+    if (_beesOnGrid.length > 0 && !localStorage.getItem("wp-bee-tut")) {
         setTimeout(showBeeTutorial, 600);
     }
 }
@@ -620,20 +626,23 @@ function rebuildWheelLetters() {
 }
 
 // Trigger a bee animation when the bee word is solved.
-// `bee` is one entry from _beesOnWheel.  Reveals 3 (spawned) or 4 (queued) cells.
+// `bee` is one entry from _beesOnGrid.  Reveals 3 (spawned) or 4 (queued) cells.
 function triggerBee(bee) {
     if (!bee || bee.triggered) return;
     bee.triggered = true;
 
     const revealCount = bee.type === "queued" ? 4 : 3;
+    const beeKey = bee.row + "," + bee.col;
 
     // Find unsolved cells, weighted by shortness of the parent word.
+    // Exclude the bee's own cell (it's about to be revealed by the found word anyway).
     const unsolvedByWord = []; // [{ word, cells: [{row,col}] }]
     if (crossword && crossword.placements) {
         for (const p of crossword.placements) {
             if (state.foundWords.includes(p.word)) continue;
             const unsolvedCells = p.cells.filter(c => {
                 const k = c.row + "," + c.col;
+                if (k === beeKey) return false;
                 return !state.revealedCells.includes(k);
             });
             if (unsolvedCells.length > 0) {
@@ -641,10 +650,8 @@ function triggerBee(bee) {
             }
         }
     }
-    // Sort: shortest words first
     unsolvedByWord.sort((a, b) => a.word.length - b.word.length);
 
-    // Take up to revealCount distinct cells
     const seen = new Set();
     const picks = [];
     for (const entry of unsolvedByWord) {
@@ -664,12 +671,11 @@ function triggerBee(bee) {
     }
 
     if (picks.length === 0) {
-        // Re-render so the bee disappears from the wheel even if no cells to reveal
-        if (typeof renderWheel === "function") renderWheel();
+        // No cells to reveal — just re-render so the bee icon disappears.
+        if (typeof renderGrid === "function") renderGrid();
         return;
     }
 
-    // Stagger the reveals
     picks.forEach((cell, i) => {
         setTimeout(() => {
             const k = cell.row + "," + cell.col;
@@ -678,20 +684,23 @@ function triggerBee(bee) {
         }, 250 + i * 200);
     });
 
-    // After reveals settle, save and re-render wheel (to drop the bee icon)
     setTimeout(() => {
-        if (typeof renderWheel === "function") renderWheel();
+        if (typeof renderGrid === "function") renderGrid();
         if (typeof saveProgress === "function") saveProgress();
     }, 250 + picks.length * 200 + 100);
 }
 
+// When a grid word is found, trigger any bee whose cell is part of that word.
+// Bees on bonus words are NOT triggered — bonus words don't have grid cells.
 function _triggerBeesForWord(w) {
-    if (!Array.isArray(_beesOnWheel) || _beesOnWheel.length === 0) return;
-    const upper = String(w).toUpperCase();
-    for (const bee of _beesOnWheel) {
+    if (!Array.isArray(_beesOnGrid) || _beesOnGrid.length === 0) return;
+    if (!crossword || !crossword.placements) return;
+    const placement = crossword.placements.find(p => p.word === w);
+    if (!placement) return;
+    const cellKeys = new Set(placement.cells.map(c => c.row + "," + c.col));
+    for (const bee of _beesOnGrid) {
         if (bee.triggered) continue;
-        const letter = wheelLetters[bee.letterIdx];
-        if (letter && upper.includes(String(letter).toUpperCase())) {
+        if (cellKeys.has(bee.row + "," + bee.col)) {
             triggerBee(bee);
         }
     }
@@ -912,7 +921,7 @@ function saveInProgressState() {
             rsc: _regularStarCells.length > 0 ? [..._regularStarCells] : undefined,
             zen: _currentLayoutIsFlow || undefined,
             bd: prev.bd || undefined,
-            bdIdx: typeof prev.bdIdx === "number" ? prev.bdIdx : undefined,
+            bdCell: typeof prev.bdCell === "string" ? prev.bdCell : undefined,
         };
     }
 }
@@ -1445,39 +1454,44 @@ function isBeeLevel(displayLevel) {
 // isn't doing too much work — the bee reveal does the work).
 //
 // Returns the index into `wheelLetters` array, or -1 if no suitable choice.
-function pickBeeLetter() {
-    if (!placedWords || placedWords.length === 0) return -1;
-    if (!wheelLetters || wheelLetters.length === 0) return -1;
+// Pick a grid cell for a bee to occupy.
+// Strategy: find the SHORTEST unsolved grid word and pick a cell from it that:
+//   1. Is not already revealed.
+//   2. Is not already used by another bee (excludeKeys: Set of "row,col" strings).
+//   3. Prefers a cell owned by only ONE word (intersections are visually
+//      ambiguous — better the bee sits on a cell that clearly belongs to
+//      its parent word).
+// Returns { row, col } or null.
+function pickBeeCell(excludeKeys) {
+    if (!crossword || !crossword.placements) return null;
+    const exclude = excludeKeys || new Set();
+    const revealed = new Set(state.revealedCells || []);
 
-    // Find shortest grid word (excluding standalone, which is its own thing).
-    // Compare case-insensitively — wheelLetters can be lowercase while
-    // placedWords are uppercase (or vice-versa).
-    const candidates = placedWords
-        .filter(w => !standaloneWord || w !== standaloneWord)
-        .sort((a, b) => a.length - b.length);
-    if (candidates.length === 0) return -1;
+    // Unsolved grid words (excluding standalone), sorted by length ascending.
+    const unsolved = crossword.placements
+        .filter(p => !state.foundWords.includes(p.word))
+        .filter(p => !p.standalone)
+        .slice()
+        .sort((a, b) => a.word.length - b.word.length);
+    if (unsolved.length === 0) return null;
 
-    const shortest = candidates[0];
-    const shortestLetters = new Set(shortest.toUpperCase().split(""));
-
-    // For each wheel letter that's in the shortest word, count how many
-    // OTHER grid words contain it.  Pick the one with the lowest count.
-    let bestIdx = -1;
-    let bestCount = Infinity;
-    for (let i = 0; i < wheelLetters.length; i++) {
-        const ch = String(wheelLetters[i]).toUpperCase();
-        if (!shortestLetters.has(ch)) continue;
-        let count = 0;
-        for (const w of placedWords) {
-            if (w === shortest) continue;
-            if (w.toUpperCase().includes(ch)) count++;
+    // For each candidate word (shortest first), look for a single-owner
+    // unrevealed cell. Fall back to any unrevealed cell.
+    for (const p of unsolved) {
+        let firstAny = null;
+        for (const c of p.cells) {
+            const k = c.row + "," + c.col;
+            if (revealed.has(k)) continue;
+            if (exclude.has(k)) continue;
+            if (!firstAny) firstAny = c;
+            // Prefer cells with single-word ownership (intersection-free)
+            if (_cellToWord && _cellToWord[k] === p.word) {
+                return { row: c.row, col: c.col };
+            }
         }
-        if (count < bestCount) {
-            bestCount = count;
-            bestIdx = i;
-        }
+        if (firstAny) return { row: firstAny.row, col: firstAny.col };
     }
-    return bestIdx;
+    return null;
 }
 
 // ---- SPEED BONUS CHECK (7 sec per word) ----
@@ -3494,6 +3508,12 @@ function renderGrid() {
                 div.style.color = "transparent";
                 div.style.textShadow = "";
                 div.textContent = "";
+                // Bee overlay on unrevealed cells
+                const beeHere = _beesOnGrid.find(b => b.row === ri && b.col === ci && !b.triggered);
+                if (beeHere) {
+                    const beeFs = Math.max(cs * 0.78, 18);
+                    div.innerHTML = '<span class="grid-cell-bee' + (beeHere.type === "queued" ? " grid-cell-bee-queued" : "") + '" style="font-size:' + beeFs + 'px">🐝</span>';
+                }
                 if (state.pickMode) {
                     div.style.cursor = "pointer";
                     div.onclick = () => handlePickCell(k);
@@ -4092,14 +4112,6 @@ function renderWheel() {
         div.style.background = "transparent";
         div.style.border = "3px solid transparent";
         div.textContent = wheelLetters[i];
-        // Bee overlay
-        const beeHere = _beesOnWheel.find(b => b.letterIdx === i && !b.triggered);
-        if (beeHere) {
-            const beeEl = document.createElement("span");
-            beeEl.className = "wheel-bee" + (beeHere.type === "queued" ? " wheel-bee-queued" : "");
-            beeEl.textContent = "🐝";
-            div.appendChild(beeEl);
-        }
         lettersDiv.appendChild(div);
     }
 
@@ -5627,7 +5639,7 @@ function renderMenu() {
         state.inProgress[state.currentLevel] = {
             fw: [], bf: [], rc: [], sf: false,
             bd: prev.bd || undefined,
-            bdIdx: typeof prev.bdIdx === "number" ? prev.bdIdx : undefined,
+            bdCell: typeof prev.bdCell === "string" ? prev.bdCell : undefined,
         };
         state.shuffleKey = 0;
         await recompute();

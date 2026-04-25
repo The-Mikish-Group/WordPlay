@@ -2645,29 +2645,25 @@ html, body {
 }
 
 /* ============================================================
-   Bee on the wheel
+   Bee on a grid cell
    ============================================================ */
-.wheel-bee {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    font-size: 28px;
+.grid-cell-bee {
+    display: inline-block;
+    line-height: 1;
     pointer-events: none;
     animation: beePulse 1.6s ease-in-out infinite;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
-    z-index: 5;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
 }
-.wheel-bee-queued {
-    /* Slightly larger + golden tint for earned bees */
-    font-size: 32px;
-    filter: drop-shadow(0 2px 6px rgba(244, 165, 53, 0.7));
+.grid-cell-bee-queued {
+    /* Earned bees get a subtle golden glow */
+    filter: drop-shadow(0 2px 4px rgba(244, 165, 53, 0.85));
 }
 @keyframes beePulse {
     0%, 100% { transform: scale(1) rotate(-3deg); }
-    50%      { transform: scale(1.12) rotate(3deg); }
+    50%      { transform: scale(1.10) rotate(3deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-    .wheel-bee { animation: none; }
+    .grid-cell-bee { animation: none; }
 }
 
 /* ============================================================
