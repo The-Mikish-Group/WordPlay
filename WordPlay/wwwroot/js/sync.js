@@ -205,7 +205,13 @@ function mergeProgress(local, server) {
             const bWords = (b.fw || []).length;
             const winner = aWords >= bWords ? a : b;
             // OR the bee-deployed flag — once deployed, forever deployed.
-            if (a.bd || b.bd) winner.bd = true;
+            // Also carry over bdIdx from whichever side actually deployed,
+            // so resume can re-show the bee on the saved letter.
+            if (a.bd || b.bd) {
+                winner.bd = true;
+                const idxSrc = a.bd ? a : b;
+                if (typeof idxSrc.bdIdx === "number") winner.bdIdx = idxSrc.bdIdx;
+            }
             merged.ip[key] = winner;
         } else {
             merged.ip[key] = a || b;
