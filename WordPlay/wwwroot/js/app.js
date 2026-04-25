@@ -620,7 +620,7 @@ function saveProgress() {
     try {
         saveInProgressState();
         localStorage.setItem("wordplay-save", JSON.stringify({
-            v: 8,  // format version
+            v: 9,  // format version
             cl: state.currentLevel,
             fw: state.foundWords,
             bf: state.bonusFound,
@@ -651,6 +651,11 @@ function saveProgress() {
             dt: state.difficultyTier,
             doff: state.difficultyOffset,
             tc: state.tierCeiling,
+            // Engagement
+            nb: state.questedBees,
+            q: state.quest,
+            dg: state.dailyGoals,
+            qh: state.questHistory,
             sa: Date.now(),  // savedAt — used by merge to resolve balance conflicts
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
