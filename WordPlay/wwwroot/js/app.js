@@ -242,6 +242,7 @@ let _forceFlowLayout = false;       // transient flag for daily flow layout vari
 
 // ---- QUEST TRACKING STATE ----
 let _hintsUsedThisLevel = 0;  // hints used in current level (excluding bee reveals)
+let _beesOnWheel = [];  // bees placed on the wheel for the current level
 
 // ---- SPEED BONUS STATE ----
 let _speedTimerStart = 0;        // timestamp of first wheel touch this level
@@ -488,6 +489,38 @@ async function recompute() {
     }
     // Preload current level's background image
     preloadBgImage(getBgImageKey(level));
+
+    // Initialize bee state for this level.
+    // - Spawned bees: deterministic from level number (Bee level)
+    // - Queued bees: deploy 1 from state.questedBees if available
+    _beesOnWheel = []; // array of { letterIdx, type: "spawned" | "queued", triggered: false }
+
+    if (!state.isDailyMode && !state.isBonusMode) {
+        const ip = state.inProgress[state.currentLevel] || {};
+        const alreadyDeployed = !!ip.bd;
+
+        // Spawned bee?
+        if (typeof isBeeLevel === "function" && isBeeLevel(state.currentLevel)) {
+            const idx = pickBeeLetter();
+            if (idx >= 0) {
+                _beesOnWheel.push({ letterIdx: idx, type: "spawned", triggered: false });
+            }
+        }
+
+        // Queued bee?
+        if (!alreadyDeployed && state.questedBees > 0 && _beesOnWheel.length < 2) {
+            // Pick a different letter than spawned (if any)
+            const used = new Set(_beesOnWheel.map(b => b.letterIdx));
+            let idx = pickBeeLetter();
+            if (idx >= 0 && !used.has(idx)) {
+                _beesOnWheel.push({ letterIdx: idx, type: "queued", triggered: false });
+                state.questedBees--;
+                state.inProgress[state.currentLevel] = state.inProgress[state.currentLevel] || {};
+                state.inProgress[state.currentLevel].bd = true;
+                if (typeof saveProgress === "function") saveProgress();
+            }
+        }
+    }
 }
 
 function rebuildWheelLetters() {
