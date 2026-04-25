@@ -1449,26 +1449,28 @@ function pickBeeLetter() {
     if (!placedWords || placedWords.length === 0) return -1;
     if (!wheelLetters || wheelLetters.length === 0) return -1;
 
-    // Find shortest grid word (excluding standalone, which is its own thing)
+    // Find shortest grid word (excluding standalone, which is its own thing).
+    // Compare case-insensitively — wheelLetters can be lowercase while
+    // placedWords are uppercase (or vice-versa).
     const candidates = placedWords
         .filter(w => !standaloneWord || w !== standaloneWord)
         .sort((a, b) => a.length - b.length);
     if (candidates.length === 0) return -1;
 
     const shortest = candidates[0];
-    const shortestLetters = new Set(shortest.split(""));
+    const shortestLetters = new Set(shortest.toUpperCase().split(""));
 
     // For each wheel letter that's in the shortest word, count how many
     // OTHER grid words contain it.  Pick the one with the lowest count.
     let bestIdx = -1;
     let bestCount = Infinity;
     for (let i = 0; i < wheelLetters.length; i++) {
-        const ch = wheelLetters[i];
+        const ch = String(wheelLetters[i]).toUpperCase();
         if (!shortestLetters.has(ch)) continue;
         let count = 0;
         for (const w of placedWords) {
             if (w === shortest) continue;
-            if (w.includes(ch)) count++;
+            if (w.toUpperCase().includes(ch)) count++;
         }
         if (count < bestCount) {
             bestCount = count;
