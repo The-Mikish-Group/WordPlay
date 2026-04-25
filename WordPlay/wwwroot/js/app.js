@@ -492,7 +492,8 @@ async function recompute() {
 
     // Initialize bee state for this level.
     // - Spawned bees: deterministic from level number (Bee level)
-    // - Queued bees: deploy 1 from state.questedBees if available
+    // - Queued bees: deploy 1 from state.questedBees if available; bd flag prevents
+    //   re-deploying when the player resumes a level mid-play.
     _beesOnWheel = []; // array of { letterIdx, type: "spawned" | "queued", triggered: false }
 
     if (!state.isDailyMode && !state.isBonusMode) {
@@ -507,18 +508,26 @@ async function recompute() {
             }
         }
 
-        // Queued bee?
-        if (!alreadyDeployed && state.questedBees > 0 && _beesOnWheel.length < 2) {
-            // Pick a different letter than spawned (if any)
+        if (alreadyDeployed && typeof ip.bdIdx === "number" && ip.bdIdx >= 0) {
+            // Resume path: re-show the queued bee on its previously-placed letter.
             const used = new Set(_beesOnWheel.map(b => b.letterIdx));
-            let idx = pickBeeLetter();
+            if (!used.has(ip.bdIdx) && _beesOnWheel.length < 2) {
+                _beesOnWheel.push({ letterIdx: ip.bdIdx, type: "queued", triggered: false });
+            }
+        } else if (!alreadyDeployed && state.questedBees > 0 && _beesOnWheel.length < 2) {
+            // Fresh deploy from queue.
+            const used = new Set(_beesOnWheel.map(b => b.letterIdx));
+            const idx = pickBeeLetter();
             if (idx >= 0 && !used.has(idx)) {
                 _beesOnWheel.push({ letterIdx: idx, type: "queued", triggered: false });
                 state.questedBees--;
                 state.inProgress[state.currentLevel] = state.inProgress[state.currentLevel] || {};
                 state.inProgress[state.currentLevel].bd = true;
+                state.inProgress[state.currentLevel].bdIdx = idx;
                 if (typeof saveProgress === "function") saveProgress();
             }
+            // If pickBeeLetter() returned the spawned letter or -1, the queued bee
+            // remains in state.questedBees and will try again on the next level.
         }
     }
 }
@@ -718,6 +727,7 @@ function saveInProgressState() {
     if (state.isDailyMode || state.isBonusMode) return;
     const lv = state.currentLevel;
     if (state.foundWords.length > 0 || state.revealedCells.length > 0 || state.bonusFound.length > 0 || state.standaloneFound) {
+        const prev = state.inProgress[lv] || {};
         state.inProgress[lv] = {
             fw: [...state.foundWords],
             bf: [...state.bonusFound],
@@ -726,6 +736,8 @@ function saveInProgressState() {
             wo: wheelLetters ? [...wheelLetters] : null,
             rsc: _regularStarCells.length > 0 ? [..._regularStarCells] : undefined,
             zen: _currentLayoutIsFlow || undefined,
+            bd: prev.bd || undefined,
+            bdIdx: typeof prev.bdIdx === "number" ? prev.bdIdx : undefined,
         };
     }
 }
@@ -5330,7 +5342,12 @@ function renderMenu() {
         state.foundWords = [];
         state.bonusFound = [];
         state.revealedCells = [];
-        state.inProgress[state.currentLevel] = { fw: [], bf: [], rc: [], sf: false };
+        const prev = state.inProgress[state.currentLevel] || {};
+        state.inProgress[state.currentLevel] = {
+            fw: [], bf: [], rc: [], sf: false,
+            bd: prev.bd || undefined,
+            bdIdx: typeof prev.bdIdx === "number" ? prev.bdIdx : undefined,
+        };
         state.shuffleKey = 0;
         await recompute();
         saveProgress();
