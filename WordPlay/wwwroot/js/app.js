@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.7.1";
 
 // ---- THEMES ----
 const THEMES = {
@@ -202,6 +202,38 @@ window.debugBonus = function(presetStars) {
     if (state.showHome) {
         const app = document.getElementById("app");
         if (app) { app.innerHTML = ""; renderHome(); }
+    }
+};
+
+// ---- DEBUG: BEE TESTING ----
+// Usage:
+//   debugBee()        — diagnostic dump: current level, tier, frequency, _beesOnWheel, etc.
+//   debugBee(true)    — force a queued bee on the next level you enter (sets state.questedBees=1)
+window.debugBee = function(forceQueued) {
+    const lv = state.currentLevel;
+    const tier = state.difficultyTier;
+    const freq = (typeof getBeeFrequency === "function") ? getBeeFrequency(lv) : "?";
+    const isBee = (typeof isBeeLevel === "function") ? isBeeLevel(lv) : "?";
+    const queued = state.questedBees || 0;
+    const onWheel = (typeof _beesOnWheel !== "undefined") ? _beesOnWheel : null;
+    const ip = (state.inProgress && state.inProgress[lv]) || {};
+
+    console.log("=== BEE DEBUG ===");
+    console.log("APP_VERSION:", APP_VERSION);
+    console.log("currentLevel:", lv, "(highestLevel:", state.highestLevel + ")");
+    console.log("difficultyTier:", tier, "→ bee frequency: every", freq + "th level");
+    console.log("isBeeLevel(" + lv + "):", isBee);
+    console.log("state.questedBees:", queued);
+    console.log("inProgress[" + lv + "].bd / .bdIdx:", ip.bd, "/", ip.bdIdx);
+    console.log("_beesOnWheel:", onWheel);
+    console.log("wheelLetters:", typeof wheelLetters !== "undefined" ? wheelLetters : null);
+    if (typeof pickBeeLetter === "function" && typeof wheelLetters !== "undefined" && wheelLetters) {
+        console.log("pickBeeLetter() would return:", pickBeeLetter());
+    }
+    if (forceQueued === true) {
+        state.questedBees = (state.questedBees || 0) + 1;
+        saveProgress();
+        console.log("→ Queued 1 bee. Advance to next level (or quit/resume) to see it deploy.");
     }
 };
 
@@ -4163,6 +4195,7 @@ const SPIN_SLICES = [
     { label: "Rocket",    emoji: "🚀", color: "#9C27B0" },
     { label: "Target",    emoji: "🎯", color: "#2196F3" },
     { label: "Star",      emoji: "⭐", color: "#FFC107" },
+    { label: "Bee",       emoji: "🐝", color: "#F4A535" },
     { label: "Hint",      emoji: "💡", color: "#66BB6A" },
     { label: "Rocket",    emoji: "🚀", color: "#7B1FA2" },
     { label: "Target",    emoji: "🎯", color: "#42A5F5" },
@@ -4459,6 +4492,8 @@ function claimSpinPrize(winner) {
     } else if (winner.label === "Rocket") {
         if (state.freeRockets < MAX_FREE_ROCKETS) state.freeRockets++;
         else showToast("Rocket bank full!", "rgba(255,255,255,0.5)", true);
+    } else if (winner.label === "Bee") {
+        state.questedBees = (state.questedBees || 0) + 1;
     } else if (winner.label === "100 Coins") {
         state.coins += 100;
         state.totalCoinsEarned += 100;
@@ -4614,12 +4649,15 @@ function claimSpeedSpinPrize(winner) {
         else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
     } else if (winner.label === "Star") {
         state.bonusStarsTotal = Math.min(state.bonusStarsTotal + 3, 9);
+        for (let i = 0; i < 3; i++) window.quests?.tickProgress("starCollected", {});
     } else if (winner.label === "Target") {
         if (state.freeTargets < MAX_FREE_TARGETS) state.freeTargets++;
         else showToast("Target bank full!", "rgba(255,255,255,0.5)", true);
     } else if (winner.label === "Rocket") {
         if (state.freeRockets < MAX_FREE_ROCKETS) state.freeRockets++;
         else showToast("Rocket bank full!", "rgba(255,255,255,0.5)", true);
+    } else if (winner.label === "Bee") {
+        state.questedBees = (state.questedBees || 0) + 1;
     } else if (winner.label === "100 Coins") {
         state.coins += 100;
         state.totalCoinsEarned += 100;

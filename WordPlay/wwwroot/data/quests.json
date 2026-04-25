@@ -6,120 +6,120 @@
       "name": "Spring Bloom",
       "theme": "meadow",
       "icon": "🌸",
-      "start": "2026-04-26",
-      "end": "2026-05-02",
+      "start": "2026-04-25",
+      "end": "2026-05-01",
       "milestones": [
-        { "at": 20,  "reward": { "coins": 100 } },
-        { "at": 60,  "reward": { "bees": 1, "hints": 1 } },
-        { "at": 130, "reward": { "coins": 300, "bees": 2 } },
-        { "at": 220, "reward": { "coins": 500, "bees": 5, "targets": 1, "rockets": 1 } }
+        { "at":  20, "reward": {"coins": 100} },
+        { "at":  60, "reward": {"bees": 1, "hints": 1} },
+        { "at": 130, "reward": {"coins": 300, "bees": 2} },
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
       ],
-      "goalPool": ["playLevels", "findLongWords", "findBonusWords", "findStandalone", "useHint", "useTarget", "noHintLevel", "flowLevels", "speedLevel", "dailyPuzzle", "findStarLevel", "bonusWordTotal", "spendCoinsOnHints"]
+      "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
     {
       "id": "honey-harvest-2026-05",
       "name": "Honey Harvest",
       "theme": "autumn",
       "icon": "🍯",
-      "start": "2026-05-03",
-      "end": "2026-05-09",
+      "start": "2026-05-02",
+      "end": "2026-05-08",
       "milestones": [
-        { "at": 20,  "reward": { "coins": 100 } },
-        { "at": 60,  "reward": { "bees": 1, "hints": 1 } },
-        { "at": 130, "reward": { "coins": 300, "bees": 2 } },
-        { "at": 220, "reward": { "coins": 500, "bees": 5, "targets": 1, "rockets": 1 } }
+        { "at":  20, "reward": {"coins": 100} },
+        { "at":  60, "reward": {"bees": 1, "hints": 1} },
+        { "at": 130, "reward": {"coins": 300, "bees": 2} },
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
       ],
-      "goalPool": ["playLevels", "findLongWords", "findBonusWords", "findStandalone", "useHint", "useTarget", "noHintLevel", "flowLevels", "speedLevel", "dailyPuzzle", "findStarLevel", "bonusWordTotal", "spendCoinsOnHints"]
+      "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
     {
       "id": "coral-cove-2026-05",
       "name": "Coral Cove",
       "theme": "coral",
       "icon": "🐚",
-      "start": "2026-05-10",
-      "end": "2026-05-16",
+      "start": "2026-05-09",
+      "end": "2026-05-15",
       "milestones": [
-        { "at": 20,  "reward": { "coins": 100 } },
-        { "at": 60,  "reward": { "bees": 1, "hints": 1 } },
-        { "at": 130, "reward": { "coins": 300, "bees": 2 } },
-        { "at": 220, "reward": { "coins": 500, "bees": 5, "targets": 1, "rockets": 1 } }
+        { "at":  20, "reward": {"coins": 100} },
+        { "at":  60, "reward": {"bees": 1, "hints": 1} },
+        { "at": 130, "reward": {"coins": 300, "bees": 2} },
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
       ],
-      "goalPool": ["playLevels", "findLongWords", "findBonusWords", "findStandalone", "useHint", "useTarget", "noHintLevel", "flowLevels", "speedLevel", "dailyPuzzle", "findStarLevel", "bonusWordTotal", "spendCoinsOnHints"]
+      "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
     {
       "id": "aurora-nights-2026-05",
       "name": "Aurora Nights",
       "theme": "aurora",
       "icon": "🌌",
-      "start": "2026-05-17",
-      "end": "2026-05-23",
+      "start": "2026-05-16",
+      "end": "2026-05-22",
       "milestones": [
-        { "at": 20,  "reward": { "coins": 100 } },
-        { "at": 60,  "reward": { "bees": 1, "hints": 1 } },
-        { "at": 130, "reward": { "coins": 300, "bees": 2 } },
-        { "at": 220, "reward": { "coins": 500, "bees": 5, "targets": 1, "rockets": 1 } }
+        { "at":  20, "reward": {"coins": 100} },
+        { "at":  60, "reward": {"bees": 1, "hints": 1} },
+        { "at": 130, "reward": {"coins": 300, "bees": 2} },
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
       ],
-      "goalPool": ["playLevels", "findLongWords", "findBonusWords", "findStandalone", "useHint", "useTarget", "noHintLevel", "flowLevels", "speedLevel", "dailyPuzzle", "findStarLevel", "bonusWordTotal", "spendCoinsOnHints"]
+      "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
     {
       "id": "desert-mirage-2026-05",
       "name": "Desert Mirage",
       "theme": "desert",
       "icon": "🏜️",
-      "start": "2026-05-24",
-      "end": "2026-05-30",
+      "start": "2026-05-23",
+      "end": "2026-05-29",
       "milestones": [
-        { "at": 20,  "reward": { "coins": 100 } },
-        { "at": 60,  "reward": { "bees": 1, "hints": 1 } },
-        { "at": 130, "reward": { "coins": 300, "bees": 2 } },
-        { "at": 220, "reward": { "coins": 500, "bees": 5, "targets": 1, "rockets": 1 } }
+        { "at":  20, "reward": {"coins": 100} },
+        { "at":  60, "reward": {"bees": 1, "hints": 1} },
+        { "at": 130, "reward": {"coins": 300, "bees": 2} },
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
       ],
-      "goalPool": ["playLevels", "findLongWords", "findBonusWords", "findStandalone", "useHint", "useTarget", "noHintLevel", "flowLevels", "speedLevel", "dailyPuzzle", "findStarLevel", "bonusWordTotal", "spendCoinsOnHints"]
+      "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
     {
       "id": "forest-thicket-2026-05",
       "name": "Forest Thicket",
       "theme": "forest",
       "icon": "🌲",
-      "start": "2026-05-31",
-      "end": "2026-06-06",
+      "start": "2026-05-30",
+      "end": "2026-06-05",
       "milestones": [
-        { "at": 20,  "reward": { "coins": 100 } },
-        { "at": 60,  "reward": { "bees": 1, "hints": 1 } },
-        { "at": 130, "reward": { "coins": 300, "bees": 2 } },
-        { "at": 220, "reward": { "coins": 500, "bees": 5, "targets": 1, "rockets": 1 } }
+        { "at":  20, "reward": {"coins": 100} },
+        { "at":  60, "reward": {"bees": 1, "hints": 1} },
+        { "at": 130, "reward": {"coins": 300, "bees": 2} },
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
       ],
-      "goalPool": ["playLevels", "findLongWords", "findBonusWords", "findStandalone", "useHint", "useTarget", "noHintLevel", "flowLevels", "speedLevel", "dailyPuzzle", "findStarLevel", "bonusWordTotal", "spendCoinsOnHints"]
+      "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
     {
       "id": "summit-peak-2026-06",
       "name": "Summit Peak",
       "theme": "arctic",
       "icon": "⛰️",
-      "start": "2026-06-07",
-      "end": "2026-06-13",
+      "start": "2026-06-06",
+      "end": "2026-06-12",
       "milestones": [
-        { "at": 20,  "reward": { "coins": 100 } },
-        { "at": 60,  "reward": { "bees": 1, "hints": 1 } },
-        { "at": 130, "reward": { "coins": 300, "bees": 2 } },
-        { "at": 220, "reward": { "coins": 500, "bees": 5, "targets": 1, "rockets": 1 } }
+        { "at":  20, "reward": {"coins": 100} },
+        { "at":  60, "reward": {"bees": 1, "hints": 1} },
+        { "at": 130, "reward": {"coins": 300, "bees": 2} },
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
       ],
-      "goalPool": ["playLevels", "findLongWords", "findBonusWords", "findStandalone", "useHint", "useTarget", "noHintLevel", "flowLevels", "speedLevel", "dailyPuzzle", "findStarLevel", "bonusWordTotal", "spendCoinsOnHints"]
+      "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
     {
       "id": "twilight-grove-2026-06",
       "name": "Twilight Grove",
       "theme": "twilight",
       "icon": "🌙",
-      "start": "2026-06-14",
-      "end": "2026-06-20",
+      "start": "2026-06-13",
+      "end": "2026-06-19",
       "milestones": [
-        { "at": 20,  "reward": { "coins": 100 } },
-        { "at": 60,  "reward": { "bees": 1, "hints": 1 } },
-        { "at": 130, "reward": { "coins": 300, "bees": 2 } },
-        { "at": 220, "reward": { "coins": 500, "bees": 5, "targets": 1, "rockets": 1 } }
+        { "at":  20, "reward": {"coins": 100} },
+        { "at":  60, "reward": {"bees": 1, "hints": 1} },
+        { "at": 130, "reward": {"coins": 300, "bees": 2} },
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
       ],
-      "goalPool": ["playLevels", "findLongWords", "findBonusWords", "findStandalone", "useHint", "useTarget", "noHintLevel", "flowLevels", "speedLevel", "dailyPuzzle", "findStarLevel", "bonusWordTotal", "spendCoinsOnHints"]
+      "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     }
   ]
 }
