@@ -1187,7 +1187,36 @@ function isFlowLevel(n) {
     return n > 0 && n % 5 === 0;
 }
 
+// Tier-scaled bee level frequency.
+// Higher tiers = harder levels = more bees (more help).
+function getBeeFrequency(displayLevel) {
+    // Use difficultyTier when available; fall back to level-range mapping
+    let tier = (typeof state !== "undefined" && state.difficultyTier >= 0)
+        ? state.difficultyTier
+        : -1;
+    if (tier < 0) {
+        if (displayLevel >= 15001) tier = 4;
+        else if (displayLevel >= 5001) tier = 3;
+        else if (displayLevel >= 2001) tier = 2;
+        else if (displayLevel >= 251) tier = 1;
+        else tier = 0;
+    }
+    switch (tier) {
+        case 0: return 15; // Easy
+        case 1: return 12; // Medium
+        case 2: return 10; // Hard
+        case 3: return 8;  // Expert
+        case 4: return 7;  // Master
+        default: return 12;
+    }
+}
 
+function isBeeLevel(displayLevel) {
+    if (!displayLevel || displayLevel < 1) return false;
+    // Don't drop bees on levels 1-5 (player is still learning the basics)
+    if (displayLevel <= 5) return false;
+    return displayLevel % getBeeFrequency(displayLevel) === 0;
+}
 
 // ---- SPEED BONUS CHECK (7 sec per word) ----
 function checkSpeedBonus() {
