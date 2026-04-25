@@ -183,6 +183,8 @@ function generateDailyGoals(quest, todayIso) {
 // Returns true if anything changed (so caller can save).
 function activateQuestForToday(manifest, todayIso) {
     if (typeof state === "undefined") return false;
+    // Cache the manifest so _checkMilestones can use it without an async fetch.
+    if (manifest) _questsManifest = manifest;
     let changed = false;
 
     const active = findActiveQuest(manifest, todayIso);
@@ -239,8 +241,6 @@ function tickProgress(event, payload) {
     if (typeof state === "undefined") return;
     if (!state.dailyGoals || !state.dailyGoals.goals) return;
 
-    let questChanged = false;
-
     for (const goal of state.dailyGoals.goals) {
         if (goal.claimed) continue;
         const tpl = GOAL_TEMPLATES[goal.template];
@@ -259,14 +259,13 @@ function tickProgress(event, payload) {
             });
             if (state.quest && reward.jars) {
                 state.quest.jars = (state.quest.jars || 0) + reward.jars;
-                questChanged = true;
             }
         }
     }
 
-    if (questChanged) {
-        _checkMilestones();
-    }
+    // Always check milestones — cheap + idempotent + self-heals stale state
+    // where jars already crossed a threshold but the tier wasn't claimed.
+    _checkMilestones();
 
     if (typeof saveProgress === "function") saveProgress();
 }
@@ -275,13 +274,13 @@ function tickProgress(event, payload) {
 function _payReward(reward) {
     if (!reward || typeof state === "undefined") return;
     if (reward.coins) {
-        state.coins += reward.coins;
-        state.totalCoinsEarned += reward.coins;
+        state.coins = (state.coins || 0) + reward.coins;
+        state.totalCoinsEarned = (state.totalCoinsEarned || 0) + reward.coins;
     }
-    if (reward.hints) state.freeHints = Math.min(state.freeHints + reward.hints, MAX_FREE_HINTS);
-    if (reward.targets) state.freeTargets = Math.min(state.freeTargets + reward.targets, MAX_FREE_TARGETS);
-    if (reward.rockets) state.freeRockets = Math.min(state.freeRockets + reward.rockets, MAX_FREE_ROCKETS);
-    if (reward.bees) state.questedBees = (state.questedBees || 0) + reward.bees;
+    if (reward.hints)   state.freeHints   = Math.min((state.freeHints   || 0) + reward.hints,   MAX_FREE_HINTS);
+    if (reward.targets) state.freeTargets = Math.min((state.freeTargets || 0) + reward.targets, MAX_FREE_TARGETS);
+    if (reward.rockets) state.freeRockets = Math.min((state.freeRockets || 0) + reward.rockets, MAX_FREE_ROCKETS);
+    if (reward.bees)    state.questedBees = (state.questedBees || 0) + reward.bees;
 }
 
 // Check whether crossing the current jar count fires any unclaimed milestones.
