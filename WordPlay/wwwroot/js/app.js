@@ -240,6 +240,9 @@ let _savedRegularStateBonus = null; // snapshot of regular game state while in b
 // ---- FLOW / DAILY LAYOUT STATE ----
 let _forceFlowLayout = false;       // transient flag for daily flow layout variant
 
+// ---- QUEST TRACKING STATE ----
+let _hintsUsedThisLevel = 0;  // hints used in current level (excluding bee reveals)
+
 // ---- SPEED BONUS STATE ----
 let _speedTimerStart = 0;        // timestamp of first wheel touch this level
 let _speedTimerActive = false;   // whether the timer is running
@@ -1379,6 +1382,12 @@ function handleDailyCompletion() {
     state.totalCoinsEarned += 100;
     _dailyCoinsEarned += 100;
     state.dailyPuzzle.completed = true;
+    window.quests?.tickProgress("levelComplete", {
+        flow: !!_currentLayoutIsFlow,
+        hintsUsed: _hintsUsedThisLevel,
+        speedBonus: false,
+        daily: true,
+    });
     updateDailyStreak();
     saveDailyState();
     triggerBonusPuzzle("daily");
@@ -1388,6 +1397,12 @@ function handleDailyCompletion() {
 function handleBonusCompletion() {
     if (!state.bonusPuzzle || state.bonusPuzzle.completed) return;
     state.bonusPuzzle.completed = true;
+    window.quests?.tickProgress("levelComplete", {
+        flow: !!_currentLayoutIsFlow,
+        hintsUsed: _hintsUsedThisLevel,
+        speedBonus: false,
+        daily: false,
+    });
     if (state.bonusStarsTotal >= 9) {
         state.coins += 500;
         state.totalCoinsEarned += 500;
@@ -1411,6 +1426,11 @@ function handleWord(word) {
         }
         state.standaloneFound = true;
         if (!state.foundWords.includes(w)) state.foundWords.push(w);
+        window.quests?.tickProgress("wordFound", {
+            word: w,
+            bonus: false,
+            standalone: true,
+        });
         const coinWordReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 200 : 100;
         state.coins += coinWordReward;
         state.totalCoinsEarned += coinWordReward;
@@ -1450,6 +1470,11 @@ function handleWord(word) {
     }
     if (placedWords.includes(w)) {
         state.foundWords.push(w);
+        window.quests?.tickProgress("wordFound", {
+            word: w,
+            bonus: false,
+            standalone: (typeof standaloneWord !== "undefined" && w === standaloneWord),
+        });
         // Auto-complete any crossing words whose cells are all now visible
         const beforeAuto = state.foundWords.length;
         while (checkAutoCompleteWords()) {}
@@ -1490,6 +1515,11 @@ function handleWord(word) {
     if (bonusPool && bonusPool.includes(w)) {
         playSound("bonusChime");
         state.bonusFound.push(w);
+        window.quests?.tickProgress("wordFound", {
+            word: w,
+            bonus: true,
+            standalone: false,
+        });
         const bonusReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 15 : 5;
         state.coins += bonusReward;
         state.totalCoinsEarned += bonusReward;
@@ -1614,6 +1644,11 @@ function checkAutoCompleteWords() {
         const allRevealed = p.cells.every(c => visible.has(c.row + "," + c.col));
         if (allRevealed) {
             state.foundWords.push(p.word);
+            window.quests?.tickProgress("wordFound", {
+                word: p.word,
+                bonus: false,
+                standalone: !!p.standalone,
+            });
             if (p.standalone) state.standaloneFound = true;
             changed = true;
         }
@@ -1915,6 +1950,11 @@ function handleHint() {
         state.coins -= 100;
         animateCoinSpend('hint-btn', 100);
     }
+    _hintsUsedThisLevel++;
+    window.quests?.tickProgress("hintUsed", {
+        kind: "hint",
+        paid: !hasFree,
+    });
     state.revealedCells.push(cell);
     checkAutoCompleteWords();
     if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
@@ -1964,6 +2004,11 @@ function handlePickCell(key) {
         state.coins -= 200;
         animateCoinSpend('target-btn', 200);
     }
+    _hintsUsedThisLevel++;
+    window.quests?.tickProgress("hintUsed", {
+        kind: "target",
+        paid: !wasFree,
+    });
     state.revealedCells.push(key);
     checkAutoCompleteWords();
     if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
@@ -2113,6 +2158,12 @@ async function advanceToNextLevel() {
         state.coins += levelUpReward;
         state.totalCoinsEarned += levelUpReward;
         state.levelsCompleted++;
+        window.quests?.tickProgress("levelComplete", {
+            flow: !!_currentLayoutIsFlow,
+            hintsUsed: _hintsUsedThisLevel,
+            speedBonus: !!_speedBonusEarned,
+            daily: !!state.isDailyMode,
+        });
         checkSpeedMilestone();
         if (state.levelsCompleted % 10 === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
@@ -2167,6 +2218,12 @@ async function handleNextLevel() {
         state.coins += levelUpReward;
         state.totalCoinsEarned += levelUpReward;
         state.levelsCompleted++;
+        window.quests?.tickProgress("levelComplete", {
+            flow: !!_currentLayoutIsFlow,
+            hintsUsed: _hintsUsedThisLevel,
+            speedBonus: !!_speedBonusEarned,
+            daily: !!state.isDailyMode,
+        });
         if (state.levelsCompleted % 10 === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
             else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
@@ -3231,6 +3288,9 @@ function checkBonusStars(word) {
         state.bonusPuzzle.starsCollected += starsInWord;
         _bonusCoinsEarned += coinReward;
     }
+    for (let i = 0; i < starsInWord; i++) {
+        window.quests?.tickProgress("starCollected", {});
+    }
     state.bonusStarsTotal = Math.min(9, state.bonusStarsTotal + starsInWord);
     state.coins += coinReward;
     state.totalCoinsEarned += coinReward;
@@ -3727,6 +3787,11 @@ function handleRocketHint() {
         state.coins -= 300;
         animateCoinSpend('rocket-btn', 300);
     }
+    _hintsUsedThisLevel++;
+    window.quests?.tickProgress("hintUsed", {
+        kind: "rocket",
+        paid: !hasFree,
+    });
     const revealed = [firstCell];
     state.revealedCells.push(firstCell);
     checkAutoCompleteWords();
