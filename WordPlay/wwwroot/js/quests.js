@@ -130,7 +130,8 @@ function _seededRandom(seed) {
     };
 }
 
-// Hash a string into a 32-bit unsigned int (mirror of hashStr in app.js)
+// djb2-style 32-bit string hash, used privately as a seed for _seededRandom.
+// Independent of app.js's hashStr (different algorithm) — distribution is fine for seeding.
 function _hashStr(s) {
     let h = 5381;
     for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
