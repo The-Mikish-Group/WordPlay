@@ -541,6 +541,72 @@ function rebuildWheelLetters() {
     wheelLetters = a;
 }
 
+// Trigger a bee animation when the bee word is solved.
+// `bee` is one entry from _beesOnWheel.  Reveals 3 (spawned) or 4 (queued) cells.
+function triggerBee(bee) {
+    if (!bee || bee.triggered) return;
+    bee.triggered = true;
+
+    const revealCount = bee.type === "queued" ? 4 : 3;
+
+    // Find unsolved cells, weighted by shortness of the parent word.
+    const unsolvedByWord = []; // [{ word, cells: [{row,col}] }]
+    if (crossword && crossword.placements) {
+        for (const p of crossword.placements) {
+            if (state.foundWords.includes(p.word)) continue;
+            const unsolvedCells = p.cells.filter(c => {
+                const k = c.row + "," + c.col;
+                return !state.revealedCells.includes(k);
+            });
+            if (unsolvedCells.length > 0) {
+                unsolvedByWord.push({ word: p.word, cells: unsolvedCells });
+            }
+        }
+    }
+    // Sort: shortest words first
+    unsolvedByWord.sort((a, b) => a.word.length - b.word.length);
+
+    // Take up to revealCount distinct cells
+    const seen = new Set();
+    const picks = [];
+    for (const entry of unsolvedByWord) {
+        for (const c of entry.cells) {
+            const k = c.row + "," + c.col;
+            if (seen.has(k)) continue;
+            seen.add(k);
+            picks.push(c);
+            if (picks.length >= revealCount) break;
+        }
+        if (picks.length >= revealCount) break;
+    }
+
+    // Play bee sound
+    if (typeof state !== "undefined" && state.soundEnabled && typeof playSound === "function") {
+        try { playSound("bee"); } catch (e) { /* noop */ }
+    }
+
+    if (picks.length === 0) {
+        // Re-render so the bee disappears from the wheel even if no cells to reveal
+        if (typeof renderWheel === "function") renderWheel();
+        return;
+    }
+
+    // Stagger the reveals
+    picks.forEach((cell, i) => {
+        setTimeout(() => {
+            const k = cell.row + "," + cell.col;
+            if (!state.revealedCells.includes(k)) state.revealedCells.push(k);
+            if (typeof renderGrid === "function") renderGrid();
+        }, 250 + i * 200);
+    });
+
+    // After reveals settle, save and re-render wheel (to drop the bee icon)
+    setTimeout(() => {
+        if (typeof renderWheel === "function") renderWheel();
+        if (typeof saveProgress === "function") saveProgress();
+    }, 250 + picks.length * 200 + 100);
+}
+
 function applyPendingUpdate() {
     if (window._updatePending) { window.location.reload(); return true; }
     return false;
@@ -1546,6 +1612,17 @@ function handleWord(word) {
             bonus: false,
             standalone: true,
         });
+            // Trigger any bees whose letter appears in the just-found word
+            if (Array.isArray(_beesOnWheel) && _beesOnWheel.length > 0) {
+                const _wUpper = String(w).toUpperCase();
+                for (const bee of _beesOnWheel) {
+                    if (bee.triggered) continue;
+                    const letter = wheelLetters[bee.letterIdx];
+                    if (letter && _wUpper.includes(String(letter).toUpperCase())) {
+                        triggerBee(bee);
+                    }
+                }
+            }
         const coinWordReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 200 : 100;
         state.coins += coinWordReward;
         state.totalCoinsEarned += coinWordReward;
@@ -1590,6 +1667,17 @@ function handleWord(word) {
             bonus: false,
             standalone: (typeof standaloneWord !== "undefined" && w === standaloneWord),
         });
+            // Trigger any bees whose letter appears in the just-found word
+            if (Array.isArray(_beesOnWheel) && _beesOnWheel.length > 0) {
+                const _wUpper = String(w).toUpperCase();
+                for (const bee of _beesOnWheel) {
+                    if (bee.triggered) continue;
+                    const letter = wheelLetters[bee.letterIdx];
+                    if (letter && _wUpper.includes(String(letter).toUpperCase())) {
+                        triggerBee(bee);
+                    }
+                }
+            }
         // Auto-complete any crossing words whose cells are all now visible
         const beforeAuto = state.foundWords.length;
         while (checkAutoCompleteWords()) {}
@@ -1635,6 +1723,17 @@ function handleWord(word) {
             bonus: true,
             standalone: false,
         });
+            // Trigger any bees whose letter appears in the just-found word
+            if (Array.isArray(_beesOnWheel) && _beesOnWheel.length > 0) {
+                const _wUpper = String(w).toUpperCase();
+                for (const bee of _beesOnWheel) {
+                    if (bee.triggered) continue;
+                    const letter = wheelLetters[bee.letterIdx];
+                    if (letter && _wUpper.includes(String(letter).toUpperCase())) {
+                        triggerBee(bee);
+                    }
+                }
+            }
         const bonusReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 15 : 5;
         state.coins += bonusReward;
         state.totalCoinsEarned += bonusReward;
@@ -1987,6 +2086,29 @@ function playSound(name, vol) {
                 o.connect(g); g.connect(ctx.destination);
                 o.start(t); o.stop(t + 0.18);
             });
+        } else if (name === "bee") {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = "sawtooth";
+            o.frequency.setValueAtTime(220, now);
+            o.frequency.linearRampToValueAtTime(440, now + 0.18);
+            o.frequency.linearRampToValueAtTime(220, now + 0.36);
+            g.gain.setValueAtTime(0.0, now);
+            g.gain.linearRampToValueAtTime(0.12, now + 0.05);
+            g.gain.linearRampToValueAtTime(0.0, now + 0.4);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(now); o.stop(now + 0.42);
+        } else if (name === "reward") {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = "triangle";
+            o.frequency.setValueAtTime(660, now);
+            o.frequency.linearRampToValueAtTime(990, now + 0.12);
+            g.gain.setValueAtTime(0.0, now);
+            g.gain.linearRampToValueAtTime(0.18, now + 0.04);
+            g.gain.linearRampToValueAtTime(0.0, now + 0.3);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(now); o.stop(now + 0.32);
         }
     } catch (e) { /* audio not available */ }
 }
