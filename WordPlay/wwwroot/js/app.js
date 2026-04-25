@@ -2582,6 +2582,10 @@ function formatCompact(n) {
 
 function renderCurrentScreen() {
     const app = document.getElementById("app");
+    if (state.showQuest) {
+        renderQuestScreen();
+        return;
+    }
     if (state.showHome) {
         app.innerHTML = "";
         renderHome();
@@ -2650,6 +2654,7 @@ function renderQuestBanner(q, qDef) {
 
 function renderHome() {
     const app = document.getElementById("app");
+    if (state.showQuest) { renderQuestScreen(); return; }
     // Pick a random background each time we visit the home screen
     _homeBgKey = pickRandomBgKey();
     let bgStyle;
@@ -7693,6 +7698,98 @@ function renderLeaderboard() {
             const list = document.getElementById("lb-list");
             if (list) list.innerHTML = `<div style="opacity:0.5;padding:40px 0;font-size:15px">Unavailable offline</div>`;
         });
+}
+
+// ---- QUEST SCREEN ----
+function renderQuestScreen() {
+    const root = document.getElementById("app");
+    if (!root) return;
+    const qm = window.quests && window.quests.getCachedManifest();
+    if (!state.quest || !qm) {
+        root.innerHTML = '<div class="quest-screen"><button class="quest-close" data-action="close-quest">✕</button><div class="quest-screen-empty">No active quest right now. Check back tomorrow!</div></div>';
+        const closeBtn = root.querySelector("[data-action='close-quest']");
+        if (closeBtn) {
+            closeBtn.addEventListener("click", () => {
+                state.showQuest = false;
+                if (typeof renderHome === "function") renderHome();
+            });
+        }
+        return;
+    }
+    const qDef = window.quests.getQuestDefinition(qm, state.quest.id);
+    if (!qDef) return;
+
+    const milestones = qDef.milestones || [];
+    const claimed = state.quest.claimedTiers || [];
+    const jars = state.quest.jars || 0;
+
+    const milestoneHtml = milestones.map((m, i) => {
+        const reached = claimed.includes(i);
+        const isNext = !reached && i === claimed.length;
+        const reward = _rewardIconList(m.reward);
+        return `
+            <div class="milestone${reached ? ' milestone-claimed' : ''}${isNext ? ' milestone-next' : ''}">
+                <div class="milestone-icon">${reached ? '✓' : (isNext ? '★' : '🎁')}</div>
+                <div class="milestone-at">${m.at} 🍯</div>
+                <div class="milestone-reward">${reward}</div>
+            </div>`;
+    }).join("");
+
+    // Daily goals refresh countdown (next midnight local)
+    const now = new Date();
+    const tomorrow = new Date(now); tomorrow.setHours(24, 0, 0, 0);
+    const refreshMs = tomorrow.getTime() - now.getTime();
+    const rH = Math.floor(refreshMs / 3600000);
+    const rM = Math.floor((refreshMs % 3600000) / 60000);
+
+    const goals = (state.dailyGoals && state.dailyGoals.goals) || [];
+    const goalsHtml = goals.map(g => {
+        const tpl = window.quests && window.quests.GOAL_TEMPLATES && window.quests.GOAL_TEMPLATES[g.template];
+        if (!tpl) return "";
+        const desc = tpl.description(g.target);
+        const pct = Math.min(100, Math.floor((g.progress / g.target) * 100));
+        const reward = _rewardIconList({ jars: tpl.reward.jars, coins: tpl.reward.coins });
+        return `
+            <div class="goal-row${g.claimed ? ' goal-claimed' : ''}">
+                <div class="goal-icon">${tpl.icon}</div>
+                <div class="goal-body">
+                    <div class="goal-desc">${desc}</div>
+                    <div class="goal-progress">
+                        <div class="goal-progress-fill" style="width: ${pct}%;"></div>
+                    </div>
+                    <div class="goal-count">${g.progress}/${g.target}</div>
+                </div>
+                <div class="goal-reward">${reward}</div>
+            </div>`;
+    }).join("");
+
+    root.innerHTML = `
+        <div class="quest-screen">
+            <button class="quest-close" data-action="close-quest">✕</button>
+            <div class="quest-header">
+                <div class="quest-header-icon">${qDef.icon || "🐝"}</div>
+                <div class="quest-header-name">${qDef.name}</div>
+                <div class="quest-header-time">Ends ${qDef.end}</div>
+            </div>
+            <div class="milestones-row">${milestoneHtml}</div>
+            <div class="quest-jars-total">${jars} 🍯 collected</div>
+            <div class="goals-section">
+                <div class="goals-header">
+                    <span>Daily Goals</span>
+                    <span class="goals-refresh">Refreshes in ${rH}h ${rM}m</span>
+                </div>
+                ${goalsHtml || '<div class="goals-empty">No goals today.</div>'}
+            </div>
+        </div>`;
+
+    // Wire close button
+    const closeBtn = root.querySelector("[data-action='close-quest']");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+            state.showQuest = false;
+            if (typeof renderHome === "function") renderHome();
+        });
+    }
 }
 
 function escapeHtml(str) {
