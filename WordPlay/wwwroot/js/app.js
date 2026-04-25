@@ -163,6 +163,12 @@ const state = {
     difficultyTier: -1,       // tier index (0=Easy,1=Medium,2=Hard,3=Expert), -1 = not chosen yet
     difficultyOffset: 0,      // level offset for current tier
     tierCeiling: -1,           // manual tier cap; -1 = no cap (organic promotion allowed)
+
+    // Engagement (Quests + Daily Goals + Bees)
+    questedBees: 0,         // queued bees pending auto-deployment on next levels
+    quest: null,            // active quest state: { id, start, end, jars, claimedTiers }
+    dailyGoals: null,       // today's goals: { date, goals: [{template, target, progress, claimed}] }
+    questHistory: [],       // past quest summaries: [{ id, finalJars, tiersClaimed, completedAt }]
 };
 
 // ---- POWERUP CAPS ----
