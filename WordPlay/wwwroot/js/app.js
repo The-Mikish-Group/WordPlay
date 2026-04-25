@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.6.6";
+const APP_VERSION = "1.7.0";
 
 // ---- THEMES ----
 const THEMES = {
@@ -142,6 +142,7 @@ const state = {
     standaloneFound: false, // whether the standalone coin word has been solved
     showLeaderboard: false,
     showGuide: false,
+    showQuest: false,
     showContact: false,
     showPrivacy: false,
     showTerms: false,
@@ -163,6 +164,12 @@ const state = {
     difficultyTier: -1,       // tier index (0=Easy,1=Medium,2=Hard,3=Expert), -1 = not chosen yet
     difficultyOffset: 0,      // level offset for current tier
     tierCeiling: -1,           // manual tier cap; -1 = no cap (organic promotion allowed)
+
+    // Engagement (Quests + Daily Goals + Bees)
+    questedBees: 0,         // queued bees pending auto-deployment on next levels
+    quest: null,            // active quest state: { id, start, end, jars, claimedTiers }
+    dailyGoals: null,       // today's goals: { date, goals: [{template, target, progress, claimed}] }
+    questHistory: [],       // past quest summaries: [{ id, finalJars, tiersClaimed, completedAt }]
 };
 
 // ---- POWERUP CAPS ----
@@ -233,6 +240,10 @@ let _savedRegularStateBonus = null; // snapshot of regular game state while in b
 
 // ---- FLOW / DAILY LAYOUT STATE ----
 let _forceFlowLayout = false;       // transient flag for daily flow layout variant
+
+// ---- QUEST TRACKING STATE ----
+let _hintsUsedThisLevel = 0;  // hints used in current level (excluding bee reveals)
+let _beesOnWheel = [];  // bees placed on the wheel for the current level
 
 // ---- SPEED BONUS STATE ----
 let _speedTimerStart = 0;        // timestamp of first wheel touch this level
@@ -393,6 +404,7 @@ function resetStateToDefaults() {
 
 async function recompute() {
     resetSpeedTimer();
+    _hintsUsedThisLevel = 0;
     // Try dynamic loader first, fall back to built-in
     let lvData = null;
     // Compute the data-file level number (display + offset)
@@ -478,6 +490,51 @@ async function recompute() {
     }
     // Preload current level's background image
     preloadBgImage(getBgImageKey(level));
+
+    // Initialize bee state for this level.
+    // - Spawned bees: deterministic from level number (Bee level)
+    // - Queued bees: deploy 1 from state.questedBees if available; bd flag prevents
+    //   re-deploying when the player resumes a level mid-play.
+    _beesOnWheel = []; // array of { letterIdx, type: "spawned" | "queued", triggered: false }
+
+    if (!state.isDailyMode && !state.isBonusMode) {
+        const ip = state.inProgress[state.currentLevel] || {};
+        const alreadyDeployed = !!ip.bd;
+
+        // Spawned bee?
+        if (typeof isBeeLevel === "function" && isBeeLevel(state.currentLevel)) {
+            const idx = pickBeeLetter();
+            if (idx >= 0) {
+                _beesOnWheel.push({ letterIdx: idx, type: "spawned", triggered: false });
+            }
+        }
+
+        if (alreadyDeployed && typeof ip.bdIdx === "number" && ip.bdIdx >= 0) {
+            // Resume path: re-show the queued bee on its previously-placed letter.
+            const used = new Set(_beesOnWheel.map(b => b.letterIdx));
+            if (!used.has(ip.bdIdx) && _beesOnWheel.length < 2) {
+                _beesOnWheel.push({ letterIdx: ip.bdIdx, type: "queued", triggered: false });
+            }
+        } else if (!alreadyDeployed && state.questedBees > 0 && _beesOnWheel.length < 2) {
+            // Fresh deploy from queue.
+            const used = new Set(_beesOnWheel.map(b => b.letterIdx));
+            const idx = pickBeeLetter();
+            if (idx >= 0 && !used.has(idx)) {
+                _beesOnWheel.push({ letterIdx: idx, type: "queued", triggered: false });
+                state.questedBees--;
+                state.inProgress[state.currentLevel] = state.inProgress[state.currentLevel] || {};
+                state.inProgress[state.currentLevel].bd = true;
+                state.inProgress[state.currentLevel].bdIdx = idx;
+                if (typeof saveProgress === "function") saveProgress();
+            }
+            // If pickBeeLetter() returned the spawned letter or -1, the queued bee
+            // remains in state.questedBees and will try again on the next level.
+        }
+    }
+
+    if (_beesOnWheel.length > 0 && !localStorage.getItem("wp-bee-tut")) {
+        setTimeout(showBeeTutorial, 600);
+    }
 }
 
 function rebuildWheelLetters() {
@@ -487,6 +544,103 @@ function rebuildWheelLetters() {
         [a[i], a[j]] = [a[j], a[i]];
     }
     wheelLetters = a;
+}
+
+// Trigger a bee animation when the bee word is solved.
+// `bee` is one entry from _beesOnWheel.  Reveals 3 (spawned) or 4 (queued) cells.
+function triggerBee(bee) {
+    if (!bee || bee.triggered) return;
+    bee.triggered = true;
+
+    const revealCount = bee.type === "queued" ? 4 : 3;
+
+    // Find unsolved cells, weighted by shortness of the parent word.
+    const unsolvedByWord = []; // [{ word, cells: [{row,col}] }]
+    if (crossword && crossword.placements) {
+        for (const p of crossword.placements) {
+            if (state.foundWords.includes(p.word)) continue;
+            const unsolvedCells = p.cells.filter(c => {
+                const k = c.row + "," + c.col;
+                return !state.revealedCells.includes(k);
+            });
+            if (unsolvedCells.length > 0) {
+                unsolvedByWord.push({ word: p.word, cells: unsolvedCells });
+            }
+        }
+    }
+    // Sort: shortest words first
+    unsolvedByWord.sort((a, b) => a.word.length - b.word.length);
+
+    // Take up to revealCount distinct cells
+    const seen = new Set();
+    const picks = [];
+    for (const entry of unsolvedByWord) {
+        for (const c of entry.cells) {
+            const k = c.row + "," + c.col;
+            if (seen.has(k)) continue;
+            seen.add(k);
+            picks.push(c);
+            if (picks.length >= revealCount) break;
+        }
+        if (picks.length >= revealCount) break;
+    }
+
+    // Play bee sound
+    if (typeof state !== "undefined" && state.soundEnabled && typeof playSound === "function") {
+        try { playSound("bee"); } catch (e) { /* noop */ }
+    }
+
+    if (picks.length === 0) {
+        // Re-render so the bee disappears from the wheel even if no cells to reveal
+        if (typeof renderWheel === "function") renderWheel();
+        return;
+    }
+
+    // Stagger the reveals
+    picks.forEach((cell, i) => {
+        setTimeout(() => {
+            const k = cell.row + "," + cell.col;
+            if (!state.revealedCells.includes(k)) state.revealedCells.push(k);
+            if (typeof renderGrid === "function") renderGrid();
+        }, 250 + i * 200);
+    });
+
+    // After reveals settle, save and re-render wheel (to drop the bee icon)
+    setTimeout(() => {
+        if (typeof renderWheel === "function") renderWheel();
+        if (typeof saveProgress === "function") saveProgress();
+    }, 250 + picks.length * 200 + 100);
+}
+
+function _triggerBeesForWord(w) {
+    if (!Array.isArray(_beesOnWheel) || _beesOnWheel.length === 0) return;
+    const upper = String(w).toUpperCase();
+    for (const bee of _beesOnWheel) {
+        if (bee.triggered) continue;
+        const letter = wheelLetters[bee.letterIdx];
+        if (letter && upper.includes(String(letter).toUpperCase())) {
+            triggerBee(bee);
+        }
+    }
+}
+
+function showBeeTutorial() {
+    if (localStorage.getItem("wp-bee-tut")) return;
+    const tip = document.createElement("div");
+    tip.className = "bee-tutorial";
+    tip.innerHTML = `
+        <div class="bee-tutorial-inner">
+            <div style="font-size: 36px;">🐝</div>
+            <div style="font-size: 18px; margin-top: 8px; line-height: 1.4;">
+                Solve a word with the bee to release helper bees!
+            </div>
+            <button class="bee-tutorial-ok">Got it</button>
+        </div>`;
+    document.body.appendChild(tip);
+    tip.querySelector(".bee-tutorial-ok").addEventListener("click", () => {
+        localStorage.setItem("wp-bee-tut", "1");
+        tip.remove();
+    });
 }
 
 function applyPendingUpdate() {
@@ -562,6 +716,12 @@ function loadProgress() {
             state.difficultyOffset = d.doff || 0;
             state.tierCeiling = d.tc !== undefined ? d.tc : -1;
 
+            // Engagement (v9)
+            state.questedBees = d.nb || 0;
+            state.quest = d.q || null;
+            state.dailyGoals = d.dg || null;
+            state.questHistory = d.qh || [];
+
             // v7→v8 migration: convert raw level numbers to display levels.
             // In v7, cl/hl included the tier offset. In v8, they store display
             // levels and the offset is applied only at data lookup time.
@@ -584,6 +744,15 @@ function loadProgress() {
                     }
                 }
                 d.v = 8;
+                localStorage.setItem("wordplay-save", JSON.stringify(d));
+            }
+            // v8→v9 migration: add engagement fields with defaults.
+            if (d.v && d.v < 9) {
+                d.nb = d.nb ?? 0;
+                d.q = d.q ?? null;
+                d.dg = d.dg ?? null;
+                d.qh = d.qh ?? [];
+                d.v = 9;
                 localStorage.setItem("wordplay-save", JSON.stringify(d));
             }
             // Auto-detect tier for existing players who haven't been assigned one.
@@ -614,7 +783,7 @@ function saveProgress() {
     try {
         saveInProgressState();
         localStorage.setItem("wordplay-save", JSON.stringify({
-            v: 8,  // format version
+            v: 9,  // format version
             cl: state.currentLevel,
             fw: state.foundWords,
             bf: state.bonusFound,
@@ -645,6 +814,11 @@ function saveProgress() {
             dt: state.difficultyTier,
             doff: state.difficultyOffset,
             tc: state.tierCeiling,
+            // Engagement
+            nb: state.questedBees,
+            q: state.quest,
+            dg: state.dailyGoals,
+            qh: state.questHistory,
             sa: Date.now(),  // savedAt — used by merge to resolve balance conflicts
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
@@ -655,6 +829,7 @@ function saveInProgressState() {
     if (state.isDailyMode || state.isBonusMode) return;
     const lv = state.currentLevel;
     if (state.foundWords.length > 0 || state.revealedCells.length > 0 || state.bonusFound.length > 0 || state.standaloneFound) {
+        const prev = state.inProgress[lv] || {};
         state.inProgress[lv] = {
             fw: [...state.foundWords],
             bf: [...state.bonusFound],
@@ -663,6 +838,8 @@ function saveInProgressState() {
             wo: wheelLetters ? [...wheelLetters] : null,
             rsc: _regularStarCells.length > 0 ? [..._regularStarCells] : undefined,
             zen: _currentLayoutIsFlow || undefined,
+            bd: prev.bd || undefined,
+            bdIdx: typeof prev.bdIdx === "number" ? prev.bdIdx : undefined,
         };
     }
 }
@@ -1157,7 +1334,76 @@ function isFlowLevel(n) {
     return n > 0 && n % 5 === 0;
 }
 
+// Tier-scaled bee level frequency.
+// Higher tiers = harder levels = more bees (more help).
+function getBeeFrequency(displayLevel) {
+    // Use difficultyTier when available; fall back to level-range mapping
+    let tier = (typeof state !== "undefined" && state.difficultyTier >= 0)
+        ? state.difficultyTier
+        : -1;
+    if (tier < 0) {
+        if (displayLevel >= 15001) tier = 4;
+        else if (displayLevel >= 5001) tier = 3;
+        else if (displayLevel >= 2001) tier = 2;
+        else if (displayLevel >= 251) tier = 1;
+        else tier = 0;
+    }
+    switch (tier) {
+        case 0: return 15; // Easy
+        case 1: return 12; // Medium
+        case 2: return 10; // Hard
+        case 3: return 8;  // Expert
+        case 4: return 7;  // Master
+        default: return 12;
+    }
+}
 
+function isBeeLevel(displayLevel) {
+    if (!displayLevel || displayLevel < 1) return false;
+    // Don't drop bees on levels 1-5 (player is still learning the basics)
+    if (displayLevel <= 5) return false;
+    return displayLevel % getBeeFrequency(displayLevel) === 0;
+}
+
+// Choose which wheel letter receives a bee for this level.
+// Strategy: pick a letter from the SHORTEST grid word so the player can
+// solve the bee word early without effort.  Among ties, pick the letter
+// that occurs in the FEWEST other grid words (so the bee letter itself
+// isn't doing too much work — the bee reveal does the work).
+//
+// Returns the index into `wheelLetters` array, or -1 if no suitable choice.
+function pickBeeLetter() {
+    if (!placedWords || placedWords.length === 0) return -1;
+    if (!wheelLetters || wheelLetters.length === 0) return -1;
+
+    // Find shortest grid word (excluding standalone, which is its own thing)
+    const candidates = placedWords
+        .filter(w => !standaloneWord || w !== standaloneWord)
+        .sort((a, b) => a.length - b.length);
+    if (candidates.length === 0) return -1;
+
+    const shortest = candidates[0];
+    const shortestLetters = new Set(shortest.split(""));
+
+    // For each wheel letter that's in the shortest word, count how many
+    // OTHER grid words contain it.  Pick the one with the lowest count.
+    let bestIdx = -1;
+    let bestCount = Infinity;
+    for (let i = 0; i < wheelLetters.length; i++) {
+        const ch = wheelLetters[i];
+        if (!shortestLetters.has(ch)) continue;
+        let count = 0;
+        for (const w of placedWords) {
+            if (w === shortest) continue;
+            if (w.includes(ch)) count++;
+        }
+        if (count < bestCount) {
+            bestCount = count;
+            bestIdx = i;
+        }
+    }
+    return bestIdx;
+}
 
 // ---- SPEED BONUS CHECK (7 sec per word) ----
 function checkSpeedBonus() {
@@ -1353,6 +1599,12 @@ function handleDailyCompletion() {
     state.totalCoinsEarned += 100;
     _dailyCoinsEarned += 100;
     state.dailyPuzzle.completed = true;
+    window.quests?.tickProgress("levelComplete", {
+        flow: !!_currentLayoutIsFlow,
+        hintsUsed: _hintsUsedThisLevel,
+        speedBonus: false,
+        daily: true,
+    });
     updateDailyStreak();
     saveDailyState();
     triggerBonusPuzzle("daily");
@@ -1362,6 +1614,12 @@ function handleDailyCompletion() {
 function handleBonusCompletion() {
     if (!state.bonusPuzzle || state.bonusPuzzle.completed) return;
     state.bonusPuzzle.completed = true;
+    window.quests?.tickProgress("levelComplete", {
+        flow: !!_currentLayoutIsFlow,
+        hintsUsed: _hintsUsedThisLevel,
+        speedBonus: false,
+        daily: false,
+    });
     if (state.bonusStarsTotal >= 9) {
         state.coins += 500;
         state.totalCoinsEarned += 500;
@@ -1385,6 +1643,12 @@ function handleWord(word) {
         }
         state.standaloneFound = true;
         if (!state.foundWords.includes(w)) state.foundWords.push(w);
+        window.quests?.tickProgress("wordFound", {
+            word: w,
+            bonus: false,
+            standalone: true,
+        });
+            _triggerBeesForWord(w);
         const coinWordReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 200 : 100;
         state.coins += coinWordReward;
         state.totalCoinsEarned += coinWordReward;
@@ -1424,6 +1688,12 @@ function handleWord(word) {
     }
     if (placedWords.includes(w)) {
         state.foundWords.push(w);
+        window.quests?.tickProgress("wordFound", {
+            word: w,
+            bonus: false,
+            standalone: (typeof standaloneWord !== "undefined" && w === standaloneWord),
+        });
+            _triggerBeesForWord(w);
         // Auto-complete any crossing words whose cells are all now visible
         const beforeAuto = state.foundWords.length;
         while (checkAutoCompleteWords()) {}
@@ -1464,6 +1734,12 @@ function handleWord(word) {
     if (bonusPool && bonusPool.includes(w)) {
         playSound("bonusChime");
         state.bonusFound.push(w);
+        window.quests?.tickProgress("wordFound", {
+            word: w,
+            bonus: true,
+            standalone: false,
+        });
+            _triggerBeesForWord(w);
         const bonusReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 15 : 5;
         state.coins += bonusReward;
         state.totalCoinsEarned += bonusReward;
@@ -1588,6 +1864,11 @@ function checkAutoCompleteWords() {
         const allRevealed = p.cells.every(c => visible.has(c.row + "," + c.col));
         if (allRevealed) {
             state.foundWords.push(p.word);
+            window.quests?.tickProgress("wordFound", {
+                word: p.word,
+                bonus: false,
+                standalone: !!p.standalone,
+            });
             if (p.standalone) state.standaloneFound = true;
             changed = true;
         }
@@ -1811,6 +2092,29 @@ function playSound(name, vol) {
                 o.connect(g); g.connect(ctx.destination);
                 o.start(t); o.stop(t + 0.18);
             });
+        } else if (name === "bee") {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = "sawtooth";
+            o.frequency.setValueAtTime(220, now);
+            o.frequency.linearRampToValueAtTime(440, now + 0.18);
+            o.frequency.linearRampToValueAtTime(220, now + 0.36);
+            g.gain.setValueAtTime(0.0, now);
+            g.gain.linearRampToValueAtTime(0.12, now + 0.05);
+            g.gain.linearRampToValueAtTime(0.0, now + 0.4);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(now); o.stop(now + 0.42);
+        } else if (name === "reward") {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = "triangle";
+            o.frequency.setValueAtTime(660, now);
+            o.frequency.linearRampToValueAtTime(990, now + 0.12);
+            g.gain.setValueAtTime(0.0, now);
+            g.gain.linearRampToValueAtTime(0.18, now + 0.04);
+            g.gain.linearRampToValueAtTime(0.0, now + 0.3);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(now); o.stop(now + 0.32);
         }
     } catch (e) { /* audio not available */ }
 }
@@ -1889,6 +2193,11 @@ function handleHint() {
         state.coins -= 100;
         animateCoinSpend('hint-btn', 100);
     }
+    _hintsUsedThisLevel++;
+    window.quests?.tickProgress("hintUsed", {
+        kind: "hint",
+        paid: !hasFree,
+    });
     state.revealedCells.push(cell);
     checkAutoCompleteWords();
     if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
@@ -1938,6 +2247,11 @@ function handlePickCell(key) {
         state.coins -= 200;
         animateCoinSpend('target-btn', 200);
     }
+    _hintsUsedThisLevel++;
+    window.quests?.tickProgress("hintUsed", {
+        kind: "target",
+        paid: !wasFree,
+    });
     state.revealedCells.push(key);
     checkAutoCompleteWords();
     if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
@@ -2087,6 +2401,12 @@ async function advanceToNextLevel() {
         state.coins += levelUpReward;
         state.totalCoinsEarned += levelUpReward;
         state.levelsCompleted++;
+        window.quests?.tickProgress("levelComplete", {
+            flow: !!_currentLayoutIsFlow,
+            hintsUsed: _hintsUsedThisLevel,
+            speedBonus: !!_speedBonusEarned,
+            daily: !!state.isDailyMode,
+        });
         checkSpeedMilestone();
         if (state.levelsCompleted % 10 === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
@@ -2141,6 +2461,12 @@ async function handleNextLevel() {
         state.coins += levelUpReward;
         state.totalCoinsEarned += levelUpReward;
         state.levelsCompleted++;
+        window.quests?.tickProgress("levelComplete", {
+            flow: !!_currentLayoutIsFlow,
+            hintsUsed: _hintsUsedThisLevel,
+            speedBonus: !!_speedBonusEarned,
+            daily: !!state.isDailyMode,
+        });
         if (state.levelsCompleted % 10 === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
             else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
@@ -2238,6 +2564,10 @@ function formatCompact(n) {
 
 function renderCurrentScreen() {
     const app = document.getElementById("app");
+    if (state.showQuest) {
+        renderQuestScreen();
+        return;
+    }
     if (state.showHome) {
         app.innerHTML = "";
         renderHome();
@@ -2261,8 +2591,52 @@ function pickRandomBgKey() {
     return keys[Math.floor(Math.random() * keys.length)];
 }
 
+function _rewardIconList(r) {
+    if (!r) return "";
+    const parts = [];
+    if (r.coins) parts.push(`🪙${r.coins}`);
+    if (r.bees) parts.push(`🐝${r.bees}`);
+    if (r.hints) parts.push(`💡${r.hints}`);
+    if (r.targets) parts.push(`🎯${r.targets}`);
+    if (r.rockets) parts.push(`🚀${r.rockets}`);
+    return parts.join(" ");
+}
+
+function renderQuestBanner(q, qDef) {
+    const milestones = qDef.milestones || [];
+    const claimed = q.claimedTiers || [];
+    const next = milestones.find((_, i) => !claimed.includes(i));
+    const nextAt = next ? next.at : (milestones[milestones.length - 1] && milestones[milestones.length - 1].at) || 0;
+    const pct = nextAt > 0 ? Math.min(100, Math.floor((q.jars / nextAt) * 100)) : 100;
+
+    // Time left
+    const endTs = Date.parse(qDef.end + "T23:59:59");
+    const msLeft = endTs - Date.now();
+    const dLeft = Math.max(0, Math.floor(msLeft / 86400000));
+    const hLeft = Math.max(0, Math.floor((msLeft % 86400000) / 3600000));
+
+    const nextRewardIcons = next ? _rewardIconList(next.reward) : "✓ All complete";
+
+    return `
+    <div class="quest-banner" data-action="open-quest">
+        <div class="quest-banner-icon">${qDef.icon || "🐝"}</div>
+        <div class="quest-banner-body">
+            <div class="quest-banner-name">${qDef.name}</div>
+            <div class="quest-banner-time">Ends in ${dLeft}d ${hLeft}h</div>
+            <div class="quest-banner-progress">
+                <div class="quest-banner-progress-fill" style="width: ${pct}%;"></div>
+            </div>
+            <div class="quest-banner-meta">
+                <span>${q.jars} / ${nextAt} 🍯</span>
+                <span class="quest-banner-next">Next: ${nextRewardIcons}</span>
+            </div>
+        </div>
+    </div>`;
+}
+
 function renderHome() {
     const app = document.getElementById("app");
+    if (state.showQuest) { renderQuestScreen(); return; }
     // Pick a random background each time we visit the home screen
     _homeBgKey = pickRandomBgKey();
     let bgStyle;
@@ -2329,6 +2703,14 @@ function renderHome() {
                     <span>COINS</span>
                 </button>
             </div>
+            ${(function() {
+                const _qm = window.quests && window.quests.getCachedManifest();
+                if (state.quest && _qm) {
+                    const qDef = window.quests.getQuestDefinition(_qm, state.quest.id);
+                    if (qDef) return renderQuestBanner(state.quest, qDef);
+                }
+                return '';
+            })()}
             <div class="home-bottom">
                 <div class="home-bottom-btns">
                     <button class="home-corner-btn" id="home-settings-btn" title="Settings">⚙️</button>
@@ -2419,6 +2801,12 @@ function renderHome() {
     if (bpBtn) {
         bpBtn.onclick = () => enterBonusMode();
     }
+    document.querySelectorAll("[data-action='open-quest']").forEach(el => {
+        el.addEventListener("click", () => {
+            state.showQuest = true;
+            renderHome();
+        });
+    });
 }
 
 // ---- HEADER ----
@@ -3205,6 +3593,9 @@ function checkBonusStars(word) {
         state.bonusPuzzle.starsCollected += starsInWord;
         _bonusCoinsEarned += coinReward;
     }
+    for (let i = 0; i < starsInWord; i++) {
+        window.quests?.tickProgress("starCollected", {});
+    }
     state.bonusStarsTotal = Math.min(9, state.bonusStarsTotal + starsInWord);
     state.coins += coinReward;
     state.totalCoinsEarned += coinReward;
@@ -3624,6 +4015,14 @@ function renderWheel() {
         div.style.background = "transparent";
         div.style.border = "3px solid transparent";
         div.textContent = wheelLetters[i];
+        // Bee overlay
+        const beeHere = _beesOnWheel.find(b => b.letterIdx === i && !b.triggered);
+        if (beeHere) {
+            const beeEl = document.createElement("span");
+            beeEl.className = "wheel-bee" + (beeHere.type === "queued" ? " wheel-bee-queued" : "");
+            beeEl.textContent = "🐝";
+            div.appendChild(beeEl);
+        }
         lettersDiv.appendChild(div);
     }
 
@@ -3701,6 +4100,11 @@ function handleRocketHint() {
         state.coins -= 300;
         animateCoinSpend('rocket-btn', 300);
     }
+    _hintsUsedThisLevel++;
+    window.quests?.tickProgress("hintUsed", {
+        kind: "rocket",
+        paid: !hasFree,
+    });
     const revealed = [firstCell];
     state.revealedCells.push(firstCell);
     checkAutoCompleteWords();
@@ -4048,6 +4452,7 @@ function claimSpinPrize(winner) {
         else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
     } else if (winner.label === "Star") {
         state.bonusStarsTotal = Math.min(state.bonusStarsTotal + 3, 9);
+        for (let i = 0; i < 3; i++) window.quests?.tickProgress("starCollected", {});
     } else if (winner.label === "Target") {
         if (state.freeTargets < MAX_FREE_TARGETS) state.freeTargets++;
         else showToast("Target bank full!", "rgba(255,255,255,0.5)", true);
@@ -5135,7 +5540,12 @@ function renderMenu() {
         state.foundWords = [];
         state.bonusFound = [];
         state.revealedCells = [];
-        state.inProgress[state.currentLevel] = { fw: [], bf: [], rc: [], sf: false };
+        const prev = state.inProgress[state.currentLevel] || {};
+        state.inProgress[state.currentLevel] = {
+            fw: [], bf: [], rc: [], sf: false,
+            bd: prev.bd || undefined,
+            bdIdx: typeof prev.bdIdx === "number" ? prev.bdIdx : undefined,
+        };
         state.shuffleKey = 0;
         await recompute();
         saveProgress();
@@ -6898,6 +7308,8 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83C\uDF81", title: "Daily Bonus", body: "Tap the FREE button at the top of the screen once a day to claim 100 free coins. Come back every day \u2014 it resets at midnight!" },
     { icon: "\uD83D\uDCC5", title: "Daily Puzzle", body: "A fresh puzzle every day! Tap the green Daily Puzzle button on the home screen to play. A coin (\uD83E\uDE99) appears on one word in the grid \u2014 find it for 25 bonus coins, then the coin moves to a new word. Keep chasing the coin to rack up rewards! Complete the entire puzzle for a 100-coin bonus. The same puzzle is shared by all players each day. Some dailies use a \uD83C\uDF0A stacked flow layout for variety. Your regular progress is saved and waiting when you return.<br><br><b>\uD83D\uDD25 7-Day Streak:</b> Complete the daily puzzle 7 days in a row to earn a massive <b>1,000-coin bonus</b>! Watch the streak counter on the Daily Puzzle button (\u201cX/7 \uD83D\uDD25\u201d) and the progress message after each completion. The streak resets and repeats \u2014 earn the reward every week!" },
     { icon: "\u2B50", title: "Bonus Puzzle", body: "Earn bonus puzzles through achievements \u2014 complete a level pack, finish 5 levels in an hour, maintain a 3-day play streak, or beat the daily puzzle. A gold <b>\u2B50 Bonus Puzzle</b> button appears on the home screen. Inside, 9 stars are scattered across the grid. Find starred words to collect stars and earn 10 coins each! Every 3 stars fills one of your 3 star slots. Collect all 9 stars for a <b>500-coin grand prize</b>. But be careful \u2014 leaving the puzzle forfeits your progress!" },
+    { icon: "🍯", title: "Quests & Daily Goals", body: "<p>A new themed Quest runs every 7 days. Complete <strong>3 Daily Goals</strong> each day to earn <strong>honey jars</strong> 🍯, which fill the Quest progress bar.</p><p>Cross 4 milestone tiers to unlock prizes: coins, bees 🐝, hints, targets, and rockets. Goals refresh daily — yesterday's progress doesn't carry over, so play a little every day to keep the streak.</p><p>Open the Quest screen by tapping the Quest banner on the home screen.</p>" },
+    { icon: "🐝", title: "Bees", body: "<p>A bee 🐝 sits on a wheel letter on some levels. When you find a word using that letter, the bee splits into 3 helper bees that fly to unsolved cells and reveal letters!</p><p>You can earn <strong>extra bees</strong> from Quest milestones. Earned bees automatically appear on your next levels — and earned bees reveal <strong>4 letters</strong> instead of 3.</p><p>Bees become more common at higher difficulty tiers — Master tier sees a bee roughly every 7 levels.</p>" },
     { icon: "\uD83C\uDF0A", title: "Flow Levels", body: "Every 5th level (5, 10, 15, 20\u2026) is a <b>flow level</b>! These use a stacked layout instead of the usual crossword. Same words, same letters \u2014 just a different visual style with <b>3x rewards</b>: 3 coins per word, 15 per bonus word, and 200 for the coin word." },
     { icon: "\u21C4", title: "Grid Layouts", body: "WordPlay has two grid styles: <b>Crossword</b> (interlocking words) and <b>Flow</b> (stacked rows). You can <b>switch between them anytime</b> by tapping the level info at the top of the screen (the pack name and level number). All your progress \u2014 found words, hints, and stars \u2014 carries over when you switch. Set your preferred default in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> under Grid Layout: Auto (game decides), Crossword, or Flow." },
     { icon: "\uD83D\uDCD6", title: "Word Definitions", body: "Curious about a word? Tap any found word in the grid to see its definition! A popup shows the part of speech and meaning. Only non-intersecting letters are tappable \u2014 look for cells that belong to just one word." },
@@ -7270,6 +7682,98 @@ function renderLeaderboard() {
             const list = document.getElementById("lb-list");
             if (list) list.innerHTML = `<div style="opacity:0.5;padding:40px 0;font-size:15px">Unavailable offline</div>`;
         });
+}
+
+// ---- QUEST SCREEN ----
+function renderQuestScreen() {
+    const root = document.getElementById("app");
+    if (!root) return;
+    const qm = window.quests && window.quests.getCachedManifest();
+    if (!state.quest || !qm) {
+        root.innerHTML = '<div class="quest-screen"><button class="quest-close" data-action="close-quest">✕</button><div class="quest-screen-empty">No active quest right now. Check back tomorrow!</div></div>';
+        const closeBtn = root.querySelector("[data-action='close-quest']");
+        if (closeBtn) {
+            closeBtn.addEventListener("click", () => {
+                state.showQuest = false;
+                if (typeof renderHome === "function") renderHome();
+            });
+        }
+        return;
+    }
+    const qDef = window.quests.getQuestDefinition(qm, state.quest.id);
+    if (!qDef) return;
+
+    const milestones = qDef.milestones || [];
+    const claimed = state.quest.claimedTiers || [];
+    const jars = state.quest.jars || 0;
+
+    const milestoneHtml = milestones.map((m, i) => {
+        const reached = claimed.includes(i);
+        const isNext = !reached && i === claimed.length;
+        const reward = _rewardIconList(m.reward);
+        return `
+            <div class="milestone${reached ? ' milestone-claimed' : ''}${isNext ? ' milestone-next' : ''}">
+                <div class="milestone-icon">${reached ? '✓' : (isNext ? '★' : '🎁')}</div>
+                <div class="milestone-at">${m.at} 🍯</div>
+                <div class="milestone-reward">${reward}</div>
+            </div>`;
+    }).join("");
+
+    // Daily goals refresh countdown (next midnight local)
+    const now = new Date();
+    const tomorrow = new Date(now); tomorrow.setHours(24, 0, 0, 0);
+    const refreshMs = tomorrow.getTime() - now.getTime();
+    const rH = Math.floor(refreshMs / 3600000);
+    const rM = Math.floor((refreshMs % 3600000) / 60000);
+
+    const goals = (state.dailyGoals && state.dailyGoals.goals) || [];
+    const goalsHtml = goals.map(g => {
+        const tpl = window.quests && window.quests.GOAL_TEMPLATES && window.quests.GOAL_TEMPLATES[g.template];
+        if (!tpl) return "";
+        const desc = tpl.description(g.target);
+        const pct = Math.min(100, Math.floor((g.progress / g.target) * 100));
+        const reward = _rewardIconList({ jars: tpl.reward.jars, coins: tpl.reward.coins });
+        return `
+            <div class="goal-row${g.claimed ? ' goal-claimed' : ''}">
+                <div class="goal-icon">${tpl.icon}</div>
+                <div class="goal-body">
+                    <div class="goal-desc">${desc}</div>
+                    <div class="goal-progress">
+                        <div class="goal-progress-fill" style="width: ${pct}%;"></div>
+                    </div>
+                    <div class="goal-count">${g.progress}/${g.target}</div>
+                </div>
+                <div class="goal-reward">${reward}</div>
+            </div>`;
+    }).join("");
+
+    root.innerHTML = `
+        <div class="quest-screen">
+            <button class="quest-close" data-action="close-quest">✕</button>
+            <div class="quest-header">
+                <div class="quest-header-icon">${qDef.icon || "🐝"}</div>
+                <div class="quest-header-name">${qDef.name}</div>
+                <div class="quest-header-time">Ends ${qDef.end}</div>
+            </div>
+            <div class="milestones-row">${milestoneHtml}</div>
+            <div class="quest-jars-total">${jars} 🍯 collected</div>
+            <div class="goals-section">
+                <div class="goals-header">
+                    <span>Daily Goals</span>
+                    <span class="goals-refresh">Refreshes in ${rH}h ${rM}m</span>
+                </div>
+                ${goalsHtml || '<div class="goals-empty">No goals today.</div>'}
+            </div>
+        </div>`;
+
+    // Wire close button
+    const closeBtn = root.querySelector("[data-action='close-quest']");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+            state.showQuest = false;
+            if (typeof renderHome === "function") renderHome();
+        });
+    }
 }
 
 function escapeHtml(str) {
@@ -7724,6 +8228,13 @@ async function init() {
     await loadBgManifest();
 
     loadProgress();
+    // Activate today's quest and daily goals — must complete before syncPull
+    // to avoid a race where sync overwrites a freshly-activated quest.
+    if (window.quests) {
+        const manifest = await window.quests.loadQuestsManifest();
+        const changed = window.quests.activateQuestForToday(manifest, getTodayStr());
+        if (changed) saveProgress();
+    }
     checkLoginStreak();
 
     // Auth init + sync pull
