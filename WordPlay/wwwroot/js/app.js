@@ -8246,16 +8246,12 @@ async function init() {
     await loadBgManifest();
 
     loadProgress();
-    // Activate today's quest and daily goals
+    // Activate today's quest and daily goals — must complete before syncPull
+    // to avoid a race where sync overwrites a freshly-activated quest.
     if (window.quests) {
-        window.quests.loadQuestsManifest().then(manifest => {
-            const today = getTodayStr();
-            const changed = window.quests.activateQuestForToday(manifest, today);
-            if (changed) saveProgress();
-            // Re-render home if we're on it
-            if (state.showHome && typeof renderHome === "function") renderHome();
-            else if (typeof renderAll === "function") renderAll();
-        });
+        const manifest = await window.quests.loadQuestsManifest();
+        const changed = window.quests.activateQuestForToday(manifest, getTodayStr());
+        if (changed) saveProgress();
     }
     checkLoginStreak();
 

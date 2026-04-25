@@ -23,7 +23,8 @@ async function syncPullAndReload() {
         if (typeof loadProgress === "function") loadProgress();
         if (window.quests) {
             const manifest = await window.quests.loadQuestsManifest();
-            window.quests.activateQuestForToday(manifest, getTodayStr());
+            const changed = window.quests.activateQuestForToday(manifest, getTodayStr());
+            if (changed && typeof saveProgress === "function") saveProgress();
         }
         if (typeof recompute === "function") await recompute();
         if (typeof restoreLevelState === "function") restoreLevelState();
