@@ -2669,3 +2669,38 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
     .wheel-bee { animation: none; }
 }
+
+/* ============================================================
+   Bee tutorial (one-time first-bee overlay)
+   ============================================================ */
+.bee-tutorial {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+.bee-tutorial-inner {
+    background: linear-gradient(135deg, #1a1a2e, #2a1a40);
+    border: 2px solid var(--accent, #f4a535);
+    border-radius: 18px;
+    padding: 28px 24px;
+    text-align: center;
+    color: white;
+    max-width: 360px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+}
+.bee-tutorial-ok {
+    margin-top: 18px;
+    padding: 12px 28px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent, #f4a535);
+    color: #111;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+}

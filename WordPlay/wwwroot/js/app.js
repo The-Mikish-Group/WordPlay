@@ -530,6 +530,10 @@ async function recompute() {
             // remains in state.questedBees and will try again on the next level.
         }
     }
+
+    if (_beesOnWheel.length > 0 && !localStorage.getItem("wp-bee-tut")) {
+        setTimeout(showBeeTutorial, 600);
+    }
 }
 
 function rebuildWheelLetters() {
@@ -605,6 +609,25 @@ function triggerBee(bee) {
         if (typeof renderWheel === "function") renderWheel();
         if (typeof saveProgress === "function") saveProgress();
     }, 250 + picks.length * 200 + 100);
+}
+
+function showBeeTutorial() {
+    if (localStorage.getItem("wp-bee-tut")) return;
+    const tip = document.createElement("div");
+    tip.className = "bee-tutorial";
+    tip.innerHTML = `
+        <div class="bee-tutorial-inner">
+            <div style="font-size: 36px;">🐝</div>
+            <div style="font-size: 18px; margin-top: 8px; line-height: 1.4;">
+                Solve a word with the bee to release helper bees!
+            </div>
+            <button class="bee-tutorial-ok">Got it</button>
+        </div>`;
+    document.body.appendChild(tip);
+    tip.querySelector(".bee-tutorial-ok").addEventListener("click", () => {
+        localStorage.setItem("wp-bee-tut", "1");
+        tip.remove();
+    });
 }
 
 function applyPendingUpdate() {
