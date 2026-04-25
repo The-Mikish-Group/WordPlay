@@ -106,11 +106,22 @@ async function syncPull() {
     }
 }
 
-// Normalize a save to v8 display-level format in place.
+// Normalize a save to current format in place.
 // If the save is v7 or earlier with a nonzero doff, subtract doff from
 // level numbers so they become display levels.
-function _normalizeToV8(s) {
-    if (!s || (s.v && s.v >= 8)) return s;
+// v8+ saves get default v9 fields added if missing.
+function _normalizeToCurrent(s) {
+    if (!s || (s.v && s.v >= 8)) {
+        // v8+ already has display levels; just ensure v9 fields exist
+        if (s) {
+            s.nb = s.nb ?? 0;
+            s.q = s.q ?? null;
+            s.dg = s.dg ?? null;
+            s.qh = s.qh ?? [];
+            s.v = 9;
+        }
+        return s;
+    }
     const doff = s.doff || 0;
     if (doff > 0) {
         s.cl = Math.max(1, (s.cl || 1) - doff);
@@ -125,17 +136,21 @@ function _normalizeToV8(s) {
             s.ip = newIp;
         }
     }
-    s.v = 8;
+    s.nb = 0;
+    s.q = null;
+    s.dg = null;
+    s.qh = [];
+    s.v = 9;
     return s;
 }
 
 function mergeProgress(local, server) {
-    // Normalize both saves to v8 display levels before comparing,
+    // Normalize both saves to current format before comparing,
     // so raw vs display mismatches can't corrupt the merge.
-    _normalizeToV8(local);
-    _normalizeToV8(server);
+    _normalizeToCurrent(local);
+    _normalizeToCurrent(server);
 
-    const merged = { v: 8 };
+    const merged = { v: 9 };
 
     // Monotonically-increasing fields — always take the max
     merged.hl = Math.max(local.hl || 1, server.hl || 1);
@@ -184,7 +199,10 @@ function mergeProgress(local, server) {
         if (a && b) {
             const aWords = (a.fw || []).length;
             const bWords = (b.fw || []).length;
-            merged.ip[key] = aWords >= bWords ? a : b;
+            const winner = aWords >= bWords ? a : b;
+            // OR the bee-deployed flag — once deployed, forever deployed.
+            if (a.bd || b.bd) winner.bd = true;
+            merged.ip[key] = winner;
         } else {
             merged.ip[key] = a || b;
         }
@@ -254,6 +272,65 @@ function mergeProgress(local, server) {
     merged.dt = primary.dt !== undefined ? primary.dt : -1;
     merged.doff = primary.doff || 0;
     merged.tc = primary.tc !== undefined ? primary.tc : -1;
+
+    // Queued bees: max merge (monotonically increasing across devices)
+    merged.nb = Math.max(local.nb || 0, server.nb || 0);
+
+    // Active quest: prefer the side whose id matches today's active quest.
+    // If both sides have the same id: max jars, union claimedTiers.
+    // If ids differ (rare — date crossover): take the side with the more recent end date.
+    const qL = local.q || null;
+    const qS = server.q || null;
+    if (qL && qS) {
+        if (qL.id === qS.id) {
+            merged.q = {
+                id: qL.id,
+                start: qL.start,
+                end: qL.end,
+                jars: Math.max(qL.jars || 0, qS.jars || 0),
+                claimedTiers: Array.from(new Set([...(qL.claimedTiers || []), ...(qS.claimedTiers || [])])).sort((a, b) => a - b),
+            };
+        } else {
+            merged.q = (qL.end || "") >= (qS.end || "") ? qL : qS;
+        }
+    } else {
+        merged.q = qL || qS || null;
+    }
+
+    // Daily goals: same date → per-goal max progress + OR claimed; different dates → newer.
+    const dgL = local.dg || null;
+    const dgS = server.dg || null;
+    if (dgL && dgS) {
+        if (dgL.date === dgS.date) {
+            const goals = (dgL.goals || []).map((gL, i) => {
+                const gS = (dgS.goals || [])[i] || {};
+                return {
+                    template: gL.template,
+                    target: gL.target,
+                    progress: Math.max(gL.progress || 0, gS.progress || 0),
+                    claimed: !!(gL.claimed || gS.claimed),
+                };
+            });
+            merged.dg = { date: dgL.date, goals };
+        } else {
+            merged.dg = dgL.date > dgS.date ? dgL : dgS;
+        }
+    } else {
+        merged.dg = dgL || dgS || null;
+    }
+
+    // Quest history: union by id; for duplicates, prefer entry with more tiersClaimed
+    const qhL = local.qh || [];
+    const qhS = server.qh || [];
+    const qhMap = new Map();
+    for (const e of [...qhL, ...qhS]) {
+        if (!e || !e.id) continue;
+        const prev = qhMap.get(e.id);
+        if (!prev || (e.tiersClaimed || []).length > (prev.tiersClaimed || []).length) {
+            qhMap.set(e.id, e);
+        }
+    }
+    merged.qh = Array.from(qhMap.values());
 
     // Carry forward the latest savedAt timestamp
     merged.sa = Math.max(local.sa || 0, server.sa || 0);
