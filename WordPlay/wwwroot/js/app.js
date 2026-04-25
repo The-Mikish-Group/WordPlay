@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.7.1";
+const APP_VERSION = "1.7.2";
 
 // ---- THEMES ----
 const THEMES = {
@@ -207,9 +207,10 @@ window.debugBonus = function(presetStars) {
 
 // ---- DEBUG: BEE TESTING ----
 // Usage:
-//   debugBee()        — diagnostic dump: current level, tier, frequency, _beesOnWheel, etc.
-//   debugBee(true)    — force a queued bee on the next level you enter (sets state.questedBees=1)
-window.debugBee = function(forceQueued) {
+//   debugBee()        — diagnostic dump + explanation of why bees did/didn't deploy
+//   debugBee(true)    — force a queued bee on the next level you enter (sets state.questedBees++)
+//   debugBee("clear") — clear stale bd/bdIdx flags from inProgress (recovery)
+window.debugBee = function(arg) {
     const lv = state.currentLevel;
     const tier = state.difficultyTier;
     const freq = (typeof getBeeFrequency === "function") ? getBeeFrequency(lv) : "?";
@@ -217,6 +218,7 @@ window.debugBee = function(forceQueued) {
     const queued = state.questedBees || 0;
     const onWheel = (typeof _beesOnWheel !== "undefined") ? _beesOnWheel : null;
     const ip = (state.inProgress && state.inProgress[lv]) || {};
+    const bdIdxValid = typeof ip.bdIdx === "number" && ip.bdIdx >= 0;
 
     console.log("=== BEE DEBUG ===");
     console.log("APP_VERSION:", APP_VERSION);
@@ -224,16 +226,42 @@ window.debugBee = function(forceQueued) {
     console.log("difficultyTier:", tier, "→ bee frequency: every", freq + "th level");
     console.log("isBeeLevel(" + lv + "):", isBee);
     console.log("state.questedBees:", queued);
-    console.log("inProgress[" + lv + "].bd / .bdIdx:", ip.bd, "/", ip.bdIdx);
+    console.log("inProgress[" + lv + "].bd / .bdIdx:", ip.bd, "/", ip.bdIdx, bdIdxValid ? "(valid)" : "(invalid)");
     console.log("_beesOnWheel:", onWheel);
     console.log("wheelLetters:", typeof wheelLetters !== "undefined" ? wheelLetters : null);
     if (typeof pickBeeLetter === "function" && typeof wheelLetters !== "undefined" && wheelLetters) {
         console.log("pickBeeLetter() would return:", pickBeeLetter());
     }
-    if (forceQueued === true) {
+
+    // Explain what would happen on next recompute()
+    console.log("--- diagnosis ---");
+    if (state.isDailyMode || state.isBonusMode) {
+        console.log("In daily/bonus mode — bee init is skipped entirely.");
+    } else if (queued === 0 && !isBee) {
+        console.log("No queued bees AND not a Bee level — bee won't appear. Win one or wait for level " + (Math.ceil(lv / freq) + 1) * freq + ".");
+    } else if (queued > 0 && ip.bd && !bdIdxValid) {
+        console.log("STALE STATE: ip.bd=true but bdIdx is invalid. Run debugBee('clear') to recover.");
+    } else if (queued > 0 && ip.bd) {
+        console.log("Queued bee visible from previous deploy at letterIdx", ip.bdIdx + ".");
+    } else if (queued > 0) {
+        console.log("Queued bee will deploy on next recompute() (e.g. when you enter this level fresh).");
+    } else if (isBee) {
+        console.log("This IS a Bee level — spawned bee should appear.");
+    }
+
+    if (arg === true) {
         state.questedBees = (state.questedBees || 0) + 1;
         saveProgress();
-        console.log("→ Queued 1 bee. Advance to next level (or quit/resume) to see it deploy.");
+        console.log("→ Queued bee count is now", state.questedBees + ". Re-enter the level (or advance) to see it deploy.");
+    } else if (arg === "clear") {
+        if (state.inProgress[lv]) {
+            delete state.inProgress[lv].bd;
+            delete state.inProgress[lv].bdIdx;
+            saveProgress();
+            console.log("→ Cleared bd/bdIdx for level " + lv + ". A queued bee will now be free to deploy here.");
+        } else {
+            console.log("Nothing to clear — no inProgress entry for level " + lv + ".");
+        }
     }
 };
 
@@ -531,6 +559,16 @@ async function recompute() {
 
     if (!state.isDailyMode && !state.isBonusMode) {
         const ip = state.inProgress[state.currentLevel] || {};
+        const bdIdxValid = typeof ip.bdIdx === "number" && ip.bdIdx >= 0;
+        // If bd is set but bdIdx is missing/invalid, the entry is stale (from older
+        // debug state or a corruption). Treat as not deployed so a queued bee can land.
+        if (ip.bd && !bdIdxValid) {
+            ip.bd = false;
+            if (state.inProgress[state.currentLevel]) {
+                delete state.inProgress[state.currentLevel].bd;
+                delete state.inProgress[state.currentLevel].bdIdx;
+            }
+        }
         const alreadyDeployed = !!ip.bd;
 
         // Spawned bee?
@@ -541,13 +579,16 @@ async function recompute() {
             }
         }
 
-        if (alreadyDeployed && typeof ip.bdIdx === "number" && ip.bdIdx >= 0) {
+        let queuedShown = false;
+        if (alreadyDeployed && bdIdxValid) {
             // Resume path: re-show the queued bee on its previously-placed letter.
             const used = new Set(_beesOnWheel.map(b => b.letterIdx));
             if (!used.has(ip.bdIdx) && _beesOnWheel.length < 2) {
                 _beesOnWheel.push({ letterIdx: ip.bdIdx, type: "queued", triggered: false });
+                queuedShown = true;
             }
-        } else if (!alreadyDeployed && state.questedBees > 0 && _beesOnWheel.length < 2) {
+        }
+        if (!queuedShown && !alreadyDeployed && state.questedBees > 0 && _beesOnWheel.length < 2) {
             // Fresh deploy from queue.
             const used = new Set(_beesOnWheel.map(b => b.letterIdx));
             const idx = pickBeeLetter();
