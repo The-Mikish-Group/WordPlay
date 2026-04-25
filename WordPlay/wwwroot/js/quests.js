@@ -303,10 +303,56 @@ function _checkMilestones() {
     }
 }
 
-// Stub — implementation in Task 10 (UI). For now, log and continue.
+const _popupQueue = [];
+let _popupShowing = false;
+
 function _showRewardPopup(payload) {
-    if (window._rewardPopupQueue) window._rewardPopupQueue.push(payload);
-    else console.log("[reward popup]", payload);
+    _popupQueue.push(payload);
+    if (!_popupShowing) _drainPopupQueue();
+}
+
+function _drainPopupQueue() {
+    if (_popupQueue.length === 0) {
+        _popupShowing = false;
+        return;
+    }
+    _popupShowing = true;
+    const next = _popupQueue.shift();
+    const el = document.getElementById("reward-popup");
+    if (!el) {
+        // No popup element — skip and continue
+        setTimeout(_drainPopupQueue, 50);
+        return;
+    }
+    el.innerHTML = _renderPopupHtml(next);
+    el.classList.remove("hidden");
+    requestAnimationFrame(() => el.classList.add("visible"));
+
+    // Play a soft chime if sound is on
+    if (typeof state !== "undefined" && state.soundEnabled && typeof playSfx === "function") {
+        try { playSfx("reward"); } catch (e) { /* noop */ }
+    }
+
+    setTimeout(() => {
+        el.classList.remove("visible");
+        setTimeout(() => {
+            el.classList.add("hidden");
+            setTimeout(_drainPopupQueue, 100);
+        }, 300);
+    }, 1800);
+}
+
+function _renderPopupHtml(payload) {
+    const title = payload.title || "Reward!";
+    const r = payload.reward || {};
+    const lines = [];
+    if (r.coins) lines.push(`<div class="reward-line"><span class="reward-icon">🪙</span>+${r.coins} coins</div>`);
+    if (r.bees) lines.push(`<div class="reward-line"><span class="reward-icon">🐝</span>+${r.bees} bee${r.bees > 1 ? 's' : ''}</div>`);
+    if (r.hints) lines.push(`<div class="reward-line"><span class="reward-icon">💡</span>+${r.hints} hint${r.hints > 1 ? 's' : ''}</div>`);
+    if (r.targets) lines.push(`<div class="reward-line"><span class="reward-icon">🎯</span>+${r.targets} target${r.targets > 1 ? 's' : ''}</div>`);
+    if (r.rockets) lines.push(`<div class="reward-line"><span class="reward-icon">🚀</span>+${r.rockets} rocket${r.rockets > 1 ? 's' : ''}</div>`);
+    if (r.jars) lines.push(`<div class="reward-line"><span class="reward-icon">🍯</span>+${r.jars} jars</div>`);
+    return `<div class="reward-title">${title}</div>${lines.join("")}`;
 }
 
 // Expose for app.js
