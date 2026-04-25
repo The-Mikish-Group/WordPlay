@@ -568,6 +568,12 @@ function loadProgress() {
             state.difficultyOffset = d.doff || 0;
             state.tierCeiling = d.tc !== undefined ? d.tc : -1;
 
+            // Engagement (v9)
+            state.questedBees = d.nb || 0;
+            state.quest = d.q || null;
+            state.dailyGoals = d.dg || null;
+            state.questHistory = d.qh || [];
+
             // v7→v8 migration: convert raw level numbers to display levels.
             // In v7, cl/hl included the tier offset. In v8, they store display
             // levels and the offset is applied only at data lookup time.
@@ -590,6 +596,15 @@ function loadProgress() {
                     }
                 }
                 d.v = 8;
+                localStorage.setItem("wordplay-save", JSON.stringify(d));
+            }
+            // v8→v9 migration: add engagement fields with defaults.
+            if (d.v && d.v < 9) {
+                d.nb = d.nb ?? 0;
+                d.q = d.q ?? null;
+                d.dg = d.dg ?? null;
+                d.qh = d.qh ?? [];
+                d.v = 9;
                 localStorage.setItem("wordplay-save", JSON.stringify(d));
             }
             // Auto-detect tier for existing players who haven't been assigned one.
