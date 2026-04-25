@@ -225,6 +225,8 @@ html, body {
     font-weight: 600;
     font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
     transition: background 0.35s ease, color 0.35s ease, border 0.2s ease;
+    position: relative;
+    overflow: visible;
 }
 
 .grid-cell.word-flash {
@@ -2646,13 +2648,24 @@ html, body {
 
 /* ============================================================
    Bee on a grid cell
+   .grid-cell-bee-center  → the cell is empty (default); render big in middle
+   .grid-cell-bee-corner  → the cell already has content (star/coin); render
+                            as a small badge in the top-right corner
    ============================================================ */
 .grid-cell-bee {
-    display: inline-block;
     line-height: 1;
     pointer-events: none;
     animation: beePulse 1.6s ease-in-out infinite;
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+.grid-cell-bee-center {
+    display: inline-block;
+}
+.grid-cell-bee-corner {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    z-index: 5;
 }
 .grid-cell-bee-queued {
     /* Earned bees get a subtle golden glow */

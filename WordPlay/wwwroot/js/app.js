@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.7.4";
+const APP_VERSION = "1.7.5";
 
 // ---- THEMES ----
 const THEMES = {
@@ -574,9 +574,23 @@ async function recompute() {
         }
         const alreadyDeployed = !!ip.bd;
 
+        // Compute star cells for this level NOW (recompute runs before
+        // restoreLevelState, so the global _regularStarCells doesn't yet
+        // reflect this level — derive it the same way).
+        const starKeys = (function() {
+            if (state.isDailyMode || state.isBonusMode) return new Set();
+            const ipRsc = ip.rsc;
+            if (Array.isArray(ipRsc)) return new Set(ipRsc);
+            if (typeof shouldLevelHaveStars === "function" && shouldLevelHaveStars(state.currentLevel)
+                && typeof assignRegularStars === "function") {
+                return new Set(assignRegularStars(state.currentLevel));
+            }
+            return new Set();
+        })();
+
         // Spawned bee on Bee levels.
         if (typeof isBeeLevel === "function" && isBeeLevel(state.currentLevel)) {
-            const cell = pickBeeCell(new Set());
+            const cell = pickBeeCell(starKeys);
             if (cell) {
                 _beesOnGrid.push({ row: cell.row, col: cell.col, type: "spawned", triggered: false });
             }
@@ -595,8 +609,10 @@ async function recompute() {
             }
         }
         if (!queuedShown && !alreadyDeployed && state.questedBees > 0 && _beesOnGrid.length < 2) {
-            // Fresh deploy from queue, on a different cell than the spawned bee.
-            const cell = pickBeeCell(usedKeys);
+            // Fresh deploy from queue, on a different cell than the spawned bee
+            // AND not a star cell (which has its own visual marker).
+            const excludeForFresh = new Set([...usedKeys, ...starKeys]);
+            const cell = pickBeeCell(excludeForFresh);
             if (cell) {
                 const k = cell.row + "," + cell.col;
                 _beesOnGrid.push({ row: cell.row, col: cell.col, type: "queued", triggered: false });
@@ -3508,18 +3524,31 @@ function renderGrid() {
                 div.style.color = "transparent";
                 div.style.textShadow = "";
                 div.textContent = "";
-                // Bee overlay on unrevealed cells
-                const beeHere = _beesOnGrid.find(b => b.row === ri && b.col === ci && !b.triggered);
-                if (beeHere) {
-                    const beeFs = Math.max(cs * 0.78, 18);
-                    div.innerHTML = '<span class="grid-cell-bee' + (beeHere.type === "queued" ? " grid-cell-bee-queued" : "") + '" style="font-size:' + beeFs + 'px">🐝</span>';
-                }
                 if (state.pickMode) {
                     div.style.cursor = "pointer";
                     div.onclick = () => handlePickCell(k);
                 } else {
                     div.style.cursor = "";
                     div.onclick = null;
+                }
+            }
+
+            // Bee overlay (final pass, applies to any unrevealed cell type).
+            // Empty cells get a big centered bee; cells that already have a
+            // star or coin overlay get a small corner badge so both are visible.
+            if (!isR) {
+                const beeHere = _beesOnGrid.find(b => b.row === ri && b.col === ci && !b.triggered);
+                if (beeHere) {
+                    const hasOverlay = div.children.length > 0;
+                    const beeSpan = document.createElement("span");
+                    beeSpan.className = "grid-cell-bee "
+                        + (hasOverlay ? "grid-cell-bee-corner" : "grid-cell-bee-center")
+                        + (beeHere.type === "queued" ? " grid-cell-bee-queued" : "");
+                    beeSpan.style.fontSize = (hasOverlay
+                        ? Math.max(cs * 0.5, 16)
+                        : Math.max(cs * 0.78, 22)) + "px";
+                    beeSpan.textContent = "🐝";
+                    div.appendChild(beeSpan);
                 }
             }
         }
