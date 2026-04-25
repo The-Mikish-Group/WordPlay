@@ -298,17 +298,25 @@ function mergeProgress(local, server) {
     }
 
     // Daily goals: same date → per-goal max progress + OR claimed; different dates → newer.
+    // ASSUMPTION: goals are generated deterministically per date (date-seeded), so
+    // both sides have the same templates in the same order. If that ever changes,
+    // switch to matching by `template` id instead of array index.
     const dgL = local.dg || null;
     const dgS = server.dg || null;
     if (dgL && dgS) {
         if (dgL.date === dgS.date) {
-            const goals = (dgL.goals || []).map((gL, i) => {
-                const gS = (dgS.goals || [])[i] || {};
+            // Iterate from whichever side has more goals so we don't drop entries.
+            const lLen = (dgL.goals || []).length;
+            const sLen = (dgS.goals || []).length;
+            const baseGoals = lLen >= sLen ? (dgL.goals || []) : (dgS.goals || []);
+            const otherGoals = lLen >= sLen ? (dgS.goals || []) : (dgL.goals || []);
+            const goals = baseGoals.map((gBase, i) => {
+                const gOther = otherGoals[i] || {};
                 return {
-                    template: gL.template,
-                    target: gL.target,
-                    progress: Math.max(gL.progress || 0, gS.progress || 0),
-                    claimed: !!(gL.claimed || gS.claimed),
+                    template: gBase.template,
+                    target: gBase.target,
+                    progress: Math.max(gBase.progress || 0, gOther.progress || 0),
+                    claimed: !!(gBase.claimed || gOther.claimed),
                 };
             });
             merged.dg = { date: dgL.date, goals };
