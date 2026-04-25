@@ -136,6 +136,40 @@ A fresh puzzle shared by all players each day. A coin appears on one word in the
 
 Earned through achievements: completing a level pack, finishing 5 levels in an hour, maintaining a 3-day play streak, or beating the daily puzzle. Inside, 9 stars are scattered across the grid. Collect all 9 for a 500-coin grand prize. Leaving the puzzle forfeits progress.
 
+### Quests
+
+A themed 7-day Quest runs continuously. Each Quest has 4 milestone tiers (20 / 60 / 130 / 220 honey jars) that award coins, bees, and hints/targets/rockets. Players collect honey jars by completing **Daily Goals**.
+
+When a quest ends, the next themed quest begins automatically the next day. Quest themes cycle through original names (Spring Bloom, Honey Harvest, Coral Cove, etc.) — each reusing one of the 16 visual themes for art.
+
+Tap the Quest banner below the level button on the home screen to open the full Quest screen.
+
+### Daily Goals
+
+Three goals per day, refreshing at midnight local time. Goals are deterministic by date — every player worldwide sees the same 3 goals on the same day. Goal templates include "play 5 levels", "find 8 words with 5+ letters", "complete a level without hints", "earn a speed bonus", and more.
+
+Completing a goal auto-pays its reward (honey jars + small coin/hint reward) — no claim button needed. Yesterday's progress is gone at midnight; play daily to keep the streak.
+
+### Bees
+
+A new helper mechanic. A bee sits on a wheel letter on certain levels — when the player finds any word using that letter (grid or bonus), the bee splits into 3 helper bees that fly to 3 unsolved cells and reveal their letters.
+
+| Bee source | Reveals |
+|---|---|
+| Spawned bee (level-baked) | 3 letters |
+| Won bee (from Quest milestone) | 4 letters |
+| Both on same level | 7 letters |
+
+Bee level frequency scales with difficulty tier:
+
+| Tier | Frequency | Effective % |
+|---|---|---|
+| Easy | every 15th | ~7% |
+| Medium | every 12th | ~8% |
+| Hard | every 10th | 10% |
+| Expert | every 8th | ~12% |
+| Master | every 7th | ~14% |
+
 ### Rescue Spin Wheel
 
 When you're stuck with no coins and no free hints, a spin wheel appears with 8 prize segments: free hints, targets, rockets, or coin prizes (50 or 100).
