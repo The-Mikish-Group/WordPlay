@@ -2657,6 +2657,10 @@ html, body {
     pointer-events: none;
     animation: beePulse 1.6s ease-in-out infinite;
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+    /* Force a visible color — parent grid-cell uses color:transparent
+       to hide the unrevealed letter, which on some platforms also
+       hides the bee emoji. */
+    color: #1a1a2e;
 }
 .grid-cell-bee-center {
     display: inline-block;
