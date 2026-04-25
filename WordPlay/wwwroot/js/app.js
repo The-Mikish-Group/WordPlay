@@ -402,6 +402,7 @@ function resetStateToDefaults() {
 
 async function recompute() {
     resetSpeedTimer();
+    _hintsUsedThisLevel = 0;
     // Try dynamic loader first, fall back to built-in
     let lvData = null;
     // Compute the data-file level number (display + offset)
@@ -4139,6 +4140,7 @@ function claimSpinPrize(winner) {
         else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
     } else if (winner.label === "Star") {
         state.bonusStarsTotal = Math.min(state.bonusStarsTotal + 3, 9);
+        for (let i = 0; i < 3; i++) window.quests?.tickProgress("starCollected", {});
     } else if (winner.label === "Target") {
         if (state.freeTargets < MAX_FREE_TARGETS) state.freeTargets++;
         else showToast("Target bank full!", "rgba(255,255,255,0.5)", true);
