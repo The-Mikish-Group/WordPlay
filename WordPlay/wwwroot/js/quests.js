@@ -329,8 +329,8 @@ function _drainPopupQueue() {
     requestAnimationFrame(() => el.classList.add("visible"));
 
     // Play a soft chime if sound is on
-    if (typeof state !== "undefined" && state.soundEnabled && typeof playSfx === "function") {
-        try { playSfx("reward"); } catch (e) { /* noop */ }
+    if (typeof state !== "undefined" && state.soundEnabled && typeof playSound === "function") {
+        try { playSound("reward"); } catch (e) { /* noop */ }
     }
 
     setTimeout(() => {
