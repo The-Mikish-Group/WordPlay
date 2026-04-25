@@ -612,6 +612,18 @@ function triggerBee(bee) {
     }, 250 + picks.length * 200 + 100);
 }
 
+function _triggerBeesForWord(w) {
+    if (!Array.isArray(_beesOnWheel) || _beesOnWheel.length === 0) return;
+    const upper = String(w).toUpperCase();
+    for (const bee of _beesOnWheel) {
+        if (bee.triggered) continue;
+        const letter = wheelLetters[bee.letterIdx];
+        if (letter && upper.includes(String(letter).toUpperCase())) {
+            triggerBee(bee);
+        }
+    }
+}
+
 function showBeeTutorial() {
     if (localStorage.getItem("wp-bee-tut")) return;
     const tip = document.createElement("div");
@@ -1636,17 +1648,7 @@ function handleWord(word) {
             bonus: false,
             standalone: true,
         });
-            // Trigger any bees whose letter appears in the just-found word
-            if (Array.isArray(_beesOnWheel) && _beesOnWheel.length > 0) {
-                const _wUpper = String(w).toUpperCase();
-                for (const bee of _beesOnWheel) {
-                    if (bee.triggered) continue;
-                    const letter = wheelLetters[bee.letterIdx];
-                    if (letter && _wUpper.includes(String(letter).toUpperCase())) {
-                        triggerBee(bee);
-                    }
-                }
-            }
+            _triggerBeesForWord(w);
         const coinWordReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 200 : 100;
         state.coins += coinWordReward;
         state.totalCoinsEarned += coinWordReward;
@@ -1691,17 +1693,7 @@ function handleWord(word) {
             bonus: false,
             standalone: (typeof standaloneWord !== "undefined" && w === standaloneWord),
         });
-            // Trigger any bees whose letter appears in the just-found word
-            if (Array.isArray(_beesOnWheel) && _beesOnWheel.length > 0) {
-                const _wUpper = String(w).toUpperCase();
-                for (const bee of _beesOnWheel) {
-                    if (bee.triggered) continue;
-                    const letter = wheelLetters[bee.letterIdx];
-                    if (letter && _wUpper.includes(String(letter).toUpperCase())) {
-                        triggerBee(bee);
-                    }
-                }
-            }
+            _triggerBeesForWord(w);
         // Auto-complete any crossing words whose cells are all now visible
         const beforeAuto = state.foundWords.length;
         while (checkAutoCompleteWords()) {}
@@ -1747,17 +1739,7 @@ function handleWord(word) {
             bonus: true,
             standalone: false,
         });
-            // Trigger any bees whose letter appears in the just-found word
-            if (Array.isArray(_beesOnWheel) && _beesOnWheel.length > 0) {
-                const _wUpper = String(w).toUpperCase();
-                for (const bee of _beesOnWheel) {
-                    if (bee.triggered) continue;
-                    const letter = wheelLetters[bee.letterIdx];
-                    if (letter && _wUpper.includes(String(letter).toUpperCase())) {
-                        triggerBee(bee);
-                    }
-                }
-            }
+            _triggerBeesForWord(w);
         const bonusReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 15 : 5;
         state.coins += bonusReward;
         state.totalCoinsEarned += bonusReward;
