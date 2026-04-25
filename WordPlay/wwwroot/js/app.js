@@ -3825,6 +3825,14 @@ function renderWheel() {
         div.style.background = "transparent";
         div.style.border = "3px solid transparent";
         div.textContent = wheelLetters[i];
+        // Bee overlay
+        const beeHere = _beesOnWheel.find(b => b.letterIdx === i && !b.triggered);
+        if (beeHere) {
+            const beeEl = document.createElement("span");
+            beeEl.className = "wheel-bee" + (beeHere.type === "queued" ? " wheel-bee-queued" : "");
+            beeEl.textContent = "🐝";
+            div.appendChild(beeEl);
+        }
         lettersDiv.appendChild(div);
     }
 
