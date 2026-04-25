@@ -7750,6 +7750,17 @@ async function init() {
     await loadBgManifest();
 
     loadProgress();
+    // Activate today's quest and daily goals
+    if (window.quests) {
+        window.quests.loadQuestsManifest().then(manifest => {
+            const today = getTodayStr();
+            const changed = window.quests.activateQuestForToday(manifest, today);
+            if (changed) saveProgress();
+            // Re-render home if we're on it
+            if (state.showHome && typeof renderHome === "function") renderHome();
+            else if (typeof renderAll === "function") renderAll();
+        });
+    }
     checkLoginStreak();
 
     // Auth init + sync pull

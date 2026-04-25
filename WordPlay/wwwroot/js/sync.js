@@ -21,6 +21,10 @@ async function syncPullAndReload() {
     try {
         await syncPull();
         if (typeof loadProgress === "function") loadProgress();
+        if (window.quests) {
+            const manifest = await window.quests.loadQuestsManifest();
+            window.quests.activateQuestForToday(manifest, getTodayStr());
+        }
         if (typeof recompute === "function") await recompute();
         if (typeof restoreLevelState === "function") restoreLevelState();
         if (typeof renderCurrentScreen === "function") renderCurrentScreen();
