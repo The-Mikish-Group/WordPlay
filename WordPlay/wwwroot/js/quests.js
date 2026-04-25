@@ -231,6 +231,85 @@ function getQuestDefinition(manifest, questId) {
     return manifest.quests.find(q => q.id === questId) || null;
 }
 
+// Increment a daily goal's progress when an event fires.
+// Auto-claims the goal AND the next quest milestone tier if thresholds are crossed.
+// `event`: "levelComplete" | "wordFound" | "hintUsed" | "starCollected"
+// `payload`: event-specific data (see GOAL_TEMPLATES match() functions)
+function tickProgress(event, payload) {
+    if (typeof state === "undefined") return;
+    if (!state.dailyGoals || !state.dailyGoals.goals) return;
+
+    let questChanged = false;
+
+    for (const goal of state.dailyGoals.goals) {
+        if (goal.claimed) continue;
+        const tpl = GOAL_TEMPLATES[goal.template];
+        if (!tpl || tpl.event !== event) continue;
+        if (!tpl.match(payload || {})) continue;
+        goal.progress = (goal.progress || 0) + 1;
+
+        if (goal.progress >= goal.target) {
+            // Auto-claim: pay reward + add jars to active quest
+            const reward = tpl.reward || {};
+            _payReward(reward);
+            goal.claimed = true;
+            _showRewardPopup({
+                title: tpl.description(goal.target) + " ✓",
+                reward,
+            });
+            if (state.quest && reward.jars) {
+                state.quest.jars = (state.quest.jars || 0) + reward.jars;
+                questChanged = true;
+            }
+        }
+    }
+
+    if (questChanged) {
+        _checkMilestones();
+    }
+
+    if (typeof saveProgress === "function") saveProgress();
+}
+
+// Pay reward to player state.  Reward shape: { jars, coins, hints, targets, rockets, bees }
+function _payReward(reward) {
+    if (!reward || typeof state === "undefined") return;
+    if (reward.coins) {
+        state.coins += reward.coins;
+        state.totalCoinsEarned += reward.coins;
+    }
+    if (reward.hints) state.freeHints = Math.min(state.freeHints + reward.hints, MAX_FREE_HINTS);
+    if (reward.targets) state.freeTargets = Math.min(state.freeTargets + reward.targets, MAX_FREE_TARGETS);
+    if (reward.rockets) state.freeRockets = Math.min(state.freeRockets + reward.rockets, MAX_FREE_ROCKETS);
+    if (reward.bees) state.questedBees = (state.questedBees || 0) + reward.bees;
+}
+
+// Check whether crossing the current jar count fires any unclaimed milestones.
+function _checkMilestones() {
+    if (!state.quest) return;
+    if (!_questsManifest) return;
+    const def = getQuestDefinition(_questsManifest, state.quest.id);
+    if (!def || !Array.isArray(def.milestones)) return;
+
+    for (let i = 0; i < def.milestones.length; i++) {
+        if (state.quest.claimedTiers.includes(i)) continue;
+        if (state.quest.jars >= def.milestones[i].at) {
+            _payReward(def.milestones[i].reward || {});
+            state.quest.claimedTiers.push(i);
+            _showRewardPopup({
+                title: "Tier " + (i + 1) + " reached!",
+                reward: def.milestones[i].reward || {},
+            });
+        }
+    }
+}
+
+// Stub — implementation in Task 10 (UI). For now, log and continue.
+function _showRewardPopup(payload) {
+    if (window._rewardPopupQueue) window._rewardPopupQueue.push(payload);
+    else console.log("[reward popup]", payload);
+}
+
 // Expose for app.js
 window.quests = {
     loadQuestsManifest,
@@ -238,6 +317,7 @@ window.quests = {
     generateDailyGoals,
     activateQuestForToday,
     getQuestDefinition,
+    tickProgress,
     getCachedManifest: () => _questsManifest,
     GOAL_TEMPLATES,
 };
