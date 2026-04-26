@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.7.8";
+const APP_VERSION = "1.7.9";
 
 // ---- THEMES ----
 const THEMES = {
@@ -263,6 +263,11 @@ window.debugBee = function(arg) {
         } else {
             console.log("Nothing to clear — no inProgress entry for level " + lv + ".");
         }
+    } else if (arg === "redeploy") {
+        // Force-deploy missing bees on the current level (recovery for stuck states).
+        if (typeof ensureBeesPlaced === "function") ensureBeesPlaced();
+        if (typeof renderGrid === "function") renderGrid();
+        console.log("→ Ran ensureBeesPlaced(). _beesOnGrid is now:", JSON.parse(JSON.stringify(_beesOnGrid)));
     }
 };
 
@@ -643,6 +648,110 @@ function rebuildWheelLetters() {
 
 // Trigger a bee animation when the bee word is solved.
 // `bee` is one entry from _beesOnGrid.  Reveals 3 (spawned) or 4 (queued) cells.
+// Idempotent bee placement: ensure spawned/queued bees exist on the current
+// level if they should. Adds missing bees without disturbing existing ones,
+// so this can be safely called as a safety net after layout changes.
+function ensureBeesPlaced() {
+    if (!Array.isArray(_beesOnGrid)) _beesOnGrid = [];
+    if (state.isDailyMode || state.isBonusMode) return;
+
+    const ip = state.inProgress[state.currentLevel] || {};
+    const bdCellValid = typeof ip.bdCell === "string" && /^\d+,\d+$/.test(ip.bdCell);
+    const alreadyDeployedQueued = !!ip.bd;
+
+    const hasSpawned = _beesOnGrid.some(b => b.type === "spawned");
+    const hasQueued = _beesOnGrid.some(b => b.type === "queued");
+
+    const starKeys = (function() {
+        const ipRsc = ip.rsc;
+        if (Array.isArray(ipRsc)) return new Set(ipRsc);
+        if (typeof shouldLevelHaveStars === "function" && shouldLevelHaveStars(state.currentLevel)
+            && typeof assignRegularStars === "function") {
+            return new Set(assignRegularStars(state.currentLevel));
+        }
+        return new Set();
+    })();
+
+    if (!hasSpawned && typeof isBeeLevel === "function" && isBeeLevel(state.currentLevel)) {
+        const used = new Set(_beesOnGrid.map(b => b.row + "," + b.col));
+        const exclude = new Set([...used, ...starKeys]);
+        const cell = pickBeeCell(exclude);
+        if (cell) {
+            _beesOnGrid.push({ row: cell.row, col: cell.col, type: "spawned", triggered: false });
+        }
+    }
+
+    if (!hasQueued && _beesOnGrid.length < 2) {
+        if (alreadyDeployedQueued && bdCellValid) {
+            const used = new Set(_beesOnGrid.map(b => b.row + "," + b.col));
+            if (!used.has(ip.bdCell)) {
+                const [r, c] = ip.bdCell.split(",").map(Number);
+                _beesOnGrid.push({ row: r, col: c, type: "queued", triggered: false });
+            }
+        } else if (!alreadyDeployedQueued && state.questedBees > 0) {
+            const used = new Set(_beesOnGrid.map(b => b.row + "," + b.col));
+            const exclude = new Set([...used, ...starKeys]);
+            const cell = pickBeeCell(exclude);
+            if (cell) {
+                const k = cell.row + "," + cell.col;
+                _beesOnGrid.push({ row: cell.row, col: cell.col, type: "queued", triggered: false });
+                state.questedBees--;
+                state.inProgress[state.currentLevel] = state.inProgress[state.currentLevel] || {};
+                state.inProgress[state.currentLevel].bd = true;
+                state.inProgress[state.currentLevel].bdCell = k;
+                if (typeof saveProgress === "function") saveProgress();
+            }
+        }
+    }
+}
+
+// Re-map _beesOnGrid when the active layout changes (toggle, or recompute
+// flipped to a saved layout). Each bee tries to land on the same
+// (word, letterIdx) in the new placements. If the bee's word is no longer
+// placed (it moved to the bonus pool), re-pick a fresh cell instead of
+// silently losing the bee.
+function remapBeesAcrossLayoutChange(oldPlacements, newPlacements) {
+    if (!Array.isArray(_beesOnGrid) || _beesOnGrid.length === 0) return;
+
+    const oldLookup = {};
+    for (const p of oldPlacements) {
+        for (let i = 0; i < p.cells.length; i++) {
+            const k = p.cells[i].row + "," + p.cells[i].col;
+            if (!oldLookup[k]) oldLookup[k] = { word: p.word, letterIdx: i };
+        }
+    }
+    const newLookup = {};
+    for (const p of newPlacements) {
+        for (let i = 0; i < p.cells.length; i++) {
+            newLookup[p.word + ":" + i] = { row: p.cells[i].row, col: p.cells[i].col };
+        }
+    }
+    const remapped = [];
+    const orphans = [];
+    for (const bee of _beesOnGrid) {
+        const ref = oldLookup[bee.row + "," + bee.col];
+        if (!ref) { orphans.push(bee); continue; }
+        const np = newLookup[ref.word + ":" + ref.letterIdx];
+        if (!np) { orphans.push(bee); continue; }
+        remapped.push({ row: np.row, col: np.col, type: bee.type, triggered: bee.triggered });
+    }
+    // Re-pick fresh cells for bees whose word didn't survive the layout change.
+    for (const orphan of orphans) {
+        if (orphan.triggered) continue;
+        const usedKeys = new Set(remapped.map(b => b.row + "," + b.col));
+        const cell = pickBeeCell(usedKeys);
+        if (cell) {
+            remapped.push({ row: cell.row, col: cell.col, type: orphan.type, triggered: false });
+        }
+    }
+    _beesOnGrid = remapped;
+    // Update persisted bdCell so resume-after-layout-switch lands correctly.
+    const qb = remapped.find(b => b.type === "queued");
+    if (qb && state.inProgress[state.currentLevel] && state.inProgress[state.currentLevel].bd) {
+        state.inProgress[state.currentLevel].bdCell = qb.row + "," + qb.col;
+    }
+}
+
 // Pick target cells for a bee's reveal. Strategy: one RANDOM cell from
 // each unsolved word (distribute hints across the grid + avoid always
 // revealing the first letter), shortest words first. If more reveals
@@ -1160,37 +1269,10 @@ function toggleLayout() {
         _regularStarCells = remapCells(oldStarCells, oldPlacements, crossword.placements);
     }
 
-    // Re-map bee positions: each bee should land on the same (word, letterIdx)
-    // it was on in the old layout, just at the new layout's coordinates.
-    if (Array.isArray(_beesOnGrid) && _beesOnGrid.length > 0) {
-        const oldBeeLookup = {};
-        for (const p of oldPlacements) {
-            for (let i = 0; i < p.cells.length; i++) {
-                const k = p.cells[i].row + "," + p.cells[i].col;
-                if (!oldBeeLookup[k]) oldBeeLookup[k] = { word: p.word, letterIdx: i };
-            }
-        }
-        const newBeeLookup = {};
-        for (const p of crossword.placements) {
-            for (let i = 0; i < p.cells.length; i++) {
-                newBeeLookup[p.word + ":" + i] = { row: p.cells[i].row, col: p.cells[i].col };
-            }
-        }
-        const remappedBees = [];
-        for (const bee of _beesOnGrid) {
-            const ref = oldBeeLookup[bee.row + "," + bee.col];
-            if (!ref) continue;
-            const np = newBeeLookup[ref.word + ":" + ref.letterIdx];
-            if (!np) continue;
-            remappedBees.push({ row: np.row, col: np.col, type: bee.type, triggered: bee.triggered });
-        }
-        _beesOnGrid = remappedBees;
-        // Update persisted bdCell so resume-after-layout-switch lands on the right cell.
-        const queuedBee = remappedBees.find(b => b.type === "queued");
-        if (queuedBee && state.inProgress[state.currentLevel] && state.inProgress[state.currentLevel].bd) {
-            state.inProgress[state.currentLevel].bdCell = queuedBee.row + "," + queuedBee.col;
-        }
-    }
+    // Re-map bee positions across the layout switch, then make sure any
+    // missing bees are placed on the new layout.
+    remapBeesAcrossLayoutChange(oldPlacements, crossword.placements);
+    ensureBeesPlaced();
 
     // Re-map daily coin cell
     if (oldDailyCoinKey) {
@@ -2963,6 +3045,7 @@ function renderHome() {
         restoreLevelState();
         // If restored level was in a different layout than recompute generated, regenerate
         if (_currentLayoutIsFlow !== recomputeFlow) {
+            const oldPlacementsForBeeRemap = crossword.placements;
             const gridWords = level.words;
             if (_currentLayoutIsFlow) {
                 crossword = generateFlowGrid(gridWords);
@@ -2994,7 +3077,11 @@ function renderHome() {
                 }
                 while (checkAutoCompleteWords()) {}
             }
+            // Bee positions from recompute were for the natural layout; remap to actual.
+            remapBeesAcrossLayoutChange(oldPlacementsForBeeRemap, crossword.placements);
         }
+        // Final safety net — if a bee should be on this level but isn't, deploy it.
+        ensureBeesPlaced();
         saveInProgressState();
         saveProgress();
         app.innerHTML = "";
