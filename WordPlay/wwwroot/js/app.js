@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.7.7";
+const APP_VERSION = "1.7.8";
 
 // ---- THEMES ----
 const THEMES = {
@@ -643,9 +643,10 @@ function rebuildWheelLetters() {
 
 // Trigger a bee animation when the bee word is solved.
 // `bee` is one entry from _beesOnGrid.  Reveals 3 (spawned) or 4 (queued) cells.
-// Pick target cells for a bee's reveal. Strategy: one cell per unsolved
-// word (distribute hints across the grid), shortest words first. If more
-// reveals are still needed, do a second pass to fill from remaining cells.
+// Pick target cells for a bee's reveal. Strategy: one RANDOM cell from
+// each unsolved word (distribute hints across the grid + avoid always
+// revealing the first letter), shortest words first. If more reveals
+// are still needed, do a second pass to fill from remaining cells.
 function _pickBeeRevealTargets(beeKey, count) {
     if (!crossword || !crossword.placements) return [];
     const revealed = new Set(state.revealedCells);
@@ -659,28 +660,38 @@ function _pickBeeRevealTargets(beeKey, count) {
     const seen = new Set();
     const picks = [];
 
-    // First pass: take ONE cell from each unsolved word.
-    for (const p of unsolved) {
-        if (picks.length >= count) break;
-        for (const c of p.cells) {
+    function eligibleCellsOf(p) {
+        return p.cells.filter(c => {
             const k = c.row + "," + c.col;
-            if (k === beeKey || revealed.has(k) || seen.has(k)) continue;
-            seen.add(k);
-            picks.push(c);
-            break;
-        }
+            return k !== beeKey && !revealed.has(k) && !seen.has(k);
+        });
     }
 
-    // Second pass: if we still need more, fill from remaining cells.
+    // First pass: ONE random cell per unsolved word.
+    for (const p of unsolved) {
+        if (picks.length >= count) break;
+        const eligible = eligibleCellsOf(p);
+        if (eligible.length === 0) continue;
+        const c = eligible[Math.floor(Math.random() * eligible.length)];
+        seen.add(c.row + "," + c.col);
+        picks.push(c);
+    }
+
+    // Second pass: if we still need more, fill from remaining eligible
+    // cells (also randomized) until we hit count.
     if (picks.length < count) {
         for (const p of unsolved) {
             if (picks.length >= count) break;
-            for (const c of p.cells) {
-                const k = c.row + "," + c.col;
-                if (k === beeKey || revealed.has(k) || seen.has(k)) continue;
-                seen.add(k);
-                picks.push(c);
+            const eligible = eligibleCellsOf(p);
+            // Fisher-Yates shuffle
+            for (let i = eligible.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+            }
+            for (const c of eligible) {
                 if (picks.length >= count) break;
+                seen.add(c.row + "," + c.col);
+                picks.push(c);
             }
         }
     }
@@ -1147,6 +1158,38 @@ function toggleLayout() {
         if (state.bonusPuzzle) state.bonusPuzzle.starCells = _bonusStarCells;
     } else {
         _regularStarCells = remapCells(oldStarCells, oldPlacements, crossword.placements);
+    }
+
+    // Re-map bee positions: each bee should land on the same (word, letterIdx)
+    // it was on in the old layout, just at the new layout's coordinates.
+    if (Array.isArray(_beesOnGrid) && _beesOnGrid.length > 0) {
+        const oldBeeLookup = {};
+        for (const p of oldPlacements) {
+            for (let i = 0; i < p.cells.length; i++) {
+                const k = p.cells[i].row + "," + p.cells[i].col;
+                if (!oldBeeLookup[k]) oldBeeLookup[k] = { word: p.word, letterIdx: i };
+            }
+        }
+        const newBeeLookup = {};
+        for (const p of crossword.placements) {
+            for (let i = 0; i < p.cells.length; i++) {
+                newBeeLookup[p.word + ":" + i] = { row: p.cells[i].row, col: p.cells[i].col };
+            }
+        }
+        const remappedBees = [];
+        for (const bee of _beesOnGrid) {
+            const ref = oldBeeLookup[bee.row + "," + bee.col];
+            if (!ref) continue;
+            const np = newBeeLookup[ref.word + ":" + ref.letterIdx];
+            if (!np) continue;
+            remappedBees.push({ row: np.row, col: np.col, type: bee.type, triggered: bee.triggered });
+        }
+        _beesOnGrid = remappedBees;
+        // Update persisted bdCell so resume-after-layout-switch lands on the right cell.
+        const queuedBee = remappedBees.find(b => b.type === "queued");
+        if (queuedBee && state.inProgress[state.currentLevel] && state.inProgress[state.currentLevel].bd) {
+            state.inProgress[state.currentLevel].bdCell = queuedBee.row + "," + queuedBee.col;
+        }
     }
 
     // Re-map daily coin cell
