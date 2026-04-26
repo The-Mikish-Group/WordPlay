@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.8.1";
+const APP_VERSION = "1.8.2";
 
 // ---- THEMES ----
 const THEMES = {
@@ -593,8 +593,9 @@ async function recompute() {
             return new Set();
         })();
 
-        // Spawned bee on Bee levels.
-        if (typeof isBeeLevel === "function" && isBeeLevel(state.currentLevel)) {
+        // Spawned bee on Bee levels — but only if it hasn't already been
+        // triggered on this level (sbt persists across re-entries).
+        if (typeof isBeeLevel === "function" && isBeeLevel(state.currentLevel) && !ip.sbt) {
             const cell = pickBeeCell(starKeys);
             if (cell) {
                 _beesOnGrid.push({ row: cell.row, col: cell.col, type: "spawned", triggered: false });
@@ -604,7 +605,8 @@ async function recompute() {
         const usedKeys = new Set(_beesOnGrid.map(b => b.row + "," + b.col));
 
         let queuedShown = false;
-        if (alreadyDeployed && bdCellValid) {
+        // Skip queued bee if it has already been triggered on this level.
+        if (alreadyDeployed && bdCellValid && !ip.bdt) {
             // Resume path: re-show the queued bee on its saved cell.
             if (!usedKeys.has(ip.bdCell) && _beesOnGrid.length < 2) {
                 const [r, c] = ip.bdCell.split(",").map(Number);
@@ -613,7 +615,7 @@ async function recompute() {
                 queuedShown = true;
             }
         }
-        if (!queuedShown && !alreadyDeployed && state.questedBees > 0 && _beesOnGrid.length < 2) {
+        if (!queuedShown && !alreadyDeployed && !ip.bdt && state.questedBees > 0 && _beesOnGrid.length < 2) {
             // Fresh deploy from queue, on a different cell than the spawned bee
             // AND not a star cell (which has its own visual marker).
             const excludeForFresh = new Set([...usedKeys, ...starKeys]);
@@ -672,7 +674,7 @@ function ensureBeesPlaced() {
         return new Set();
     })();
 
-    if (!hasSpawned && typeof isBeeLevel === "function" && isBeeLevel(state.currentLevel)) {
+    if (!hasSpawned && !ip.sbt && typeof isBeeLevel === "function" && isBeeLevel(state.currentLevel)) {
         const used = new Set(_beesOnGrid.map(b => b.row + "," + b.col));
         const exclude = new Set([...used, ...starKeys]);
         const cell = pickBeeCell(exclude);
@@ -681,7 +683,7 @@ function ensureBeesPlaced() {
         }
     }
 
-    if (!hasQueued && _beesOnGrid.length < 2) {
+    if (!hasQueued && !ip.bdt && _beesOnGrid.length < 2) {
         if (alreadyDeployedQueued && bdCellValid) {
             const used = new Set(_beesOnGrid.map(b => b.row + "," + b.col));
             if (!used.has(ip.bdCell)) {
@@ -850,6 +852,14 @@ function _flyBeeToCell(originPt, targetCell, delayMs) {
 function triggerBee(bee) {
     if (!bee || bee.triggered) return;
     bee.triggered = true;
+
+    // Persist that THIS level's bee has fired so re-entering doesn't redeploy.
+    // sbt = spawned bee triggered, bdt = queued/deployed bee triggered.
+    if (!state.isDailyMode && !state.isBonusMode) {
+        const ip = state.inProgress[state.currentLevel] = state.inProgress[state.currentLevel] || {};
+        if (bee.type === "spawned") ip.sbt = true;
+        else if (bee.type === "queued") ip.bdt = true;
+    }
 
     const revealCount = bee.type === "queued" ? 4 : 3;
     const beeKey = bee.row + "," + bee.col;
@@ -1126,6 +1136,8 @@ function saveInProgressState() {
             zen: _currentLayoutIsFlow || undefined,
             bd: prev.bd || undefined,
             bdCell: typeof prev.bdCell === "string" ? prev.bdCell : undefined,
+            sbt: prev.sbt || undefined,
+            bdt: prev.bdt || undefined,
         };
     }
 }
@@ -1535,7 +1547,7 @@ function shouldLevelHaveStars(levelNum) {
     n = ((n >> 16) ^ n) * 0x45d9f3b | 0;
     n = ((n >> 16) ^ n) * 0x45d9f3b | 0;
     n = (n >> 16) ^ n;
-    return (Math.abs(n) % 100) < 35;
+    return (Math.abs(n) % 100) < 50;
 }
 
 function assignRegularStars(levelNum) {
@@ -1643,12 +1655,12 @@ function getBeeFrequency(displayLevel) {
     // Base frequency. Lower number = more bees.
     let freq;
     switch (tier) {
-        case 0: freq = 10; break; // Easy
-        case 1: freq = 8;  break; // Medium
-        case 2: freq = 7;  break; // Hard
-        case 3: freq = 6;  break; // Expert
-        case 4: freq = 5;  break; // Master
-        default: freq = 10;
+        case 0: freq = 8; break; // Easy
+        case 1: freq = 6; break; // Medium
+        case 2: freq = 5; break; // Hard
+        case 3: freq = 4; break; // Expert
+        case 4: freq = 4; break; // Master
+        default: freq = 8;
     }
     // Pace modulation via state.speedLevels (timestamps of recent speed
     // bonuses). Fast players get bees less often.
@@ -5880,6 +5892,8 @@ function renderMenu() {
             fw: [], bf: [], rc: [], sf: false,
             bd: prev.bd || undefined,
             bdCell: typeof prev.bdCell === "string" ? prev.bdCell : undefined,
+            sbt: prev.sbt || undefined,
+            bdt: prev.bdt || undefined,
         };
         state.shuffleKey = 0;
         await recompute();

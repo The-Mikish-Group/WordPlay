@@ -49,7 +49,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 | **Daily puzzle** | A fresh shared puzzle every day with a roaming coin for bonus rewards |
 | **7-day daily streak** | Complete the daily puzzle 7 days in a row to earn 1,000 bonus coins — resets and repeats |
 | **Bonus puzzle** | Earn star-filled puzzles through achievements — collect all 9 stars for a 500-coin grand prize |
-| **Regular game stars** | ~35% of regular levels feature bonus stars worth 10 coins each; collect 9 for a grand prize |
+| **Regular game stars** | ~50% of regular levels feature bonus stars worth 10 coins each; collect 9 for a grand prize |
 | **Speed bonus** | Complete a level within 7 seconds per word to earn a free prize spin |
 | **Flow levels** | Every 5th level uses a stacked layout with 3x coin rewards |
 | **Expertise score** | Lifetime coins earned — displayed on the home screen and used for leaderboard points ranking |
@@ -95,7 +95,7 @@ A free word puzzle game with 156,000+ levels. Swipe letters on a wheel to spell 
 
 ### Stars
 
-Stars appear on ~35% of regular levels (1-2 per level) and throughout bonus puzzles (9 per puzzle). Finding a word that contains a starred cell collects the star and awards 10 coins. Every 3 stars fills one banner star slot. Collecting all 9 stars (3 banner stars) awards a **500-coin grand prize** and resets the counter. In regular mode the grand prize is awarded inline; in bonus mode it ends the round.
+Stars appear on ~50% of regular levels (1-2 per level) and throughout bonus puzzles (9 per puzzle). Finding a word that contains a starred cell collects the star and awards 10 coins. Every 3 stars fills one banner star slot. Collecting all 9 stars (3 banner stars) awards a **500-coin grand prize** and resets the counter. In regular mode the grand prize is awarded inline; in bonus mode it ends the round.
 
 ### Grid Layouts
 
@@ -164,11 +164,11 @@ Bee-level frequency scales with difficulty tier and is modulated by recent playe
 
 | Tier | Base frequency | Effective % |
 |---|---|---|
-| Easy | every 10th | ~10% |
-| Medium | every 8th | ~12% |
-| Hard | every 7th | ~14% |
-| Expert | every 6th | ~17% |
-| Master | every 5th | ~20% |
+| Easy | every 8th | ~13% |
+| Medium | every 6th | ~17% |
+| Hard | every 5th | ~20% |
+| Expert | every 4th | ~25% |
+| Master | every 4th | ~25% |
 
 Pace adjustments (added to the base frequency number — higher = rarer):
 - 4+ speed bonuses in the last hour → +3 (much rarer)

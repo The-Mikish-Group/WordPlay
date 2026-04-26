@@ -7,9 +7,17 @@ let _syncPulling = false;
 const SYNC_DEBOUNCE_MS = 3000;
 
 // Auto-pull when the app regains focus (tab switch, phone resume, PWA reopen)
+// Auto-flush any pending push when the app loses focus, so the next device
+// to open the app gets the latest state immediately (no 3s debounce gap).
 document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && typeof isSignedIn === "function" && isSignedIn()) {
         syncPullAndReload();
+    } else if (document.visibilityState === "hidden" && typeof isSignedIn === "function" && isSignedIn()) {
+        if (_syncPushTimer) {
+            clearTimeout(_syncPushTimer);
+            _syncPushTimer = null;
+            syncPush();
+        }
     }
 });
 
@@ -213,6 +221,10 @@ function mergeProgress(local, server) {
                 const cellSrc = a.bd ? a : b;
                 if (typeof cellSrc.bdCell === "string") winner.bdCell = cellSrc.bdCell;
             }
+            // OR the bee-triggered flags: once a bee fires on a level it
+            // shouldn't redeploy, even after sync.
+            if (a.sbt || b.sbt) winner.sbt = true;
+            if (a.bdt || b.bdt) winner.bdt = true;
             merged.ip[key] = winner;
         } else {
             merged.ip[key] = a || b;
@@ -251,6 +263,16 @@ function mergeProgress(local, server) {
     merged.sl = (local.sl && local.sl.length > (server.sl || []).length) ? local.sl : (server.sl || []);
     merged.ls = Math.max(local.ls || 0, server.ls || 0);
     merged.lpd = (local.lpd && server.lpd) ? (local.lpd > server.lpd ? local.lpd : server.lpd) : (local.lpd || server.lpd || null);
+
+    // Bonus stars total (bst): max merge — accumulate stars across devices
+    // toward the 9-star grand prize. Without this, the merge dropped bst
+    // entirely and devices would lose their accumulated stars on sync.
+    merged.bst = Math.max(local.bst || 0, server.bst || 0);
+
+    // Bonus puzzle history: union of recently-used bonus level numbers
+    const bhL = Array.isArray(local.bh) ? local.bh : [];
+    const bhS = Array.isArray(server.bh) ? server.bh : [];
+    merged.bh = Array.from(new Set([...bhL, ...bhS]));
 
     // Daily puzzle completion streak: same lastDailyCompleted → higher streak wins;
     // different dates → take the more recent side's streak and date.
