@@ -152,23 +152,28 @@ Completing a goal auto-pays its reward (honey jars + small coin/hint reward) —
 
 ### Bees
 
-A new helper mechanic. A bee sits on a wheel letter on certain levels — when the player finds any word using that letter (grid or bonus), the bee splits into 3 helper bees that fly to 3 unsolved cells and reveal their letters.
+A new helper mechanic. A bee sits on a grid letter cell on certain levels — when the player finds the word containing that cell, the bee splits into 3 helper bees that fly out and reveal one random letter in 3 different unsolved words.
 
 | Bee source | Reveals |
 |---|---|
 | Spawned bee (level-baked) | 3 letters |
-| Won bee (from Quest milestone) | 4 letters |
+| Won bee (from Quest milestone or spin wheel) | 4 letters |
 | Both on same level | 7 letters |
 
-Bee level frequency scales with difficulty tier:
+Bee-level frequency scales with difficulty tier and is modulated by recent player pace. Faster players (4+ speed bonuses in the last hour) see bees less often; struggling players see them at the base rate.
 
-| Tier | Frequency | Effective % |
+| Tier | Base frequency | Effective % |
 |---|---|---|
-| Easy | every 15th | ~7% |
-| Medium | every 12th | ~8% |
-| Hard | every 10th | 10% |
-| Expert | every 8th | ~12% |
-| Master | every 7th | ~14% |
+| Easy | every 10th | ~10% |
+| Medium | every 8th | ~12% |
+| Hard | every 7th | ~14% |
+| Expert | every 6th | ~17% |
+| Master | every 5th | ~20% |
+
+Pace adjustments (added to the base frequency number — higher = rarer):
+- 4+ speed bonuses in the last hour → +3 (much rarer)
+- 2-3 speed bonuses → +1 (slightly rarer)
+- 0-1 speed bonuses → no adjustment
 
 ### Rescue Spin Wheel
 
