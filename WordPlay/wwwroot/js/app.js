@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.7.6";
+const APP_VERSION = "1.7.7";
 
 // ---- THEMES ----
 const THEMES = {
@@ -643,6 +643,90 @@ function rebuildWheelLetters() {
 
 // Trigger a bee animation when the bee word is solved.
 // `bee` is one entry from _beesOnGrid.  Reveals 3 (spawned) or 4 (queued) cells.
+// Pick target cells for a bee's reveal. Strategy: one cell per unsolved
+// word (distribute hints across the grid), shortest words first. If more
+// reveals are still needed, do a second pass to fill from remaining cells.
+function _pickBeeRevealTargets(beeKey, count) {
+    if (!crossword || !crossword.placements) return [];
+    const revealed = new Set(state.revealedCells);
+
+    const unsolved = crossword.placements
+        .filter(p => !state.foundWords.includes(p.word))
+        .filter(p => !p.standalone)
+        .slice()
+        .sort((a, b) => a.word.length - b.word.length);
+
+    const seen = new Set();
+    const picks = [];
+
+    // First pass: take ONE cell from each unsolved word.
+    for (const p of unsolved) {
+        if (picks.length >= count) break;
+        for (const c of p.cells) {
+            const k = c.row + "," + c.col;
+            if (k === beeKey || revealed.has(k) || seen.has(k)) continue;
+            seen.add(k);
+            picks.push(c);
+            break;
+        }
+    }
+
+    // Second pass: if we still need more, fill from remaining cells.
+    if (picks.length < count) {
+        for (const p of unsolved) {
+            if (picks.length >= count) break;
+            for (const c of p.cells) {
+                const k = c.row + "," + c.col;
+                if (k === beeKey || revealed.has(k) || seen.has(k)) continue;
+                seen.add(k);
+                picks.push(c);
+                if (picks.length >= count) break;
+            }
+        }
+    }
+    return picks;
+}
+
+// Animate a single bee flying from origin to target cell, then reveal.
+function _flyBeeToCell(originPt, targetCell, delayMs) {
+    const targetEl = document.querySelector('[data-key="' + targetCell.row + ',' + targetCell.col + '"]');
+    const k = targetCell.row + "," + targetCell.col;
+
+    if (!targetEl) {
+        // Cell not in DOM — just reveal without animation.
+        setTimeout(() => {
+            if (!state.revealedCells.includes(k)) state.revealedCells.push(k);
+            if (typeof renderGrid === "function") renderGrid();
+        }, delayMs);
+        return;
+    }
+
+    const targetRect = targetEl.getBoundingClientRect();
+    const tx = targetRect.left + targetRect.width / 2;
+    const ty = targetRect.top + targetRect.height / 2;
+    const dx = tx - originPt.x;
+    const dy = ty - originPt.y;
+
+    const flyer = document.createElement("div");
+    flyer.className = "bee-flyer";
+    flyer.textContent = "🐝";
+    flyer.style.left = originPt.x + "px";
+    flyer.style.top = originPt.y + "px";
+    flyer.style.setProperty("--dx", dx + "px");
+    flyer.style.setProperty("--dy", dy + "px");
+    flyer.style.animationDelay = delayMs + "ms";
+    document.body.appendChild(flyer);
+
+    // Animation total = 800ms; reveal target ~80% through so it lands as the bee fades.
+    setTimeout(() => {
+        if (!state.revealedCells.includes(k)) state.revealedCells.push(k);
+        if (typeof renderGrid === "function") renderGrid();
+    }, delayMs + 700);
+
+    // Cleanup after animation finishes.
+    setTimeout(() => { flyer.remove(); }, delayMs + 900);
+}
+
 function triggerBee(bee) {
     if (!bee || bee.triggered) return;
     bee.triggered = true;
@@ -650,36 +734,24 @@ function triggerBee(bee) {
     const revealCount = bee.type === "queued" ? 4 : 3;
     const beeKey = bee.row + "," + bee.col;
 
-    // Find unsolved cells, weighted by shortness of the parent word.
-    // Exclude the bee's own cell (it's about to be revealed by the found word anyway).
-    const unsolvedByWord = []; // [{ word, cells: [{row,col}] }]
-    if (crossword && crossword.placements) {
-        for (const p of crossword.placements) {
-            if (state.foundWords.includes(p.word)) continue;
-            const unsolvedCells = p.cells.filter(c => {
-                const k = c.row + "," + c.col;
-                if (k === beeKey) return false;
-                return !state.revealedCells.includes(k);
-            });
-            if (unsolvedCells.length > 0) {
-                unsolvedByWord.push({ word: p.word, cells: unsolvedCells });
-            }
+    // Get the bee's origin cell position BEFORE renderGrid clears it.
+    let originPt = null;
+    const originEl = document.querySelector('[data-key="' + beeKey + '"]');
+    if (originEl) {
+        const r = originEl.getBoundingClientRect();
+        originPt = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    } else {
+        // Fallback: middle of the grid container.
+        const gc = document.getElementById("grid-container");
+        if (gc) {
+            const r = gc.getBoundingClientRect();
+            originPt = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        } else {
+            originPt = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
         }
     }
-    unsolvedByWord.sort((a, b) => a.word.length - b.word.length);
 
-    const seen = new Set();
-    const picks = [];
-    for (const entry of unsolvedByWord) {
-        for (const c of entry.cells) {
-            const k = c.row + "," + c.col;
-            if (seen.has(k)) continue;
-            seen.add(k);
-            picks.push(c);
-            if (picks.length >= revealCount) break;
-        }
-        if (picks.length >= revealCount) break;
-    }
+    const picks = _pickBeeRevealTargets(beeKey, revealCount);
 
     // Play bee sound
     if (typeof state !== "undefined" && state.soundEnabled && typeof playSound === "function") {
@@ -692,18 +764,14 @@ function triggerBee(bee) {
         return;
     }
 
-    picks.forEach((cell, i) => {
-        setTimeout(() => {
-            const k = cell.row + "," + cell.col;
-            if (!state.revealedCells.includes(k)) state.revealedCells.push(k);
-            if (typeof renderGrid === "function") renderGrid();
-        }, 250 + i * 200);
-    });
+    // Stagger the flights so the bees arrive in succession.
+    const stagger = 140;
+    picks.forEach((cell, i) => _flyBeeToCell(originPt, cell, i * stagger));
 
+    // Save after all flights complete.
     setTimeout(() => {
-        if (typeof renderGrid === "function") renderGrid();
         if (typeof saveProgress === "function") saveProgress();
-    }, 250 + picks.length * 200 + 100);
+    }, picks.length * stagger + 1000);
 }
 
 // When a grid word is found, trigger any bee whose cell is part of that word.

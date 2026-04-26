@@ -2683,6 +2683,45 @@ html, body {
     .grid-cell-bee { animation: none; }
 }
 
+/* Flying bee — emitted from the bee's grid cell, lands on target cells.
+   --dx / --dy are set per-flyer to point toward the target.
+   Mid-flight has a slight upward bulge for a livelier arc. */
+.bee-flyer {
+    position: fixed;
+    font-size: 30px;
+    line-height: 1;
+    z-index: 10000;
+    pointer-events: none;
+    color: #1a1a2e;
+    transform: translate(-50%, -50%);
+    animation: beeFly 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    will-change: transform, opacity;
+    --dx: 0px;
+    --dy: 0px;
+}
+@keyframes beeFly {
+    0% {
+        transform: translate(-50%, -50%) scale(1) rotate(-6deg);
+        opacity: 1;
+    }
+    50% {
+        transform: translate(calc(-50% + var(--dx) * 0.5), calc(-50% + var(--dy) * 0.5 - 28px)) scale(1.15) rotate(8deg);
+        opacity: 1;
+    }
+    85% {
+        transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.85) rotate(-4deg);
+        opacity: 0.95;
+    }
+    100% {
+        transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.4) rotate(0);
+        opacity: 0;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .bee-flyer { animation-duration: 0.1s; }
+}
+
 /* ============================================================
    Bee tutorial (one-time first-bee overlay)
    ============================================================ */
