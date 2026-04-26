@@ -34,6 +34,26 @@ string? GetUserRole(ClaimsPrincipal principal)
         ?? principal.FindFirst(ClaimTypes.Role)?.Value;
 }
 
+// Lazy monthly rollover: any UserProgress row whose CurrentMonth lags the
+// current month gets its MonthlyStart / MonthlyCoinsStart snapshotted to
+// its current HighestLevel / TotalCoinsEarned, and CurrentMonth is updated.
+// Without this, players (and bots) who haven't saved progress this month
+// still show last month's totals as "this month" in the admin panel and
+// can stay invisible from the monthly leaderboard.
+//
+// Implemented as a single bulk SQL UPDATE via ExecuteUpdateAsync — fast,
+// no row materialization, only touches stale rows.
+async Task RollOverStaleMonths(WordPlayDb db)
+{
+    var nowMonth = CentralMonth();
+    await db.UserProgress
+        .Where(p => p.CurrentMonth != nowMonth)
+        .ExecuteUpdateAsync(setters => setters
+            .SetProperty(p => p.MonthlyStart, p => p.HighestLevel)
+            .SetProperty(p => p.MonthlyCoinsStart, p => p.TotalCoinsEarned)
+            .SetProperty(p => p.CurrentMonth, nowMonth));
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Services ---
@@ -762,6 +782,11 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
 
 app.MapGet("/api/leaderboard", async (WordPlayDb db, int? top, string? period, string? rankType) =>
 {
+    // Bring all stale-month rows up to date so the monthly leaderboard
+    // doesn't see last month's MonthlyStart for players (or bots) who
+    // haven't saved yet this month.
+    await RollOverStaleMonths(db);
+
     var count = Math.Clamp(top ?? 50, 1, 100);
     var nowMonth = CentralMonth();
     var isMonthly = period == "month";
@@ -981,6 +1006,10 @@ app.MapGet("/api/admin/users", async (WordPlayDb db, ClaimsPrincipal principal, 
     if (page < 1) page = 1;
     if (pageSize < 1) pageSize = 30;
     if (pageSize > 100) pageSize = 100;
+
+    // Roll over any stale-month rows so the per-user "this month" stats
+    // (monthlyGain / monthlyCoinsGain) are accurate for inactive players.
+    await RollOverStaleMonths(db);
 
     var query = db.Users
         .GroupJoin(db.UserProgress, u => u.Id, p => p.UserId, (u, ps) => new { u, p = ps.FirstOrDefault() })
