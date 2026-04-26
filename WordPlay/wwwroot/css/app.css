@@ -2892,7 +2892,17 @@ html, body {
 }
 .quest-header-icon { font-size: 56px; }
 .quest-header-name { font-size: 26px; font-weight: 700; margin-top: 6px; }
-.quest-header-time { font-size: 14px; opacity: 0.8; margin-top: 4px; }
+.quest-header-tagline {
+    font-size: 14px;
+    font-style: italic;
+    opacity: 0.92;
+    margin: 8px auto 0;
+    padding: 0 16px;
+    max-width: 360px;
+    line-height: 1.4;
+    color: #f8e8c0;
+}
+.quest-header-time { font-size: 13px; opacity: 0.75; margin-top: 6px; }
 
 .milestones-row {
     display: flex;

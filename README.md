@@ -138,7 +138,9 @@ Earned through achievements: completing a level pack, finishing 5 levels in an h
 
 ### Quests
 
-A themed 7-day Quest runs continuously. Each Quest has **8 milestone tiers** (20 / 60 / 130 / 220 / 320 / 430 / 550 / 680 honey jars) that award coins, bees, and hints/targets/rockets. The first 4 are reachable for active daily players; tiers 5-8 are stretch goals for very active players, with the tier 8 grand prize being a true windfall (1000 coins + 10 bees + 9 hint-bundle items). Players collect honey jars by completing **Daily Goals**.
+A themed 7-day Quest runs continuously. The narrative: **the player's bees forage in the current quest's setting and bring honey 🍯 back to the hive**. Each Daily Goal completed adds jars to the hive. As the hive fills past each threshold, that threshold's reward pays out automatically — coins, more bees, hints, targets, rockets.
+
+Each Quest has **8 milestone tiers** at 20 / 60 / 130 / 220 / 320 / 430 / 550 / 680 honey jars. The first 4 are reachable for active daily players; tiers 5-8 are stretch goals, with the tier 8 grand prize being a true windfall (1000 coins + 10 bees + 9 hint-bundle items).
 
 The Quest screen's milestone row scrolls horizontally — when you open it, the next unclaimed tier auto-centers in view.
 
