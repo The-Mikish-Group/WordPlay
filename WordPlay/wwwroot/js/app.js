@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.9.3";
+const APP_VERSION = "1.9.4";
 
 // ---- THEMES ----
 const THEMES = {
@@ -2952,8 +2952,9 @@ function renderQuestSideButton(q, qDef) {
                     stroke-linecap="round" transform="rotate(-90 34 34)"></circle>
         </svg>
         <span class="quest-side-icon">${qDef.icon || "🐝"}</span>
-        ${allDone ? '<span class="quest-side-zzz" aria-hidden="true">💤</span>' : ''}
-        <span class="quest-side-pct">${pct}%</span>
+        ${allDone
+            ? '<span class="quest-side-zzz" aria-hidden="true">💤</span>'
+            : '<span class="quest-side-pct">' + pct + '%</span>'}
     </button>`;
 }
 
