@@ -12,7 +12,11 @@
         { "at":  20, "reward": {"coins": 100} },
         { "at":  60, "reward": {"bees": 1, "hints": 1} },
         { "at": 130, "reward": {"coins": 300, "bees": 2} },
-        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} },
+        { "at": 320, "reward": {"coins": 200, "bees": 1, "targets": 1} },
+        { "at": 430, "reward": {"coins": 300, "bees": 2, "hints": 1, "rockets": 1} },
+        { "at": 550, "reward": {"coins": 500, "bees": 3, "hints": 2} },
+        { "at": 680, "reward": {"coins": 1000, "bees": 10, "hints": 3, "targets": 3, "rockets": 3} }
       ],
       "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
@@ -27,7 +31,11 @@
         { "at":  20, "reward": {"coins": 100} },
         { "at":  60, "reward": {"bees": 1, "hints": 1} },
         { "at": 130, "reward": {"coins": 300, "bees": 2} },
-        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} },
+        { "at": 320, "reward": {"coins": 200, "bees": 1, "targets": 1} },
+        { "at": 430, "reward": {"coins": 300, "bees": 2, "hints": 1, "rockets": 1} },
+        { "at": 550, "reward": {"coins": 500, "bees": 3, "hints": 2} },
+        { "at": 680, "reward": {"coins": 1000, "bees": 10, "hints": 3, "targets": 3, "rockets": 3} }
       ],
       "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
@@ -42,7 +50,11 @@
         { "at":  20, "reward": {"coins": 100} },
         { "at":  60, "reward": {"bees": 1, "hints": 1} },
         { "at": 130, "reward": {"coins": 300, "bees": 2} },
-        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} },
+        { "at": 320, "reward": {"coins": 200, "bees": 1, "targets": 1} },
+        { "at": 430, "reward": {"coins": 300, "bees": 2, "hints": 1, "rockets": 1} },
+        { "at": 550, "reward": {"coins": 500, "bees": 3, "hints": 2} },
+        { "at": 680, "reward": {"coins": 1000, "bees": 10, "hints": 3, "targets": 3, "rockets": 3} }
       ],
       "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
@@ -57,7 +69,11 @@
         { "at":  20, "reward": {"coins": 100} },
         { "at":  60, "reward": {"bees": 1, "hints": 1} },
         { "at": 130, "reward": {"coins": 300, "bees": 2} },
-        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} },
+        { "at": 320, "reward": {"coins": 200, "bees": 1, "targets": 1} },
+        { "at": 430, "reward": {"coins": 300, "bees": 2, "hints": 1, "rockets": 1} },
+        { "at": 550, "reward": {"coins": 500, "bees": 3, "hints": 2} },
+        { "at": 680, "reward": {"coins": 1000, "bees": 10, "hints": 3, "targets": 3, "rockets": 3} }
       ],
       "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
@@ -72,7 +88,11 @@
         { "at":  20, "reward": {"coins": 100} },
         { "at":  60, "reward": {"bees": 1, "hints": 1} },
         { "at": 130, "reward": {"coins": 300, "bees": 2} },
-        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} },
+        { "at": 320, "reward": {"coins": 200, "bees": 1, "targets": 1} },
+        { "at": 430, "reward": {"coins": 300, "bees": 2, "hints": 1, "rockets": 1} },
+        { "at": 550, "reward": {"coins": 500, "bees": 3, "hints": 2} },
+        { "at": 680, "reward": {"coins": 1000, "bees": 10, "hints": 3, "targets": 3, "rockets": 3} }
       ],
       "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
@@ -87,7 +107,11 @@
         { "at":  20, "reward": {"coins": 100} },
         { "at":  60, "reward": {"bees": 1, "hints": 1} },
         { "at": 130, "reward": {"coins": 300, "bees": 2} },
-        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} },
+        { "at": 320, "reward": {"coins": 200, "bees": 1, "targets": 1} },
+        { "at": 430, "reward": {"coins": 300, "bees": 2, "hints": 1, "rockets": 1} },
+        { "at": 550, "reward": {"coins": 500, "bees": 3, "hints": 2} },
+        { "at": 680, "reward": {"coins": 1000, "bees": 10, "hints": 3, "targets": 3, "rockets": 3} }
       ],
       "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
@@ -102,7 +126,11 @@
         { "at":  20, "reward": {"coins": 100} },
         { "at":  60, "reward": {"bees": 1, "hints": 1} },
         { "at": 130, "reward": {"coins": 300, "bees": 2} },
-        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} },
+        { "at": 320, "reward": {"coins": 200, "bees": 1, "targets": 1} },
+        { "at": 430, "reward": {"coins": 300, "bees": 2, "hints": 1, "rockets": 1} },
+        { "at": 550, "reward": {"coins": 500, "bees": 3, "hints": 2} },
+        { "at": 680, "reward": {"coins": 1000, "bees": 10, "hints": 3, "targets": 3, "rockets": 3} }
       ],
       "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     },
@@ -117,7 +145,11 @@
         { "at":  20, "reward": {"coins": 100} },
         { "at":  60, "reward": {"bees": 1, "hints": 1} },
         { "at": 130, "reward": {"coins": 300, "bees": 2} },
-        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} }
+        { "at": 220, "reward": {"coins": 500, "bees": 5, "targets": 1, "rockets": 1} },
+        { "at": 320, "reward": {"coins": 200, "bees": 1, "targets": 1} },
+        { "at": 430, "reward": {"coins": 300, "bees": 2, "hints": 1, "rockets": 1} },
+        { "at": 550, "reward": {"coins": 500, "bees": 3, "hints": 2} },
+        { "at": 680, "reward": {"coins": 1000, "bees": 10, "hints": 3, "targets": 3, "rockets": 3} }
       ],
       "goalPool": ["playLevels","findLongWords","findBonusWords","findStandalone","useHint","useTarget","noHintLevel","flowLevels","speedLevel","dailyPuzzle","findStarLevel","bonusWordTotal","spendCoinsOnHints"]
     }
