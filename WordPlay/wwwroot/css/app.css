@@ -2764,7 +2764,10 @@ html, body {
    simultaneous quests as the system grows.
    ============================================================ */
 .quest-side-rail {
-    position: fixed;
+    /* Anchor to the .home-screen container (which is position:fixed +
+       max-width:600px centered), so on desktop the rail stays inside
+       the game's visible area instead of floating to the viewport edge. */
+    position: absolute;
     right: 10px;
     top: 50%;
     transform: translateY(-50%);
