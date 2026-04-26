@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.9.2";
+const APP_VERSION = "1.9.3";
 
 // ---- THEMES ----
 const THEMES = {
@@ -2926,21 +2926,22 @@ function _rewardIconList(r) {
 }
 
 function renderQuestSideButton(q, qDef) {
-    const milestones = qDef.milestones || [];
-    const claimed = q.claimedTiers || [];
-    const next = milestones.find((_, i) => !claimed.includes(i));
-    const nextAt = next ? next.at : (milestones[milestones.length - 1] && milestones[milestones.length - 1].at) || 0;
-    const pct = nextAt > 0 ? Math.min(100, Math.floor((q.jars / nextAt) * 100)) : 100;
-
-    // Are all of today's daily goals done? Then we're in a "waiting for refresh" state.
+    // The side button reflects TODAY'S progress: how many of today's daily
+    // goals are claimed. The full quest ladder lives on the Quest screen.
+    // Keeping the side button to one metric prevents the contradiction
+    // where 💤 (all done today) coexisted with a 50% bar (progress toward
+    // next milestone — a different question).
     const goals = (state.dailyGoals && state.dailyGoals.goals) || [];
-    const allDone = goals.length > 0 && goals.every(g => g.claimed);
+    const totalGoals = goals.length;
+    const completedGoals = goals.filter(g => g.claimed).length;
+    const pct = totalGoals > 0 ? Math.floor((completedGoals / totalGoals) * 100) : 0;
+    const allDone = totalGoals > 0 && completedGoals === totalGoals;
 
     // SVG progress ring math: r=30 → circumference = 188.5
     const CIRCUM = 188.5;
     const dashOffset = CIRCUM - (CIRCUM * pct / 100);
 
-    const titleText = qDef.name + " — " + q.jars + " / " + nextAt + " honey jars" + (allDone ? " (all today's goals done — refreshes at midnight)" : "");
+    const titleText = qDef.name + " — Today: " + completedGoals + "/" + totalGoals + " goals" + (allDone ? " (all done — refreshes at midnight)" : "");
 
     return `
     <button class="quest-side-btn ${allDone ? 'quest-side-waiting' : ''}" data-action="open-quest" title="${titleText.replace(/"/g, '&quot;')}">
