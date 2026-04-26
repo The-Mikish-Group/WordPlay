@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.9.0";
+const APP_VERSION = "1.9.1";
 
 // ---- THEMES ----
 const THEMES = {
@@ -8109,8 +8109,20 @@ function renderQuestScreen() {
                 <div class="quest-header-name">${qDef.name}</div>
                 <div class="quest-header-time">Ends ${qDef.end}</div>
             </div>
+            <div class="milestones-explainer">Earn 🍯 by completing daily goals — every threshold below pays out automatically as you cross it.</div>
             <div class="milestones-row">${milestoneHtml}</div>
-            <div class="quest-jars-total">${jars} 🍯 collected</div>
+            <div class="quest-jars-total">
+                <div class="quest-jars-count">${jars} 🍯</div>
+                <div class="quest-jars-next">${(function() {
+                    const nextM = milestones.find((_, i) => !claimed.includes(i));
+                    if (!nextM) return "All prizes claimed!";
+                    const remaining = nextM.at - jars;
+                    const nextRewardIcons = _rewardIconList(nextM.reward);
+                    return remaining > 0
+                        ? remaining + " more for " + nextRewardIcons
+                        : "Ready to claim " + nextRewardIcons;
+                })()}</div>
+            </div>
             ${allDoneBanner}
             <div class="goals-section">
                 <div class="goals-header">
