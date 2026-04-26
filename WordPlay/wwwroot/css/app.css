@@ -2861,10 +2861,17 @@ html, body {
 .quest-screen {
     padding: 16px;
     color: white;
+    width: 100%;
     max-width: 540px;
     margin: 0 auto;
     position: relative;
     min-height: 100vh;
+    /* Flex-item safety: don't let intrinsic content width grow the screen
+       past #app's bounds. Pairs with overflow-x:hidden so any rogue
+       wide child gets clipped at the Quest screen edge. */
+    min-width: 0;
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 .quest-screen-empty {
     text-align: center;
@@ -2916,6 +2923,10 @@ html, body {
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
+    /* Never grow beyond the parent's content width — internal scroll only */
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 .milestones-row::-webkit-scrollbar {
     height: 6px;
