@@ -15,14 +15,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MailKit" Version="4.15.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0-preview.2.25163.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0-preview.2.25163.8">
+    <PackageReference Include="MailKit" Version="4.16.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.7" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0-preview.1.25120.3" />
-    <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.7" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
   </ItemGroup>
 
 </Project>
