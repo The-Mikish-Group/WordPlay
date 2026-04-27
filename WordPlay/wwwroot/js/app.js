@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.9.5";
+const APP_VERSION = "1.9.6";
 
 // ---- THEMES ----
 const THEMES = {
@@ -1797,7 +1797,7 @@ function checkLoginStreak() {
 
 // ---- TOAST ----
 let toastTimer = null;
-function showToast(msg, color, fast, bg) {
+function showToast(msg, color, fast, bg, durationMs) {
     if (toastTimer) clearTimeout(toastTimer);
     let el = document.getElementById("toast");
     if (!el) {
@@ -1816,7 +1816,8 @@ function showToast(msg, color, fast, bg) {
     // Force reflow to restart animation
     el.offsetHeight;
     el.className = "toast" + (fast ? " fast" : "");
-    toastTimer = setTimeout(() => { el.style.display = "none"; }, fast ? 800 : 1500);
+    const ms = (typeof durationMs === "number" && durationMs > 0) ? durationMs : (fast ? 800 : 1500);
+    toastTimer = setTimeout(() => { el.style.display = "none"; }, ms);
 }
 
 // ---- WORD HANDLING ----

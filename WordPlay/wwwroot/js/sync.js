@@ -48,13 +48,34 @@ function scheduleSyncPush() {
     _syncPushTimer = setTimeout(syncPush, SYNC_DEBOUNCE_MS);
 }
 
+// Handle a 401 response from the API.  The user's JWT has expired or is
+// otherwise invalid, so the server is rejecting their saves.  Without this,
+// fetch() resolves successfully on a 401 (it only throws on network errors)
+// and our catch block doesn't fire, so progress would silently stop syncing
+// while the user keeps playing — exactly what was happening on iOS PWA
+// users whose tokens hit the 30-day mark.
+//
+// When we see a 401 we sign the user out and surface a toast so they
+// re-authenticate.  Future signed-in saves will start syncing again.
+function _handleAuthExpired() {
+    if (typeof signOut === "function") signOut();
+    if (typeof showToast === "function") {
+        // 5-arg form: msg, color, fast, bg, durationMs (5 seconds for an
+        // important notice the player needs to actually read).
+        showToast("Sign in again to save your progress",
+            "#ffce80", false, "rgba(40,20,10,0.95)", 5000);
+    }
+    // Re-render so the home/settings pick up the signed-out state.
+    if (typeof renderHome === "function" && typeof state !== "undefined" && state.showHome) renderHome();
+}
+
 async function syncPush() {
     if (!isSignedIn()) return;
     try {
         const raw = localStorage.getItem("wordplay-save");
         if (!raw) return;
         const progress = JSON.parse(raw);
-        await fetch("/api/progress", {
+        const res = await fetch("/api/progress", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -62,8 +83,9 @@ async function syncPush() {
             },
             body: JSON.stringify({ progress }),
         });
+        if (res.status === 401) _handleAuthExpired();
     } catch (e) {
-        // Silently fail — will retry on next save
+        // Network failure — silently fail, will retry on next save
     }
 }
 
@@ -73,6 +95,7 @@ async function syncPull() {
         const res = await fetch("/api/progress", {
             headers: getAuthHeaders(),
         });
+        if (res.status === 401) { _handleAuthExpired(); return; }
         if (!res.ok) return;
         const data = await res.json();
         if (!data.progress) return; // no server data yet
@@ -106,7 +129,7 @@ async function syncPull() {
         localStorage.setItem("wordplay-save", JSON.stringify(merged));
 
         // Push merged result back
-        await fetch("/api/progress", {
+        const pushRes = await fetch("/api/progress", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -114,6 +137,7 @@ async function syncPull() {
             },
             body: JSON.stringify({ progress: merged }),
         });
+        if (pushRes.status === 401) _handleAuthExpired();
     } catch (e) {
         // Offline or error — continue with local data
     }

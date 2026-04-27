@@ -75,7 +75,7 @@ public partial class AuthService
             issuer: _config["Auth:Jwt:Issuer"],
             audience: _config["Auth:Jwt:Audience"],
             claims: [new Claim("uid", userId.ToString()), new Claim("role", role)],
-            expires: DateTime.UtcNow.AddDays(30),
+            expires: DateTime.UtcNow.AddDays(90),
             signingCredentials: creds);
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
