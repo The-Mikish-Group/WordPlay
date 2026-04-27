@@ -160,9 +160,9 @@ A new helper mechanic. A bee sits on a grid letter cell on certain levels — wh
 
 | Bee source | Reveals |
 |---|---|
-| Spawned bee (level-baked) | 3 letters |
-| Won bee (from Quest milestone or spin wheel) | 4 letters |
-| Both on same level | 7 letters |
+| Spawned bee (level-baked) | 5 letters |
+| Won bee (from Quest milestone or spin wheel) | 6 letters |
+| Both on same level | 11 letters |
 
 Bee-level frequency scales with difficulty tier and is modulated by recent player pace. Faster players (4+ speed bonuses in the last hour) see bees less often; struggling players see them at the base rate.
 

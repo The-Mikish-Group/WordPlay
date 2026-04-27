@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.9.6";
+const APP_VERSION = "1.9.7";
 
 // ---- THEMES ----
 const THEMES = {
@@ -861,7 +861,7 @@ function triggerBee(bee) {
         else if (bee.type === "queued") ip.bdt = true;
     }
 
-    const revealCount = bee.type === "queued" ? 4 : 3;
+    const revealCount = bee.type === "queued" ? 6 : 5;
     const beeKey = bee.row + "," + bee.col;
 
     // Get the bee's origin cell position BEFORE renderGrid clears it.
@@ -7661,7 +7661,7 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDCC5", title: "Daily Puzzle", body: "A fresh puzzle every day! Tap the green Daily Puzzle button on the home screen to play. A coin (\uD83E\uDE99) appears on one word in the grid \u2014 find it for 25 bonus coins, then the coin moves to a new word. Keep chasing the coin to rack up rewards! Complete the entire puzzle for a 100-coin bonus. The same puzzle is shared by all players each day. Some dailies use a \uD83C\uDF0A stacked flow layout for variety. Your regular progress is saved and waiting when you return.<br><br><b>\uD83D\uDD25 7-Day Streak:</b> Complete the daily puzzle 7 days in a row to earn a massive <b>1,000-coin bonus</b>! Watch the streak counter on the Daily Puzzle button (\u201cX/7 \uD83D\uDD25\u201d) and the progress message after each completion. The streak resets and repeats \u2014 earn the reward every week!" },
     { icon: "\u2B50", title: "Bonus Puzzle", body: "Earn bonus puzzles through achievements \u2014 complete a level pack, finish 5 levels in an hour, maintain a 3-day play streak, or beat the daily puzzle. A gold <b>\u2B50 Bonus Puzzle</b> button appears on the home screen. Inside, 9 stars are scattered across the grid. Find starred words to collect stars and earn 10 coins each! Every 3 stars fills one of your 3 star slots. Collect all 9 stars for a <b>500-coin grand prize</b>. But be careful \u2014 leaving the puzzle forfeits your progress!" },
     { icon: "🍯", title: "Quests & Daily Goals", body: "<p>Every 7 days a new themed Quest opens up. Think of it like this: <strong>your bees forage in that quest's setting and bring honey 🍯 home to the hive.</strong> Each daily goal you complete adds jars of honey, and as the hive fills past each threshold, the prize at that threshold automatically pays out — coins, more bees, hints, targets, rockets.</p><p>There are <strong>8 milestone tiers</strong> in every quest. The first 4 are reachable with daily play. Tiers 5-8 are stretch goals — the tier 8 grand prize is a major windfall (1000 coins, 10 bees, and a full bundle of every hint type).</p><p>Goals refresh daily — yesterday's progress doesn't carry over, so play a little each day to keep the honey flowing. The milestone row in the Quest screen scrolls — your next unclaimed tier auto-centers when you open it.</p>" },
-    { icon: "🐝", title: "Bees", body: "<p>A bee 🐝 sits on a grid letter on some levels. When you find the word containing that bee, three helper bees fly out to unsolved letters in other words and reveal them!</p><p>You can earn <strong>extra bees</strong> from Quest milestones and the speed-bonus spin wheel. Earned bees appear on your next levels — and earned bees reveal <strong>4 letters</strong> instead of 3.</p><p>Bees show up roughly every 5–10 levels (more often on harder tiers). Players on a hot streak of speed bonuses see bees a little less — the game gives extra help when you need it.</p>" },
+    { icon: "🐝", title: "Bees", body: "<p>A bee 🐝 sits on a grid letter on some levels. When you find the word containing that bee, helper bees fly out to unsolved letters in other words and reveal <strong>5 letters</strong>!</p><p>You can earn <strong>extra bees</strong> from Quest milestones and the speed-bonus spin wheel. Earned bees appear on your next levels — and earned bees reveal <strong>6 letters</strong> instead of 5.</p><p>Bees show up roughly every 5–10 levels (more often on harder tiers). Players on a hot streak of speed bonuses see bees a little less — the game gives extra help when you need it.</p>" },
     { icon: "\uD83C\uDF0A", title: "Flow Levels", body: "Every 5th level (5, 10, 15, 20\u2026) is a <b>flow level</b>! These use a stacked layout instead of the usual crossword. Same words, same letters \u2014 just a different visual style with <b>3x rewards</b>: 3 coins per word, 15 per bonus word, and 200 for the coin word." },
     { icon: "\u21C4", title: "Grid Layouts", body: "WordPlay has two grid styles: <b>Crossword</b> (interlocking words) and <b>Flow</b> (stacked rows). You can <b>switch between them anytime</b> by tapping the level info at the top of the screen (the pack name and level number). All your progress \u2014 found words, hints, and stars \u2014 carries over when you switch. Set your preferred default in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> under Grid Layout: Auto (game decides), Crossword, or Flow." },
     { icon: "\uD83D\uDCD6", title: "Word Definitions", body: "Curious about a word? Tap any found word in the grid to see its definition! A popup shows the part of speech and meaning. Only non-intersecting letters are tappable \u2014 look for cells that belong to just one word." },
