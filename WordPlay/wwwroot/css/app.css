@@ -1877,11 +1877,49 @@ html, body {
 .home-top-bar {
     display: flex;
     align-items: flex-start;
-    justify-content: flex-end;
-    padding: max(8px, env(safe-area-inset-top)) 14px 6px 6px;
+    justify-content: space-between;
+    padding: max(8px, env(safe-area-inset-top)) 14px 6px 14px;
     flex-shrink: 0;
     z-index: 4;
     position: relative;
+}
+
+.home-top-left {
+    display: flex;
+    align-items: flex-start;
+}
+
+.home-signin-indicator {
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s;
+}
+
+.home-signin-indicator:active {
+    transform: scale(0.92);
+}
+
+.home-signin-indicator.signed-in {
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.35), 0 2px 6px rgba(0,0,0,0.4);
+}
+
+.home-signin-indicator.signed-out {
+    padding: 8px 14px;
+    border-radius: 18px;
+    background: rgba(255,180,80,0.2);
+    border: 1.5px solid rgba(255,180,80,0.55);
+    color: #ffce80;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
 .home-expertise-row {

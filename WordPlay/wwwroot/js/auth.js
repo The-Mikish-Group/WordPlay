@@ -7,7 +7,44 @@ const AUTH_STORAGE_KEY = "wordplay-auth";
 let _authState = null; // { jwt, user: { id, displayName, email, avatarData } }
 let _msalInstance = null;
 
-function initAuth() {
+// Set to true by initAuth() if a stored JWT was found but had already expired.
+// app.js reads this AFTER first render and surfaces a toast so the player
+// actually knows their sync is broken.  Without this, expired tokens were
+// being purged silently and players saw no signal at all — they kept playing
+// while their progress vanished into the void.
+window._authExpiredAtStartup = false;
+
+// iOS PWAs in standalone mode (added to home screen) cannot reliably use
+// popup-based OAuth: window.open() spawns a separate Safari process and the
+// postMessage callback never reaches the PWA WebView.  Sign-ins "succeed" in
+// Safari but the JWT never lands in the PWA's localStorage — the user thinks
+// they're signed in, but the PWA still has no auth.
+function _isIosStandalone() {
+    const ua = navigator.userAgent || "";
+    const isIos = /iPad|iPhone|iPod/.test(ua);
+    if (!isIos) return false;
+    const standalone = window.navigator.standalone === true
+        || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+    return !!standalone;
+}
+
+function _randomState() {
+    // 128 bits of entropy as base64url
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return btoa(String.fromCharCode.apply(null, bytes))
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function initAuth() {
+    // First: if we just came back from an OAuth full-page redirect, the URL
+    // fragment carries the access token (Google) or id token (Microsoft).
+    // Complete that exchange before we look at localStorage so the user lands
+    // signed in.
+    try {
+        await _completeOAuthRedirectIfNeeded();
+    } catch (e) { /* fall through to existing-auth load */ }
+
     try {
         const raw = localStorage.getItem(AUTH_STORAGE_KEY);
         if (raw) {
@@ -18,6 +55,7 @@ function initAuth() {
                 if (payload.exp && payload.exp * 1000 < Date.now()) {
                     _authState = null;
                     localStorage.removeItem(AUTH_STORAGE_KEY);
+                    window._authExpiredAtStartup = true;
                 }
             }
         }
@@ -54,9 +92,143 @@ function signOut() {
     localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
+// ---- OAuth Redirect Flow (iOS standalone PWA) ----
+//
+// The popup-based SDKs (google.accounts.oauth2.initTokenClient and MSAL
+// loginPopup) silently fail in iOS standalone PWAs.  As a fallback we run a
+// raw OAuth 2.0 implicit-style redirect: navigate the whole tab to the
+// provider, the provider redirects back to our origin with the token in the
+// URL fragment, and initAuth() picks it up on the next app load.
+//
+// NOTE: this requires the OAuth client configurations to authorize
+// `window.location.origin + "/"` as a redirect URI.  If iOS users still
+// silently fail after this ships, that's the first thing to check.
+
+const _OAUTH_STATE_KEY = "wordplay-oauth-state";
+const _OAUTH_NONCE_KEY = "wordplay-oauth-nonce";
+const _OAUTH_PROVIDER_KEY = "wordplay-oauth-provider";
+
+function _redirectToGoogleOAuth() {
+    const state = _randomState();
+    sessionStorage.setItem(_OAUTH_STATE_KEY, state);
+    sessionStorage.setItem(_OAUTH_PROVIDER_KEY, "google");
+    const params = new URLSearchParams({
+        client_id: _googleClientId,
+        redirect_uri: window.location.origin + "/",
+        response_type: "token",
+        scope: "openid email profile",
+        state,
+        prompt: "select_account",
+        include_granted_scopes: "true",
+    });
+    window.location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + params.toString();
+}
+
+function _redirectToMicrosoftOAuth() {
+    const state = _randomState();
+    const nonce = _randomState();
+    sessionStorage.setItem(_OAUTH_STATE_KEY, state);
+    sessionStorage.setItem(_OAUTH_NONCE_KEY, nonce);
+    sessionStorage.setItem(_OAUTH_PROVIDER_KEY, "microsoft");
+    const params = new URLSearchParams({
+        client_id: _microsoftClientId,
+        redirect_uri: window.location.origin + "/",
+        response_type: "id_token",
+        scope: "openid email profile",
+        state,
+        nonce,
+        response_mode: "fragment",
+        prompt: "select_account",
+    });
+    window.location.href = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?" + params.toString();
+}
+
+async function _completeOAuthRedirectIfNeeded() {
+    if (!window.location.hash || window.location.hash.length < 2) return false;
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = params.get("access_token");
+    const idToken = params.get("id_token");
+    const state = params.get("state");
+    const error = params.get("error");
+
+    // Not an OAuth callback at all — leave the hash alone (might be app routing)
+    if (!accessToken && !idToken && !error) return false;
+
+    const expectedState = sessionStorage.getItem(_OAUTH_STATE_KEY);
+    const expectedNonce = sessionStorage.getItem(_OAUTH_NONCE_KEY);
+    const provider = sessionStorage.getItem(_OAUTH_PROVIDER_KEY);
+    sessionStorage.removeItem(_OAUTH_STATE_KEY);
+    sessionStorage.removeItem(_OAUTH_NONCE_KEY);
+    sessionStorage.removeItem(_OAUTH_PROVIDER_KEY);
+
+    // Always strip the fragment so a refresh doesn't re-trigger this path
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+
+    if (error) {
+        window._signInError = "Sign-in cancelled or failed";
+        return false;
+    }
+    if (!provider || !expectedState || state !== expectedState) {
+        window._signInError = "Sign-in failed — please try again";
+        return false;
+    }
+
+    try {
+        if (provider === "google" && accessToken) {
+            const res = await fetch("/api/auth/google", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ accessToken }),
+            });
+            if (!res.ok) throw new Error("Auth failed");
+            const data = await res.json();
+            _saveAuth(data.token, data.user);
+            window._signInJustCompleted = true;
+            return true;
+        }
+        if (provider === "microsoft" && idToken) {
+            // Verify nonce in the id_token before trusting it.  ASP.NET will
+            // re-validate signature + claims, but we double-check the nonce
+            // here so a stale/replayed token can't sneak through.
+            try {
+                const payload = JSON.parse(atob(idToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+                if (!expectedNonce || payload.nonce !== expectedNonce) throw new Error("nonce mismatch");
+            } catch (e) {
+                window._signInError = "Sign-in failed — please try again";
+                return false;
+            }
+            const res = await fetch("/api/auth/microsoft", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ idToken }),
+            });
+            if (!res.ok) throw new Error("Auth failed");
+            const data = await res.json();
+            _saveAuth(data.token, data.user);
+            window._signInJustCompleted = true;
+            return true;
+        }
+    } catch (e) {
+        window._signInError = "Sign-in failed — please try again";
+    }
+    return false;
+}
+
 // ---- Google Sign-In (GSI) ----
 
 function signInWithGoogle() {
+    // iOS standalone PWA: popup OAuth silently fails (popup opens in a
+    // separate Safari process, postMessage never delivers).  Use a full-page
+    // redirect instead.  The redirect handler in initAuth() picks up the
+    // token on next app load.
+    if (_isIosStandalone()) {
+        _redirectToGoogleOAuth();
+        // Returns a never-resolving promise: the page is navigating away.
+        // The .catch in the click handler shouldn't fire spurious errors
+        // during the brief moment before the navigation commits.
+        return new Promise(() => {});
+    }
+
     return new Promise((resolve, reject) => {
         if (typeof google === "undefined" || !google.accounts) {
             reject(new Error("Google Identity Services not loaded"));
@@ -111,6 +283,14 @@ function _getMsalInstance() {
 }
 
 async function signInWithMicrosoft() {
+    // iOS standalone PWA: same popup problem as Google.  Use a full-page
+    // OAuth redirect (raw OIDC, not MSAL) and let initAuth() complete the
+    // exchange when the user returns.
+    if (_isIosStandalone()) {
+        _redirectToMicrosoftOAuth();
+        return new Promise(() => {});
+    }
+
     const msalApp = _getMsalInstance();
     if (!msalApp) throw new Error("MSAL not loaded");
 
@@ -128,6 +308,27 @@ async function signInWithMicrosoft() {
     const data = await res.json();
     _saveAuth(data.token, data.user);
     return data.user;
+}
+
+// Verify a freshly-issued JWT actually works against the API.  If it doesn't,
+// we sign the user back out and surface a clear toast — which is better than
+// the previous silent state where iOS PWA users would "sign in" without
+// actually getting a working session.
+async function verifySignInWorks() {
+    if (!isSignedIn()) return false;
+    try {
+        const res = await fetch("/api/progress", { headers: getAuthHeaders() });
+        if (res.status === 401) {
+            signOut();
+            return false;
+        }
+        return true;
+    } catch (e) {
+        // Network failure — give the user the benefit of the doubt; they'll
+        // find out at first sync attempt.  Don't fail the sign-in for a
+        // transient network issue.
+        return true;
+    }
 }
 
 // ---- Display Name ----

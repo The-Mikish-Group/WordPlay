@@ -237,6 +237,10 @@ Sign in with **Google** or **Microsoft** to sync your progress across devices. S
 | Sound preference | Always local (device-specific preference) |
 | Last daily claim | Latest date |
 
+### Sign-in Indicator
+
+A badge in the top-left of the home screen shows your sync status at a glance — your avatar when signed in, or a "🔒 Sign in to sync" pill when signed out. Tapping the badge opens Settings. JWTs expire after 90 days; if your token expires while you're playing, the next app open shows a "Your sign-in expired" toast and the badge flips to the signed-out state, so it's never silent.
+
 ### Display Name
 
 On first sign-in you'll be prompted to choose a display name (3–20 characters, letters, numbers, and spaces). This name appears on the leaderboard. You can change it anytime from the settings menu.
@@ -521,9 +525,22 @@ The `appsettings.json` file is gitignored because it contains secrets. Create on
 
 ### OAuth Setup
 
-**Google:** Create credentials in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Add your domain as an authorized JavaScript origin.
+**Google:** Create credentials in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Add your domain as an authorized JavaScript origin **and** as an authorized redirect URI (e.g. `https://yourdomain.com/`). The redirect URI is required for the iOS standalone PWA fallback flow — see "iOS Standalone PWA" below.
 
-**Microsoft:** Register an app in [Microsoft Entra](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps). Set the redirect URI to your domain and enable ID tokens under Authentication.
+**Microsoft:** Register an app in [Microsoft Entra](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps). Set the redirect URI to your domain (e.g. `https://yourdomain.com/`) and enable **ID tokens** under Authentication > Implicit grant and hybrid flows. The ID-token implicit grant is what the iOS standalone PWA fallback uses.
+
+#### iOS Standalone PWA
+
+When the app is installed to an iPhone home screen (`display: standalone`), popup-based OAuth silently fails: `window.open()` opens in a separate Safari process and the `postMessage` callback never reaches the PWA WebView. The user appears to sign in but the JWT never lands in the PWA's localStorage.
+
+To work around this, `auth.js` detects iOS standalone (`navigator.standalone || display-mode: standalone` + iOS user agent) and falls back to a full-page OAuth redirect:
+
+- **Google:** OAuth 2.0 implicit flow (`response_type=token`) → `accounts.google.com` → returns to `redirect_uri` with `#access_token=...` → posted to `/api/auth/google`.
+- **Microsoft:** OIDC implicit flow (`response_type=id_token`, with `nonce`) → `login.microsoftonline.com` → returns with `#id_token=...` → posted to `/api/auth/microsoft`.
+
+`initAuth()` parses the URL fragment on app boot, completes the exchange, and cleans the URL. If you see iOS users still failing to sign in after this change, the most likely cause is a missing redirect URI in the OAuth client configuration — check the Cloud Console / Entra app registration first.
+
+After every sign-in (popup or redirect), `verifySignInWorks()` makes a quick authenticated request to `/api/progress`. If the server returns 401, we sign the user back out and show a clear "Sign-in didn't save" toast — better than the previous silent state where the user thought they were signed in.
 
 ### API Endpoints
 

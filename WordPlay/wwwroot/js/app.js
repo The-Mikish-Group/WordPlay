@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "1.9.7";
+const APP_VERSION = "1.9.8";
 
 // ---- THEMES ----
 const THEMES = {
@@ -2973,9 +2973,24 @@ function renderHome() {
 
     const claimed = state.lastDailyClaim === getTodayStr();
 
+    // Sign-in indicator: visible badge on the home screen so the player can
+    // tell at a glance whether their progress is syncing.  Without this, the
+    // signed-in and signed-out home screens looked identical and users whose
+    // tokens silently expired had no way to notice until manually opening
+    // Settings.  Tapping the badge opens Settings (which has the sign-in
+    // buttons) — same target either way.
+    let signInIndicator;
+    if (typeof isSignedIn === "function" && isSignedIn()) {
+        const u = getUser();
+        signInIndicator = `<button class="home-signin-indicator signed-in" id="home-signin-indicator" title="Signed in as ${escapeHtml(u?.displayName || 'Player')}">${renderAvatar(u?.avatarData, u?.displayName, 34)}</button>`;
+    } else {
+        signInIndicator = `<button class="home-signin-indicator signed-out" id="home-signin-indicator" title="Sign in to sync progress">🔒 Sign in to sync</button>`;
+    }
+
     app.innerHTML = `
         <div class="home-screen" id="home-screen" style="background:${bgStyle}">
             <div class="home-top-bar">
+                <div class="home-top-left">${signInIndicator}</div>
                 <div class="home-top-right">
                     <div class="home-coin-display" id="home-coin-display">🪙 ${state.coins.toLocaleString()}</div>
                     <div class="home-star-display" id="home-star-display">${[0,1,2].map(i => `<span id="home-star-slot-${i}">${i < Math.floor(state.bonusStarsTotal / 3) ? '\u2B50' : ''}</span>`).join('')}</div>
@@ -3052,6 +3067,11 @@ function renderHome() {
 
     // Wire up event handlers
     document.getElementById("home-settings-btn").onclick = () => {
+        state.showMenu = true;
+        renderMenu();
+    };
+    const signInBadge = document.getElementById("home-signin-indicator");
+    if (signInBadge) signInBadge.onclick = () => {
         state.showMenu = true;
         renderMenu();
     };
@@ -5600,6 +5620,19 @@ function renderMenu() {
 
     // Auth button handlers — shared post-sign-in logic
     async function handlePostSignIn() {
+        // Verify the JWT we just stored actually works against the API.
+        // iOS standalone PWA + popup OAuth sometimes "succeeds" but stores
+        // the token in a separate browser context; without this check, the
+        // user thinks they're signed in but every sync silently 401s.
+        if (typeof verifySignInWorks === "function") {
+            const ok = await verifySignInWorks();
+            if (!ok) {
+                showToast("Sign-in didn't save. Please try again.", "#ff8888", false, "rgba(80,20,10,0.95)", 5000);
+                renderMenu();
+                return;
+            }
+        }
+
         const newUid = getUser()?.id;
         const lastUid = localStorage.getItem("wordplay-last-uid");
 
@@ -8623,8 +8656,10 @@ async function init() {
     }
     checkLoginStreak();
 
-    // Auth init + sync pull
-    if (typeof initAuth === "function") initAuth();
+    // Auth init + sync pull.  initAuth() is now async because it may need to
+    // complete an OAuth full-page redirect (iOS standalone PWA path) before
+    // we can determine the signed-in state.
+    if (typeof initAuth === "function") await initAuth();
     if (typeof isSignedIn === "function" && isSignedIn()) {
         const uid = getUser()?.id;
         const lastUid = localStorage.getItem("wordplay-last-uid");
@@ -8665,6 +8700,28 @@ async function init() {
     app.innerHTML = "";
     state.showHome = true;
     renderHome();
+
+    // If a stored JWT had already expired when the app booted, initAuth
+    // purged it silently.  Surface a toast so the player knows their sync is
+    // broken and what to do about it — without this, expired-token users
+    // play on with no feedback while their progress goes nowhere.
+    if (window._authExpiredAtStartup) {
+        showToast("Your sign-in expired. Sign in again to save your progress.",
+            "#ffce80", false, "rgba(40,20,10,0.95)", 6000);
+        window._authExpiredAtStartup = false;
+    }
+    // OAuth full-page redirect just landed us back here.  Surface success or
+    // failure now that the home screen is visible.
+    if (window._signInJustCompleted) {
+        const u = typeof getUser === "function" ? getUser() : null;
+        showToast("Signed in as " + (u?.displayName || u?.email || "Player"), "#80ffaa");
+        window._signInJustCompleted = false;
+        // Pull progress for the freshly-signed-in user
+        if (typeof syncPullAndReload === "function") syncPullAndReload();
+    } else if (window._signInError) {
+        showToast(window._signInError, "#ff8888", false, "rgba(80,20,10,0.95)", 5000);
+        window._signInError = null;
+    }
 
     // In-app browser banner
     if (window._inAppBrowser && !window.matchMedia('(display-mode: standalone)').matches && !sessionStorage.getItem('inapp-dismissed')) {
