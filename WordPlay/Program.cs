@@ -577,11 +577,20 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
             totalCoinsEarned = highestLevel * 100;
         else if (totalCoinsEarned < highestLevel * 10)
             totalCoinsEarned = highestLevel * 100;
-
-        if (totalCoinsEarned != originalTce)
-            progressJson = TceJsonRegex().Replace(
-                progressJson, $"\"tce\":{totalCoinsEarned}");
     }
+
+    // Coins-earned is monotonic: never let the stored value go down.
+    // Without this ratchet, the sanity cap above clobbers legitimate
+    // veteran players whose tce/hl ratio drifts above 250 (from daily
+    // quests, login-streak rewards, milestone bonuses), dropping their
+    // TotalCoinsEarned to hl*100 below MonthlyCoinsStart and silently
+    // filtering them off the monthly points leaderboard.
+    if (totalCoinsEarned < progress.TotalCoinsEarned)
+        totalCoinsEarned = progress.TotalCoinsEarned;
+
+    if (totalCoinsEarned != originalTce)
+        progressJson = TceJsonRegex().Replace(
+            progressJson, $"\"tce\":{totalCoinsEarned}");
 
     progress.ProgressJson = progressJson;
     progress.HighestLevel = highestLevel;
