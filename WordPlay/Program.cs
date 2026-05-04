@@ -568,23 +568,28 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
         progress.MonthlyCoinsStart = mcsEl.GetInt32();
     }
     // Sanity guards: normal play averages ~100 coins/level.
-    // Cap grossly inflated coins (e.g. cross-user contamination).
-    // Floor suspiciously low coins (e.g. first sync before tce tracking existed).
+    // Floor suspiciously low coins (first sync before tce tracking existed).
+    // Cap grossly inflated coins (cross-user contamination, save corruption).
     var originalTce = totalCoinsEarned;
     if (highestLevel > 0)
     {
-        if (totalCoinsEarned > highestLevel * 250)
+        if (totalCoinsEarned < highestLevel * 10)
             totalCoinsEarned = highestLevel * 100;
-        else if (totalCoinsEarned < highestLevel * 10)
-            totalCoinsEarned = highestLevel * 100;
+
+        // Cap admits an incoming claim up to the larger of:
+        //   - hl * 250        (per-level veteran baseline), or
+        //   - stored * 1.5    (50% growth in one request)
+        // Veterans accumulate well above 250/level via daily quests,
+        // login streaks, and milestone bonuses; this lets their stored
+        // value climb instead of being clobbered to hl*100 on every
+        // push. The stored*1.5 leg means an already-clobbered player
+        // self-heals over a few syncs as the cap floor ratchets up.
+        var maxAllowed = Math.Max(highestLevel * 250, (int)(progress.TotalCoinsEarned * 1.5));
+        if (totalCoinsEarned > maxAllowed)
+            totalCoinsEarned = maxAllowed;
     }
 
-    // Coins-earned is monotonic: never let the stored value go down.
-    // Without this ratchet, the sanity cap above clobbers legitimate
-    // veteran players whose tce/hl ratio drifts above 250 (from daily
-    // quests, login-streak rewards, milestone bonuses), dropping their
-    // TotalCoinsEarned to hl*100 below MonthlyCoinsStart and silently
-    // filtering them off the monthly points leaderboard.
+    // Ratchet: tce is monotonic — never let stored value go down.
     if (totalCoinsEarned < progress.TotalCoinsEarned)
         totalCoinsEarned = progress.TotalCoinsEarned;
 
