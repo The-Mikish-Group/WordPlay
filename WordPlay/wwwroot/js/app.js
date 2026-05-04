@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "2.0.1";
+const APP_VERSION = "2.0.2";
 
 // ---- THEMES ----
 const THEMES = {
@@ -2194,6 +2194,16 @@ function checkAutoCompleteWords() {
                 standalone: !!p.standalone,
             });
             if (p.standalone) state.standaloneFound = true;
+            // Mirror handleWord's per-word reward. Without this, words
+            // completed via revealed cells (hints/targets/rockets) only
+            // tick quest progress and silently skip the coin award —
+            // hint-blasting a level then yields ~1 coin (the level-up
+            // reward) instead of the real per-word total, and the
+            // monthly points board stops moving for active hint users.
+            const flow = !state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel);
+            const wordReward = p.standalone ? (flow ? 200 : 100) : (flow ? 3 : 1);
+            state.coins += wordReward;
+            state.totalCoinsEarned += wordReward;
             changed = true;
         }
     }
