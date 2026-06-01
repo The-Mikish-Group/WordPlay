@@ -2906,6 +2906,10 @@ function formatCompact(n) {
 
 function renderCurrentScreen() {
     const app = document.getElementById("app");
+    if (state.showHoneycomb) {
+        renderHoneycomb();
+        return;
+    }
     if (state.showQuest) {
         renderQuestScreen();
         return;
@@ -2994,6 +2998,7 @@ function renderQuestSideButton(q, qDef) {
 
 function renderHome() {
     const app = document.getElementById("app");
+    if (state.showHoneycomb) { renderHoneycomb(); return; }
     if (state.showQuest) { renderQuestScreen(); return; }
     // Pick a random background each time we visit the home screen
     _homeBgKey = pickRandomBgKey();
@@ -3086,6 +3091,26 @@ function renderHome() {
                     }
                 }
                 return '';
+            })()}
+            ${(function () {
+                const puzzle = (typeof getTodaysHoneycomb === "function") ? getTodaysHoneycomb() : null;
+                if (!puzzle) return ""; // data not loaded yet; re-render fires on load
+                if (typeof ensureHoneycombToday === "function") ensureHoneycombToday();
+                const ring = HoneycombCore.ringPct(state.honeycomb.score, puzzle.maxScore);
+                const rankIdx = HoneycombCore.currentRankIndex(state.honeycomb.score, puzzle.maxScore);
+                const untouched = state.honeycomb.found.length === 0;
+                return '<div class="activity-rail activity-rail-left">'
+                    + renderActivityButton({
+                        action: "open-honeycomb",
+                        icon: honeycombIcon(puzzle.center),
+                        ringPct: ring,
+                        pill: ring + "%",
+                        badge: rankIdx === 6 ? "👑" : null,
+                        waiting: false,
+                        glow: untouched,
+                        title: "Honeycomb — " + HoneycombCore.RANKS[rankIdx].name + " · " + state.honeycomb.score + " pts"
+                    })
+                    + '</div>';
             })()}
             <div class="home-bottom">
                 <div class="home-bottom-btns">
@@ -3191,6 +3216,12 @@ function renderHome() {
         el.addEventListener("click", () => {
             state.showQuest = true;
             renderHome();
+        });
+    });
+    document.querySelectorAll("[data-action='open-honeycomb']").forEach(el => {
+        el.addEventListener("click", () => {
+            state.showHoneycomb = true;
+            renderHoneycomb();
         });
     });
 }
@@ -8686,6 +8717,11 @@ async function init() {
         const manifest = await window.quests.loadQuestsManifest();
         const changed = window.quests.activateQuestForToday(manifest, getTodayStr());
         if (changed) saveProgress();
+    }
+    if (typeof loadHoneycombData === "function") {
+        loadHoneycombData().then(() => {
+            if (state.showHome && typeof renderHome === "function") renderHome();
+        });
     }
     checkLoginStreak();
 
