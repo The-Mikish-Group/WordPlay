@@ -365,4 +365,5 @@ window.quests = {
     tickProgress,
     getCachedManifest: () => _questsManifest,
     GOAL_TEMPLATES,
+    _showRewardPopup,
 };
