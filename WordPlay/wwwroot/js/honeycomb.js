@@ -62,9 +62,11 @@ function honeycombSubmit(puzzle, word) {
     let rankNames = [];
     for (const ri of newRanks) {
         const reward = HoneycombCore.rewardForRank(ri);
-        if (reward.coins) {
-            state.coins = (state.coins || 0) + reward.coins;
-            state.totalCoinsEarned = (state.totalCoinsEarned || 0) + reward.coins;
+        let rankCoins = reward.coins || 0;
+        if (typeof hivePerks === "function") rankCoins += hivePerks().honeycombCoins;
+        if (rankCoins) {
+            state.coins = (state.coins || 0) + rankCoins;
+            state.totalCoinsEarned = (state.totalCoinsEarned || 0) + rankCoins;
         }
         if (reward.jars) {
             if (state.quest) {
@@ -77,6 +79,8 @@ function honeycombSubmit(puzzle, word) {
         rankNames.push(HoneycombCore.RANKS[ri].name);
     }
     if (typeof saveProgress === "function") saveProgress();
+    if (typeof recordActivityForDiscovery === "function") recordActivityForDiscovery();
+    if (newRanks.length && typeof checkBeeMilestones === "function") checkBeeMilestones();
     return {
         ok: true,
         points: pts,

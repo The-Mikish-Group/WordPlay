@@ -2053,7 +2053,8 @@ function handleWord(word) {
         // Auto-complete any crossing words whose cells are all now visible
         const beforeAuto = state.foundWords.length;
         while (checkAutoCompleteWords()) {}
-        const wordReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 3 : 1;
+        let wordReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 3 : 1;
+        if (!state.isDailyMode && !state.isBonusMode && typeof hivePerks === "function") wordReward += hivePerks().coinPerWord;
         state.coins += wordReward;
         state.totalCoinsEarned += wordReward;
         if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
@@ -2233,7 +2234,8 @@ function checkAutoCompleteWords() {
             // reward) instead of the real per-word total, and the
             // monthly points board stops moving for active hint users.
             const flow = !state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel);
-            const wordReward = p.standalone ? (flow ? 200 : 100) : (flow ? 3 : 1);
+            let wordReward = p.standalone ? (flow ? 200 : 100) : (flow ? 3 : 1);
+            if (!state.isDailyMode && !state.isBonusMode && typeof hivePerks === "function") wordReward += hivePerks().coinPerWord;
             state.coins += wordReward;
             state.totalCoinsEarned += wordReward;
             changed = true;
@@ -8748,6 +8750,7 @@ async function init() {
             if (state.showHome && typeof renderHome === "function") renderHome();
         });
     }
+    if (typeof grantDailyHivePerks === "function") grantDailyHivePerks();
     checkLoginStreak();
 
     // Auth init + sync pull.  initAuth() is now async because it may need to

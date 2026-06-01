@@ -260,6 +260,11 @@ function tickProgress(event, payload) {
             if (state.quest && reward.jars) {
                 state.quest.jars = (state.quest.jars || 0) + reward.jars;
             }
+            if (state.quest && typeof hivePerks === "function") {
+                const bonus = hivePerks().honeyPerGoal;
+                if (bonus) state.quest.jars = (state.quest.jars || 0) + bonus;
+            }
+            if (typeof recordActivityForDiscovery === "function") recordActivityForDiscovery();
         }
     }
 
