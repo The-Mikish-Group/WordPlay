@@ -80,3 +80,20 @@ test("rewardForRank: Queen Bee pays coins + jars, Worker pays nothing", () => {
   assert.ok(core.rewardForRank(6).coins > 0);
   assert.ok(core.rewardForRank(6).jars > 0);
 });
+
+test("pickDailyIndex: deterministic for a given date + pool size", () => {
+  const a = core.pickDailyIndex("2026-06-01", 400);
+  const b = core.pickDailyIndex("2026-06-01", 400);
+  assert.strictEqual(a, b);
+  assert.ok(a >= 0 && a < 400);
+});
+
+test("pickDailyIndex: different dates usually differ", () => {
+  const a = core.pickDailyIndex("2026-06-01", 400);
+  const b = core.pickDailyIndex("2026-06-02", 400);
+  assert.notStrictEqual(a, b);
+});
+
+test("pickDailyIndex: empty pool returns 0", () => {
+  assert.strictEqual(core.pickDailyIndex("2026-06-01", 0), 0);
+});

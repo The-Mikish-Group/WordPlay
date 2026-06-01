@@ -95,6 +95,15 @@
     return RANK_REWARDS[index] || {};
   }
 
+  // djb2 string hash -> stable daily puzzle index.
+  function pickDailyIndex(dateStr, poolLength) {
+    if (!poolLength) return 0;
+    var h = 5381;
+    var s = String(dateStr);
+    for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+    return h % poolLength;
+  }
+
   var api = {
     RANKS: RANKS,
     RANK_REWARDS: RANK_REWARDS,
@@ -105,7 +114,8 @@
     currentRankIndex: currentRankIndex,
     ringPct: ringPct,
     newlyReachedRanks: newlyReachedRanks,
-    rewardForRank: rewardForRank
+    rewardForRank: rewardForRank,
+    pickDailyIndex: pickDailyIndex
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
