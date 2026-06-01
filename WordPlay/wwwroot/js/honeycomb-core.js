@@ -5,6 +5,28 @@
 (function (global) {
   "use strict";
 
+  // Rank ladder: each rank is a fraction of the puzzle's maxScore.
+  var RANKS = [
+    { name: "Worker",    pct: 0.00 },
+    { name: "Forager",   pct: 0.10 },
+    { name: "Builder",   pct: 0.20 },
+    { name: "Drone",     pct: 0.35 },
+    { name: "Keeper",    pct: 0.50 },
+    { name: "Royal",     pct: 0.70 },
+    { name: "Queen Bee", pct: 0.90 }
+  ];
+
+  // Reward paid the first time each rank index is reached, once per day. Tunable.
+  var RANK_REWARDS = [
+    {},                       // 0 Worker
+    { coins: 3 },             // 1 Forager
+    { coins: 5 },             // 2 Builder
+    { coins: 8 },             // 3 Drone
+    { coins: 12 },            // 4 Keeper
+    { coins: 15, jars: 10 },  // 5 Royal
+    { coins: 25, jars: 20 }   // 6 Queen Bee
+  ];
+
   function scoreWord(word, letters) {
     var w = String(word).toUpperCase();
     var base = w.length === 4 ? 1 : w.length;
@@ -42,10 +64,48 @@
     return { ok: true };
   }
 
+  function rankThresholds(maxScore) {
+    return RANKS.map(function (r) {
+      return { name: r.name, at: Math.ceil(maxScore * r.pct) };
+    });
+  }
+
+  function currentRankIndex(score, maxScore) {
+    var t = rankThresholds(maxScore), idx = 0;
+    for (var i = 0; i < t.length; i++) if (score >= t[i].at) idx = i;
+    return idx;
+  }
+
+  function ringPct(score, maxScore) {
+    var t = rankThresholds(maxScore);
+    var queen = t[t.length - 1].at;
+    if (queen <= 0) return 0;
+    return Math.min(100, Math.round((score / queen) * 100));
+  }
+
+  function newlyReachedRanks(score, maxScore, claimed) {
+    claimed = claimed || [];
+    var cur = currentRankIndex(score, maxScore);
+    var out = [];
+    for (var i = 1; i <= cur; i++) if (claimed.indexOf(i) === -1) out.push(i);
+    return out;
+  }
+
+  function rewardForRank(index) {
+    return RANK_REWARDS[index] || {};
+  }
+
   var api = {
+    RANKS: RANKS,
+    RANK_REWARDS: RANK_REWARDS,
     scoreWord: scoreWord,
     isPangram: isPangram,
-    validateWord: validateWord
+    validateWord: validateWord,
+    rankThresholds: rankThresholds,
+    currentRankIndex: currentRankIndex,
+    ringPct: ringPct,
+    newlyReachedRanks: newlyReachedRanks,
+    rewardForRank: rewardForRank
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
