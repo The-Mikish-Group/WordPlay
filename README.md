@@ -191,6 +191,20 @@ Pace adjustments (added to the base frequency number — higher = rarer):
 - 2-3 speed bonuses → +1 (slightly rarer)
 - 0-1 speed bonuses → no adjustment
 
+### The Hive (bee collection)
+
+A cozy meta-collection. Players discover bees by playing across all activities
+(levels, daily goals, Honeycomb) plus milestone unlocks, and equip up to 3 in an
+"active hive" for small passive perks (extra coins per word, honey per goal,
+Honeycomb coins, a daily free hint). Only equipped bees' perks apply, which
+bounds the total bonus regardless of collection size.
+
+- Pure logic: `wwwroot/js/bee-core.js` (registry, perks, equip rules, discovery,
+  milestones — unit-tested via `npm test`).
+- DOM/screen + acquisition: `wwwroot/js/bee-collection.js`.
+- Illustrated bee art is a follow-on (Plan 2B); the system runs on emoji
+  placeholders until then.
+
 ### Rescue Spin Wheel
 
 When you're stuck with no coins and no free hints, a spin wheel appears with 8 prize segments: free hints, targets, rockets, or coin prizes (50 or 100).
