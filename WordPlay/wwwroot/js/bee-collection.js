@@ -61,7 +61,10 @@ function checkBeeMilestones() {
     const ctx = {
         ownedIds: state.hive.bees,
         honeycombRankIndex: _honeycombRankIndexToday(),
-        questsCompleted: (state.questHistory ? state.questHistory.length : 0)
+        questsCompleted: (state.questHistory ? state.questHistory.length : 0),
+        dailyStreak: state.dailyStreak || 0,
+        difficultyTier: (typeof state.difficultyTier === "number") ? state.difficultyTier : -1,
+        highestLevel: state.highestLevel || 0
     };
     const ids = HiveCore.evaluateMilestones(ctx);
     for (const id of ids) grantBee(id, "Milestone!");
