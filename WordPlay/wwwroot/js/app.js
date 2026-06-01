@@ -2776,6 +2776,10 @@ async function advanceToNextLevel() {
             daily: !!state.isDailyMode,
         });
         checkSpeedMilestone();
+        if (!state.isDailyMode && !state.isBonusMode) {
+            if (typeof recordActivityForDiscovery === "function") recordActivityForDiscovery();
+            if (typeof checkBeeMilestones === "function") checkBeeMilestones();
+        }
         if (state.levelsCompleted % 10 === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
             else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
@@ -2835,6 +2839,10 @@ async function handleNextLevel() {
             speedBonus: !!_speedBonusEarned,
             daily: !!state.isDailyMode,
         });
+        if (!state.isDailyMode && !state.isBonusMode) {
+            if (typeof recordActivityForDiscovery === "function") recordActivityForDiscovery();
+            if (typeof checkBeeMilestones === "function") checkBeeMilestones();
+        }
         if (state.levelsCompleted % 10 === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
             else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
