@@ -202,8 +202,9 @@ bounds the total bonus regardless of collection size.
 - Pure logic: `wwwroot/js/bee-core.js` (registry, perks, equip rules, discovery,
   milestones — unit-tested via `npm test`).
 - DOM/screen + acquisition: `wwwroot/js/bee-collection.js`.
-- Illustrated bee art is a follow-on (Plan 2B); the system runs on emoji
-  placeholders until then.
+- Illustrated bee art: `tools/generate-bees.js` (fal.ai Flux → webp) from
+  `tools/bee-prompts.json` → `wwwroot/images/bees/*.webp` (lazy-loaded; emoji
+  fallback when an image is absent).
 
 ### Rescue Spin Wheel
 
