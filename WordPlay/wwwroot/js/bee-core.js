@@ -26,10 +26,38 @@
 
   function getBee(id) { return _byId[id] || null; }
 
+  var PERK_TYPES = ["coinPerWord", "honeyPerGoal", "honeycombCoins", "dailyHint"];
+
+  function activePerks(activeIds) {
+    var out = {};
+    for (var t = 0; t < PERK_TYPES.length; t++) out[PERK_TYPES[t]] = 0;
+    if (!activeIds) return out;
+    var limit = Math.min(activeIds.length, MAX_ACTIVE);
+    for (var i = 0; i < limit; i++) {
+      var bee = getBee(activeIds[i]);
+      if (!bee) continue;
+      out[bee.perk.type] = (out[bee.perk.type] || 0) + bee.perk.value;
+    }
+    return out;
+  }
+
+  function canEquip(hive, id) {
+    if (!hive) return false;
+    var bees = hive.bees || [];
+    var active = hive.active || [];
+    if (bees.indexOf(id) === -1) return false;       // must own it
+    if (active.indexOf(id) !== -1) return false;      // not already active
+    if (active.length >= MAX_ACTIVE) return false;    // hive full
+    return true;
+  }
+
   var api = {
     MAX_ACTIVE: MAX_ACTIVE,
     BEES: BEES,
-    getBee: getBee
+    getBee: getBee,
+    activePerks: activePerks,
+    canEquip: canEquip,
+    PERK_TYPES: PERK_TYPES
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
