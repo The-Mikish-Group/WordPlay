@@ -3322,3 +3322,10 @@ html, body {
 /* Two-button rails: stagger so they frame the Level button instead of pinching it. */
 .activity-rail-right { top: 44%; }
 .activity-rail-right .activity-btn:nth-child(2) { margin-top: 6px; }
+
+/* Illustrated bee art (Hive); falls back to .bee-art-emoji when missing. */
+.bee-art-img { object-fit: cover; border-radius: 50%; display: inline-block; vertical-align: middle; }
+.bee-art-card { width: 46px; height: 46px; }
+.bee-art-slot { width: 34px; height: 34px; }
+.bee-art-detail { width: 96px; height: 96px; }
+.bee-art-emoji { display: inline-block; line-height: 1; }
