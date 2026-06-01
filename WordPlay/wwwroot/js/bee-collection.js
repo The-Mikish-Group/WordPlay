@@ -109,11 +109,42 @@ function beeTierColor(tier) {
     return ({ common: "#cfcfd6", uncommon: "#8fd6a0", rare: "#6fb8ff", epic: "#c89bff", legendary: "#f4cf4a" })[tier] || "#cfcfd6";
 }
 
+// Lazily-loaded set of bee ids that have illustrated art. null until first load.
+let _beeArtManifest = null;
+
+function loadBeeArtManifest() {
+    if (_beeArtManifest) return Promise.resolve(_beeArtManifest);
+    return fetch("images/bees/bees-manifest.json")
+        .then(r => (r.ok ? r.json() : []))
+        .then(ids => { _beeArtManifest = new Set(Array.isArray(ids) ? ids : []); return _beeArtManifest; })
+        .catch(() => { _beeArtManifest = new Set(); return _beeArtManifest; });
+}
+
+// Returns illustrated <img> art for a bee if available, else the tier emoji span.
+function beeArt(bee, cls) {
+    if (_beeArtManifest && _beeArtManifest.has(bee.id)) {
+        return '<img class="bee-art-img ' + (cls || "") + '" src="images/bees/' + bee.id
+            + '.webp" alt="' + bee.name + '" onerror="beeArtFallback(this, \'' + bee.tier + '\')">';
+    }
+    return '<span class="bee-art-emoji">' + beeTierEmoji(bee.tier) + '</span>';
+}
+
+// onerror handler: replace a broken art <img> with the tier emoji.
+function beeArtFallback(img, tier) {
+    const span = document.createElement("span");
+    span.className = "bee-art-emoji";
+    span.textContent = beeTierEmoji(tier);
+    if (img && img.parentNode) img.parentNode.replaceChild(span, img);
+}
+
 // ---------- Hive / album screen ----------
 function renderHive() {
     const root = document.getElementById("app");
     if (!root) return;
     ensureHive();
+    if (!_beeArtManifest) {
+        loadBeeArtManifest().then(() => { if (state.showHive) renderHive(); });
+    }
     const h = state.hive;
     const all = HiveCore.BEES;
     const ownedSet = new Set(h.bees);
@@ -127,7 +158,7 @@ function renderHive() {
     for (let i = 0; i < HiveCore.MAX_ACTIVE; i++) {
         const id = h.active[i];
         slots.push(id
-            ? `<button class="hive-slot filled" data-unequip="${id}" style="border-color:${beeTierColor(HiveCore.getBee(id).tier)}"><span class="hive-slot-emoji">${beeTierEmoji(HiveCore.getBee(id).tier)}</span><span class="hive-slot-name">${HiveCore.getBee(id).name}</span></button>`
+            ? `<button class="hive-slot filled" data-unequip="${id}" style="border-color:${beeTierColor(HiveCore.getBee(id).tier)}"><span class="hive-slot-emoji">${beeArt(HiveCore.getBee(id), "bee-art-slot")}</span><span class="hive-slot-name">${HiveCore.getBee(id).name}</span></button>`
             : `<div class="hive-slot empty">+</div>`);
     }
 
@@ -139,7 +170,7 @@ function renderHive() {
         }
         const isActive = h.active.indexOf(b.id) !== -1;
         return `<button class="hive-card owned${isActive ? ' active' : ''}" data-bee="${b.id}" style="border-color:${beeTierColor(b.tier)}">
-            <div class="hive-card-art">${beeTierEmoji(b.tier)}</div>
+            <div class="hive-card-art">${beeArt(b, "bee-art-card")}</div>
             <div class="hive-card-name">${b.name}</div>
             <div class="hive-card-tier" style="color:${beeTierColor(b.tier)}">${b.tier}</div>
             ${isActive ? '<div class="hive-card-badge">Active</div>' : ''}
@@ -187,7 +218,7 @@ function _hiveShowDetail(id) {
     const el = document.getElementById("hive-detail");
     el.innerHTML = `
         <div class="hive-detail-card" style="border-color:${beeTierColor(b.tier)}">
-            <div class="hive-detail-art">${beeTierEmoji(b.tier)}</div>
+            <div class="hive-detail-art">${beeArt(b, "bee-art-detail")}</div>
             <div class="hive-detail-name">${b.name}</div>
             <div class="hive-detail-tier" style="color:${beeTierColor(b.tier)}">${b.tier}</div>
             <div class="hive-detail-perk">${perkLabel(b.perk)}</div>
