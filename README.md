@@ -136,6 +136,18 @@ A fresh puzzle shared by all players each day. A coin appears on one word in the
 
 Earned through achievements: completing a level pack, finishing 5 levels in an hour, maintaining a 3-day play streak, or beating the daily puzzle. Inside, 9 stars are scattered across the grid. Collect all 9 for a 500-coin grand prize. Leaving the puzzle forfeits progress.
 
+### Honeycomb (daily minigame)
+
+A daily Spelling-Bee-style word game reached from the hexagon button on the
+home screen. Players get 7 letters plus a required center letter and find as
+many valid words (4+ letters, must include the center letter) as they can,
+climbing a rank ladder (Worker → Queen Bee) for coins and Quest honey.
+
+- Pure logic: `wwwroot/js/honeycomb-core.js` (unit-tested via `npm test`).
+- DOM/screen: `wwwroot/js/honeycomb.js`.
+- Puzzles are precomputed: `tools/honeycomb-generator.js` → `wwwroot/data/honeycomb.json`.
+- Today's puzzle is chosen deterministically by date, identical for all players.
+
 ### Quests
 
 A themed 7-day Quest runs continuously. The narrative: **the player's bees forage in the current quest's setting and bring honey 🍯 back to the hive**. Each Daily Goal completed adds jars to the hive. As the hive fills past each threshold, that threshold's reward pays out automatically — coins, more bees, hints, targets, rockets.
