@@ -283,6 +283,23 @@ function mergeProgress(local, server) {
         merged.hc = hcL || hcS || null;
     }
 
+    // Hive/Collection: union discovered + seen (never lose a bee); local active; max progress.
+    const hvL = local.hv || null;
+    const hvS = server.hv || null;
+    if (hvL || hvS) {
+        const a = hvL || {}, b = hvS || {};
+        const union = (x, y) => Array.from(new Set([].concat(x || [], y || [])));
+        merged.hv = {
+            bees: union(a.bees, b.bees),
+            seen: union(a.seen, b.seen),
+            active: Array.isArray(a.active) && a.active.length ? a.active : (b.active || []),
+            progress: Math.max(a.progress || 0, b.progress || 0),
+            lastHintGrant: (a.lastHintGrant && b.lastHintGrant)
+                ? (a.lastHintGrant > b.lastHintGrant ? a.lastHintGrant : b.lastHintGrant)
+                : (a.lastHintGrant || b.lastHintGrant || null)
+        };
+    }
+
     // Bonus puzzle: prefer completed > more stars > available > null
     const bpL = local.bp || null;
     const bpS = server.bp || null;

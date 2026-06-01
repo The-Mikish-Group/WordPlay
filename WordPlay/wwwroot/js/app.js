@@ -173,6 +173,9 @@ const state = {
     // Honeycomb (daily Spelling-Bee minigame)
     honeycomb: null,       // { date, found:[], score, ranksClaimed:[] }
     showHoneycomb: false,  // transient: Honeycomb screen shown
+    // Bee Collection ("Active Hive")
+    hive: null,        // { bees:[], active:[], seen:[], progress:0, lastHintGrant:null }
+    showHive: false,   // transient: Hive/album screen shown
 };
 
 // ---- POWERUP CAPS ----
@@ -459,6 +462,7 @@ function resetStateToDefaults() {
     state.standaloneFound = false;
     state.dailyPuzzle = null;
     state.honeycomb = null;
+    state.hive = null;
     state.bonusPuzzle = null;
     state.bonusStarsTotal = 0;
     state.speedLevels = [];
@@ -1022,6 +1026,7 @@ function loadProgress() {
             state.dailyGoals = d.dg || null;
             state.questHistory = d.qh || [];
             state.honeycomb = d.hc || null;
+            state.hive = normalizeHive(d.hv);
 
             // v7→v8 migration: convert raw level numbers to display levels.
             // In v7, cl/hl included the tier offset. In v8, they store display
@@ -1124,10 +1129,28 @@ function saveProgress() {
             dg: state.dailyGoals,
             qh: state.questHistory,
             hc: state.honeycomb,
+            hv: state.hive,
             sa: Date.now(),  // savedAt — used by merge to resolve balance conflicts
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
     } catch (e) { /* ignore */ }
+}
+
+// Guarantee a well-formed hive object: all arrays present, active capped at 3
+// and limited to owned ids.
+function normalizeHive(h) {
+    h = h || {};
+    const bees = Array.isArray(h.bees) ? h.bees.slice() : [];
+    let active = Array.isArray(h.active) ? h.active.filter(id => bees.indexOf(id) !== -1) : [];
+    if (active.length > 3) active = active.slice(0, 3);
+    const seen = Array.isArray(h.seen) ? h.seen.filter(id => bees.indexOf(id) !== -1) : [];
+    return {
+        bees: bees,
+        active: active,
+        seen: seen,
+        progress: Number.isFinite(h.progress) ? h.progress : 0,
+        lastHintGrant: h.lastHintGrant || null
+    };
 }
 
 function saveInProgressState() {
