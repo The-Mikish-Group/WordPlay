@@ -83,3 +83,138 @@ function honeycombIcon(centerLetter) {
         + '<text x="15" y="20" text-anchor="middle" font-size="14" font-weight="800" fill="#2a1500" font-family="Nunito, sans-serif">'
         + centerLetter + '</text></svg>';
 }
+
+// Module-level input buffer for the word being assembled.
+let _hcTyped = "";
+let _hcOuterOrder = null; // shuffled outer-letter order
+
+function _hcOuterLetters(puzzle) {
+    return puzzle.letters.split("").filter(c => c !== puzzle.center);
+}
+
+function _hcRankLabel(puzzle) {
+    const idx = HoneycombCore.currentRankIndex(state.honeycomb.score, puzzle.maxScore);
+    return HoneycombCore.RANKS[idx].name;
+}
+
+function renderHoneycomb() {
+    const root = document.getElementById("app");
+    if (!root) return;
+    ensureHoneycombToday();
+    const puzzle = getTodaysHoneycomb();
+    if (!puzzle) {
+        root.innerHTML = '<div class="quest-screen"><button class="quest-close" data-action="close-honeycomb">✕</button>'
+            + '<div class="quest-screen-empty">Honeycomb is taking a break. Check back soon!</div></div>';
+        const c = root.querySelector("[data-action='close-honeycomb']");
+        if (c) c.addEventListener("click", _hcClose);
+        return;
+    }
+    if (!_hcOuterOrder) _hcOuterOrder = _hcOuterLetters(puzzle);
+
+    const ring = HoneycombCore.ringPct(state.honeycomb.score, puzzle.maxScore);
+    const rank = _hcRankLabel(puzzle);
+    const found = state.honeycomb.found.slice().sort();
+
+    root.innerHTML = `
+        <div class="quest-screen honeycomb-screen">
+            <button class="quest-close" data-action="close-honeycomb">✕</button>
+            <div class="quest-header">
+                <div class="quest-header-icon">🍯</div>
+                <div class="quest-header-name">Honeycomb</div>
+                <div class="quest-header-tagline">Find words using the 7 letters. Every word must use the center letter.</div>
+            </div>
+
+            <div class="hc-rankbar">
+                <div class="hc-rankbar-fill" style="width:${ring}%"></div>
+                <div class="hc-rankbar-label">${rank} · ${state.honeycomb.score} pts</div>
+            </div>
+
+            <div class="hc-typed" id="hc-typed">${_hcTyped || '&nbsp;'}</div>
+            <div class="hc-msg" id="hc-msg">&nbsp;</div>
+
+            <div class="hc-hex" id="hc-hex">
+                <button class="hc-letter hc-center" data-letter="${puzzle.center}">${puzzle.center}</button>
+                ${_hcOuterOrder.map(L => `<button class="hc-letter" data-letter="${L}">${L}</button>`).join("")}
+            </div>
+
+            <div class="hc-controls">
+                <button class="hc-btn" id="hc-delete">Delete</button>
+                <button class="hc-btn" id="hc-shuffle">Shuffle</button>
+                <button class="hc-btn hc-enter" id="hc-enter">Enter</button>
+            </div>
+
+            <div class="hc-found">
+                <div class="hc-found-head">Found ${found.length} word${found.length === 1 ? "" : "s"}</div>
+                <div class="hc-found-list">${found.map(w => `<span class="hc-found-word">${w}</span>`).join("")}</div>
+            </div>
+        </div>`;
+
+    _hcWire(puzzle);
+}
+
+function _hcWire(puzzle) {
+    const root = document.getElementById("app");
+    root.querySelectorAll(".hc-letter").forEach(b => {
+        b.addEventListener("click", () => {
+            _hcTyped += b.getAttribute("data-letter");
+            _hcUpdateTyped();
+        });
+    });
+    root.querySelector("#hc-delete").addEventListener("click", () => {
+        _hcTyped = _hcTyped.slice(0, -1);
+        _hcUpdateTyped();
+    });
+    root.querySelector("#hc-shuffle").addEventListener("click", () => {
+        for (let i = _hcOuterOrder.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [_hcOuterOrder[i], _hcOuterOrder[j]] = [_hcOuterOrder[j], _hcOuterOrder[i]];
+        }
+        renderHoneycomb();
+    });
+    root.querySelector("#hc-enter").addEventListener("click", () => _hcEnter(puzzle));
+    root.querySelector("[data-action='close-honeycomb']").addEventListener("click", _hcClose);
+}
+
+function _hcUpdateTyped() {
+    const el = document.getElementById("hc-typed");
+    if (el) el.innerHTML = _hcTyped || "&nbsp;";
+}
+
+function _hcMsg(text, kind) {
+    const el = document.getElementById("hc-msg");
+    if (!el) return;
+    el.textContent = text;
+    el.className = "hc-msg" + (kind ? " hc-msg-" + kind : "");
+}
+
+const _HC_REASONS = {
+    short: "Words must be at least 4 letters",
+    center: "Must use the center letter",
+    badletter: "That letter isn't in the hive",
+    notword: "Not in the word list",
+    dup: "Already found"
+};
+
+function _hcEnter(puzzle) {
+    const word = _hcTyped;
+    if (!word) return;
+    const res = honeycombSubmit(puzzle, word);
+    if (!res.ok) {
+        _hcMsg(_HC_REASONS[res.reason] || "Try another word", "bad");
+        _hcTyped = "";
+        _hcUpdateTyped();
+        return;
+    }
+    let msg = "+" + res.points;
+    if (res.pangram) msg = "PANGRAM! +" + res.points;
+    if (res.newRankNames.length) msg += " · " + res.newRankNames[res.newRankNames.length - 1] + "!";
+    _hcTyped = "";
+    renderHoneycomb();          // refresh score, rank bar, found list
+    _hcMsg(msg, res.pangram ? "pangram" : "good");
+}
+
+function _hcClose() {
+    state.showHoneycomb = false;
+    _hcTyped = "";
+    if (typeof renderHome === "function") renderHome();
+}
