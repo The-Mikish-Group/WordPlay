@@ -36,13 +36,18 @@ function getTodaysHoneycomb() {
 function ensureHoneycombToday() {
     const today = getTodayStr();
     if (!state.honeycomb || state.honeycomb.date !== today) {
-        state.honeycomb = { date: today, found: [], score: 0, ranksClaimed: [] };
+        state.honeycomb = { date: today, found: [], score: 0, ranksClaimed: [], pendingJars: 0 };
     }
 }
 
 // Attempt to submit a word. Returns a result object for the UI.
 function honeycombSubmit(puzzle, word) {
     ensureHoneycombToday();
+    // Flush any jars stashed while no quest was active.
+    if (state.honeycomb.pendingJars && state.quest) {
+        state.quest.jars = (state.quest.jars || 0) + state.honeycomb.pendingJars;
+        state.honeycomb.pendingJars = 0;
+    }
     const w = String(word).toUpperCase();
     const v = HoneycombCore.validateWord(w, puzzle);
     if (!v.ok) return v;
@@ -61,8 +66,12 @@ function honeycombSubmit(puzzle, word) {
             state.coins = (state.coins || 0) + reward.coins;
             state.totalCoinsEarned = (state.totalCoinsEarned || 0) + reward.coins;
         }
-        if (reward.jars && state.quest) {
-            state.quest.jars = (state.quest.jars || 0) + reward.jars;
+        if (reward.jars) {
+            if (state.quest) {
+                state.quest.jars = (state.quest.jars || 0) + reward.jars;
+            } else {
+                state.honeycomb.pendingJars = (state.honeycomb.pendingJars || 0) + reward.jars;
+            }
         }
         state.honeycomb.ranksClaimed.push(ri);
         rankNames.push(HoneycombCore.RANKS[ri].name);
@@ -109,7 +118,9 @@ function renderHoneycomb() {
         if (c) c.addEventListener("click", _hcClose);
         return;
     }
-    if (!_hcOuterOrder) _hcOuterOrder = _hcOuterLetters(puzzle);
+    if (!_hcOuterOrder || _hcOuterOrder.slice().sort().join("") !== _hcOuterLetters(puzzle).slice().sort().join("")) {
+        _hcOuterOrder = _hcOuterLetters(puzzle);
+    }
 
     const ring = HoneycombCore.ringPct(state.honeycomb.score, puzzle.maxScore);
     const rank = _hcRankLabel(puzzle);
@@ -216,5 +227,6 @@ function _hcEnter(puzzle) {
 function _hcClose() {
     state.showHoneycomb = false;
     _hcTyped = "";
+    _hcOuterOrder = null;
     if (typeof renderHome === "function") renderHome();
 }

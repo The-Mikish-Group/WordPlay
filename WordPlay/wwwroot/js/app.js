@@ -458,6 +458,7 @@ function resetStateToDefaults() {
     state.lastDailyClaim = null;
     state.standaloneFound = false;
     state.dailyPuzzle = null;
+    state.honeycomb = null;
     state.bonusPuzzle = null;
     state.bonusStarsTotal = 0;
     state.speedLevels = [];
