@@ -3318,3 +3318,7 @@ html, body {
 }
 .hive-btn:disabled { opacity: 0.5; cursor: default; }
 .hive-equip { background: var(--accent, #f4a535); color: #2a1500; }
+
+/* Two-button rails: stagger so they frame the Level button instead of pinching it. */
+.activity-rail-right { top: 44%; }
+.activity-rail-right .activity-btn:nth-child(2) { margin-top: 6px; }

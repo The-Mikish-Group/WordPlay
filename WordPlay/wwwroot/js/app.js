@@ -2944,6 +2944,10 @@ function renderCurrentScreen() {
         renderHoneycomb();
         return;
     }
+    if (state.showHive) {
+        renderHive();
+        return;
+    }
     if (state.showQuest) {
         renderQuestScreen();
         return;
@@ -3033,6 +3037,7 @@ function renderQuestSideButton(q, qDef) {
 function renderHome() {
     const app = document.getElementById("app");
     if (state.showHoneycomb) { renderHoneycomb(); return; }
+    if (state.showHive) { renderHive(); return; }
     if (state.showQuest) { renderQuestScreen(); return; }
     // Pick a random background each time we visit the home screen
     _homeBgKey = pickRandomBgKey();
@@ -3121,10 +3126,20 @@ function renderHome() {
                     const qDef = window.quests.getQuestDefinition(_qm, state.quest.id);
                     if (qDef) {
                         // Side rail can hold multiple quest buttons in the future.
-                        return '<div class="activity-rail activity-rail-right">' + renderQuestSideButton(state.quest, qDef) + '</div>';
+                        return '<div class="activity-rail activity-rail-right">'
+                            + renderQuestSideButton(state.quest, qDef)
+                            + (typeof renderHiveRailButton === "function" ? renderHiveRailButton() : "")
+                            + '</div>';
                     }
                 }
                 return '';
+            })()}
+            ${(function () {
+                // If the quest rail above didn't render (no active quest), still show the Hive button on the right.
+                const hasQuest = state.quest && window.quests && window.quests.getCachedManifest();
+                if (hasQuest) return "";
+                return (typeof renderHiveRailButton === "function")
+                    ? '<div class="activity-rail activity-rail-right">' + renderHiveRailButton() + '</div>' : "";
             })()}
             ${(function () {
                 const puzzle = (typeof getTodaysHoneycomb === "function") ? getTodaysHoneycomb() : null;
@@ -3256,6 +3271,12 @@ function renderHome() {
         el.addEventListener("click", () => {
             state.showHoneycomb = true;
             renderHoneycomb();
+        });
+    });
+    document.querySelectorAll("[data-action='open-hive']").forEach(el => {
+        el.addEventListener("click", () => {
+            state.showHive = true;
+            renderHive();
         });
     });
 }

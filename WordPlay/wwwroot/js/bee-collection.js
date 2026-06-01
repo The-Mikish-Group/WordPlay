@@ -221,3 +221,23 @@ function perkLabel(perk) {
         default: return "";
     }
 }
+
+// Right-rail Collection button (uses Slice 1's renderActivityButton).
+function renderHiveRailButton() {
+    ensureHive();
+    if (typeof HiveCore === "undefined") return "";
+    const total = HiveCore.BEES.length;
+    const owned = state.hive.bees.length;
+    const ring = total > 0 ? Math.round((owned / total) * 100) : 0;
+    const unseen = state.hive.bees.some(id => state.hive.seen.indexOf(id) === -1);
+    return renderActivityButton({
+        action: "open-hive",
+        icon: "🍯",
+        ringPct: ring,
+        pill: owned + "/" + total,
+        badge: unseen ? "!" : null,
+        waiting: false,
+        glow: unseen,
+        title: "The Hive — " + owned + " of " + total + " bees"
+    });
+}
