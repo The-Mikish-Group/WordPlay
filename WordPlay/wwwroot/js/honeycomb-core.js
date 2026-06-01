@@ -19,7 +19,34 @@
     return base;
   }
 
-  var api = { scoreWord: scoreWord };
+  function isPangram(word, letters) {
+    var w = String(word).toUpperCase();
+    var L = String(letters).toUpperCase();
+    var d = {};
+    for (var i = 0; i < w.length; i++) d[w[i]] = true;
+    for (var j = 0; j < L.length; j++) if (!d[L[j]]) return false;
+    return true;
+  }
+
+  // puzzle: { letters, center, wordSet: Set<UPPERCASE word> }
+  function validateWord(word, puzzle) {
+    var w = String(word).toUpperCase();
+    if (w.length < 4) return { ok: false, reason: "short" };
+    var center = String(puzzle.center).toUpperCase();
+    if (w.indexOf(center) === -1) return { ok: false, reason: "center" };
+    var allowed = {};
+    var L = String(puzzle.letters).toUpperCase();
+    for (var i = 0; i < L.length; i++) allowed[L[i]] = true;
+    for (var k = 0; k < w.length; k++) if (!allowed[w[k]]) return { ok: false, reason: "badletter" };
+    if (!puzzle.wordSet.has(w)) return { ok: false, reason: "notword" };
+    return { ok: true };
+  }
+
+  var api = {
+    scoreWord: scoreWord,
+    isPangram: isPangram,
+    validateWord: validateWord
+  };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   global.HoneycombCore = api;
