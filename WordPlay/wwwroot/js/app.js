@@ -3135,9 +3135,12 @@ function renderHome() {
                 return '';
             })()}
             ${(function () {
-                // If the quest rail above didn't render (no active quest), still show the Hive button on the right.
-                const hasQuest = state.quest && window.quests && window.quests.getCachedManifest();
-                if (hasQuest) return "";
+                // Show the Hive button alone on the right whenever the quest rail did NOT render
+                // (no quest, or the quest id doesn't resolve to a definition). This mirrors the
+                // quest block's render condition exactly so the Hive button renders exactly once.
+                const _qm = window.quests && window.quests.getCachedManifest();
+                const questRailShown = state.quest && _qm && window.quests.getQuestDefinition(_qm, state.quest.id);
+                if (questRailShown) return "";
                 return (typeof renderHiveRailButton === "function")
                     ? '<div class="activity-rail activity-rail-right">' + renderHiveRailButton() + '</div>' : "";
             })()}
