@@ -2936,37 +2936,52 @@ function _rewardIconList(r) {
     return parts.join(" ");
 }
 
-function renderQuestSideButton(q, qDef) {
-    // The side button reflects TODAY'S progress: how many of today's daily
-    // goals are claimed. The full quest ladder lives on the Quest screen.
-    // Keeping the side button to one metric prevents the contradiction
-    // where 💤 (all done today) coexisted with a 50% bar (progress toward
-    // next milestone — a different question).
-    const goals = (state.dailyGoals && state.dailyGoals.goals) || [];
-    const totalGoals = goals.length;
-    const completedGoals = goals.filter(g => g.claimed).length;
-    const pct = totalGoals > 0 ? Math.floor((completedGoals / totalGoals) * 100) : 0;
-    const allDone = totalGoals > 0 && completedGoals === totalGoals;
-
-    // SVG progress ring math: r=30 → circumference = 188.5
+// Reusable round home-screen activity button (icon + SVG progress ring + pill).
+// opts: { action, icon, ringPct, pill, badge, waiting, glow, title }
+function renderActivityButton(opts) {
+    const pct = Math.max(0, Math.min(100, Math.round(opts.ringPct || 0)));
     const CIRCUM = 188.5;
     const dashOffset = CIRCUM - (CIRCUM * pct / 100);
-
-    const titleText = qDef.name + " — Today: " + completedGoals + "/" + totalGoals + " goals" + (allDone ? " (all done — refreshes at midnight)" : "");
-
+    const cls = "activity-btn"
+        + (opts.waiting ? " activity-btn-waiting" : "")
+        + (opts.glow && !opts.waiting ? " activity-btn-glow" : "");
+    const pill = (opts.pill != null && opts.pill !== "")
+        ? '<span class="activity-pill">' + opts.pill + '</span>' : "";
+    const badge = opts.badge
+        ? '<span class="activity-badge" aria-hidden="true">' + opts.badge + '</span>' : "";
+    const title = (opts.title || "").replace(/"/g, "&quot;");
     return `
-    <button class="quest-side-btn ${allDone ? 'quest-side-waiting' : ''}" data-action="open-quest" title="${titleText.replace(/"/g, '&quot;')}">
-        <svg class="quest-progress-ring" width="68" height="68" viewBox="0 0 68 68">
+    <button class="${cls}" data-action="${opts.action}" title="${title}">
+        <svg class="activity-ring" width="68" height="68" viewBox="0 0 68 68">
             <circle cx="34" cy="34" r="30" stroke="rgba(255,255,255,0.20)" stroke-width="5" fill="none"></circle>
             <circle cx="34" cy="34" r="30" stroke="var(--accent, #f4a535)" stroke-width="5" fill="none"
                     stroke-dasharray="${CIRCUM}" stroke-dashoffset="${dashOffset}"
                     stroke-linecap="round" transform="rotate(-90 34 34)"></circle>
         </svg>
-        <span class="quest-side-icon">${qDef.icon || "🐝"}</span>
-        ${allDone
-            ? '<span class="quest-side-zzz" aria-hidden="true">💤</span>'
-            : '<span class="quest-side-pct">' + pct + '%</span>'}
+        <span class="activity-icon">${opts.icon}</span>
+        ${pill}${badge}
     </button>`;
+}
+
+function renderQuestSideButton(q, qDef) {
+    // Reflects TODAY'S progress: how many of today's daily goals are claimed.
+    const goals = (state.dailyGoals && state.dailyGoals.goals) || [];
+    const totalGoals = goals.length;
+    const completedGoals = goals.filter(g => g.claimed).length;
+    const pct = totalGoals > 0 ? Math.floor((completedGoals / totalGoals) * 100) : 0;
+    const allDone = totalGoals > 0 && completedGoals === totalGoals;
+    const titleText = qDef.name + " — Today: " + completedGoals + "/" + totalGoals + " goals"
+        + (allDone ? " (all done — refreshes at midnight)" : "");
+    return renderActivityButton({
+        action: "open-quest",
+        icon: qDef.icon || "🐝",
+        ringPct: pct,
+        pill: allDone ? null : (pct + "%"),
+        badge: allDone ? "💤" : null,
+        waiting: allDone,
+        glow: !allDone,
+        title: titleText
+    });
 }
 
 function renderHome() {
@@ -3059,7 +3074,7 @@ function renderHome() {
                     const qDef = window.quests.getQuestDefinition(_qm, state.quest.id);
                     if (qDef) {
                         // Side rail can hold multiple quest buttons in the future.
-                        return '<div class="quest-side-rail">' + renderQuestSideButton(state.quest, qDef) + '</div>';
+                        return '<div class="activity-rail activity-rail-right">' + renderQuestSideButton(state.quest, qDef) + '</div>';
                     }
                 }
                 return '';
