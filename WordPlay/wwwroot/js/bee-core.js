@@ -11,14 +11,41 @@
   // perk.type ∈ coinPerWord | honeyPerGoal | honeycombCoins | dailyHint
   // source: "discovery" | "milestone:<key>"
   var BEES = [
-    { id: "worker",   name: "Worker Bee",   tier: "common",    perk: { type: "coinPerWord",    value: 1 }, flavor: "The tireless backbone of the hive.",        source: "discovery" },
-    { id: "forager",  name: "Forager Bee",  tier: "common",    perk: { type: "honeyPerGoal",    value: 1 }, flavor: "Always returns with a little extra honey.",   source: "discovery" },
-    { id: "scout",    name: "Scout Bee",    tier: "uncommon",  perk: { type: "honeycombCoins",  value: 2 }, flavor: "First to find the sweetest words.",           source: "discovery" },
-    { id: "nurse",    name: "Nurse Bee",    tier: "uncommon",  perk: { type: "dailyHint",       value: 1 }, flavor: "Tends the brood and lends a daily hand.",     source: "discovery" },
-    { id: "drone",    name: "Drone Bee",    tier: "rare",      perk: { type: "coinPerWord",     value: 2 }, flavor: "Lazy, but lucky with coin.",                  source: "discovery" },
-    { id: "sentinel", name: "Sentinel Bee", tier: "rare",      perk: { type: "honeyPerGoal",    value: 2 }, flavor: "Guards the hive and hoards the honey.",       source: "discovery" },
-    { id: "regent",   name: "Regent Bee",   tier: "epic",      perk: { type: "honeycombCoins",  value: 5 }, flavor: "Rewards a true Honeycomb champion.",          source: "milestone:honeycombQueen" },
-    { id: "monarch",  name: "Monarch Bee",  tier: "legendary", perk: { type: "coinPerWord",     value: 3 }, flavor: "Crowned for completing a whole Quest.",       source: "milestone:questComplete" }
+    // Common (8) — discovery, value 1
+    { id: "worker",    name: "Worker Bee",    tier: "common",    perk: { type: "coinPerWord",   value: 1 }, flavor: "The tireless backbone of the hive.",            source: "discovery" },
+    { id: "forager",   name: "Forager Bee",   tier: "common",    perk: { type: "honeyPerGoal",  value: 1 }, flavor: "Always returns with a little extra honey.",       source: "discovery" },
+    { id: "gleaner",   name: "Gleaner Bee",   tier: "common",    perk: { type: "coinPerWord",   value: 1 }, flavor: "Never leaves a single crumb of nectar behind.",    source: "discovery" },
+    { id: "clover",    name: "Clover Bee",    tier: "common",    perk: { type: "honeyPerGoal",  value: 1 }, flavor: "Happiest in a field of lucky clover.",            source: "discovery" },
+    { id: "dewdrop",   name: "Dewdrop Bee",   tier: "common",    perk: { type: "honeycombCoins",value: 1 }, flavor: "Sips the morning dew before anyone wakes.",        source: "discovery" },
+    { id: "sprig",     name: "Sprig Bee",     tier: "common",    perk: { type: "honeycombCoins",value: 1 }, flavor: "A sprightly youngster, quick to the comb.",        source: "discovery" },
+    { id: "pollen",    name: "Pollen Bee",    tier: "common",    perk: { type: "coinPerWord",   value: 1 }, flavor: "Dusted head to toe in golden pollen.",            source: "discovery" },
+    { id: "blossom",   name: "Blossom Bee",   tier: "common",    perk: { type: "honeyPerGoal",  value: 1 }, flavor: "Drawn to the very first blossom of spring.",       source: "discovery" },
+    // Uncommon (8) — discovery, value 2 (+ dailyHint)
+    { id: "scout",     name: "Scout Bee",     tier: "uncommon",  perk: { type: "honeycombCoins",value: 2 }, flavor: "First to find the sweetest words.",               source: "discovery" },
+    { id: "nurse",     name: "Nurse Bee",     tier: "uncommon",  perk: { type: "dailyHint",     value: 1 }, flavor: "Tends the brood and lends a daily hand.",         source: "discovery" },
+    { id: "dancer",    name: "Dancer Bee",    tier: "uncommon",  perk: { type: "coinPerWord",   value: 2 }, flavor: "Waggles directions to the richest flowers.",      source: "discovery" },
+    { id: "gardener",  name: "Gardener Bee",  tier: "uncommon",  perk: { type: "honeyPerGoal",  value: 2 }, flavor: "Tends a secret garden behind the hive.",          source: "discovery" },
+    { id: "thistle",   name: "Thistle Bee",   tier: "uncommon",  perk: { type: "honeycombCoins",value: 2 }, flavor: "Thrives where the prickly thistles grow.",        source: "discovery" },
+    { id: "lavender",  name: "Lavender Bee",  tier: "uncommon",  perk: { type: "honeyPerGoal",  value: 2 }, flavor: "Carries the calming scent of lavender fields.",   source: "discovery" },
+    { id: "sunflower", name: "Sunflower Bee", tier: "uncommon",  perk: { type: "coinPerWord",   value: 2 }, flavor: "Turns to follow the sun all day long.",           source: "discovery" },
+    { id: "bramble",   name: "Bramble Bee",   tier: "uncommon",  perk: { type: "honeycombCoins",value: 2 }, flavor: "At home in the tangled bramble hedge.",           source: "discovery" },
+    // Rare (7) — discovery, value 2–3
+    { id: "drone",     name: "Drone Bee",     tier: "rare",      perk: { type: "coinPerWord",   value: 2 }, flavor: "Lazy, but lucky with coin.",                      source: "discovery" },
+    { id: "sentinel",  name: "Sentinel Bee",  tier: "rare",      perk: { type: "honeyPerGoal",  value: 2 }, flavor: "Guards the hive and hoards the honey.",           source: "discovery" },
+    { id: "amber",     name: "Amber Bee",     tier: "rare",      perk: { type: "coinPerWord",   value: 3 }, flavor: "Wings the warm gold of fossilized amber.",        source: "discovery" },
+    { id: "nectarine", name: "Nectarine Bee", tier: "rare",      perk: { type: "honeyPerGoal",  value: 3 }, flavor: "Sweetest forager in all the orchard.",            source: "discovery" },
+    { id: "honeydew",  name: "Honeydew Bee",  tier: "rare",      perk: { type: "honeycombCoins",value: 3 }, flavor: "Glistens with a coat of sticky honeydew.",        source: "discovery" },
+    { id: "dusk",      name: "Dusk Bee",      tier: "rare",      perk: { type: "dailyHint",     value: 1 }, flavor: "Forages by twilight when others rest.",           source: "discovery" },
+    { id: "marigold",  name: "Marigold Bee",  tier: "rare",      perk: { type: "coinPerWord",   value: 3 }, flavor: "Blazes bright as a marigold in bloom.",           source: "discovery" },
+    // Epic (4) — milestone
+    { id: "regent",    name: "Regent Bee",    tier: "epic",      perk: { type: "honeycombCoins",value: 5 }, flavor: "Rewards a true Honeycomb champion.",              source: "milestone:honeycombQueen" },
+    { id: "warden",    name: "Warden Bee",    tier: "epic",      perk: { type: "honeyPerGoal",  value: 4 }, flavor: "Keeps the hive's watch, day after faithful day.",  source: "milestone:dailyStreak7" },
+    { id: "artisan",   name: "Artisan Bee",   tier: "epic",      perk: { type: "honeycombCoins",value: 5 }, flavor: "Crafts comb of impossible precision.",            source: "milestone:tierHard" },
+    { id: "luminary",  name: "Luminary Bee",  tier: "epic",      perk: { type: "coinPerWord",   value: 4 }, flavor: "A legend whispered across five hundred meadows.",  source: "milestone:reachLevel500" },
+    // Legendary (3) — milestone
+    { id: "monarch",   name: "Monarch Bee",   tier: "legendary", perk: { type: "coinPerWord",   value: 3 }, flavor: "Crowned for completing a whole Quest.",           source: "milestone:questComplete" },
+    { id: "empress",   name: "Empress Bee",   tier: "legendary", perk: { type: "honeyPerGoal",  value: 5 }, flavor: "Beloved ruler of a hive made whole.",             source: "milestone:allCommons" },
+    { id: "solstice",  name: "Solstice Bee",  tier: "legendary", perk: { type: "honeycombCoins",value: 8 }, flavor: "The ancient golden bee of the longest day.",      source: "milestone:tierMaster" }
   ];
 
   var _byId = {};
@@ -104,6 +131,12 @@
     return out;
   }
 
+  function commonIds() {
+    var out = [];
+    for (var i = 0; i < BEES.length; i++) if (BEES[i].tier === "common") out.push(BEES[i].id);
+    return out;
+  }
+
   var api = {
     MAX_ACTIVE: MAX_ACTIVE,
     BEES: BEES,
@@ -115,7 +148,8 @@
     discoveryPool: discoveryPool,
     pickDiscovery: pickDiscovery,
     evaluateMilestones: evaluateMilestones,
-    MILESTONE_KEYS: MILESTONE_KEYS
+    MILESTONE_KEYS: MILESTONE_KEYS,
+    commonIds: commonIds
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;

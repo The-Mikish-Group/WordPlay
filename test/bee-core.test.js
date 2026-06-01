@@ -2,10 +2,13 @@ const test = require("node:test");
 const assert = require("node:assert");
 const core = require("../WordPlay/wwwroot/js/bee-core.js");
 
-test("BEES registry has the 8 starter bees with required fields", () => {
-  assert.strictEqual(core.BEES.length, 8);
+test("BEES registry has 30 bees with required fields", () => {
+  assert.strictEqual(core.BEES.length, 30);
+  const ids = new Set();
   for (const b of core.BEES) {
     assert.ok(b.id && typeof b.id === "string");
+    assert.ok(!ids.has(b.id), "duplicate id " + b.id);
+    ids.add(b.id);
     assert.ok(b.name && typeof b.name === "string");
     assert.ok(["common","uncommon","rare","epic","legendary"].includes(b.tier));
     assert.ok(["coinPerWord","honeyPerGoal","honeycombCoins","dailyHint"].includes(b.perk.type));
@@ -13,6 +16,18 @@ test("BEES registry has the 8 starter bees with required fields", () => {
     assert.ok(typeof b.flavor === "string" && b.flavor.length > 0);
     assert.ok(b.source === "discovery" || b.source.startsWith("milestone:"));
   }
+});
+
+test("registry tier counts are 8/8/7/4/3", () => {
+  const c = {};
+  for (const b of core.BEES) c[b.tier] = (c[b.tier] || 0) + 1;
+  assert.deepStrictEqual(c, { common: 8, uncommon: 8, rare: 7, epic: 4, legendary: 3 });
+});
+
+test("commonIds returns exactly the 8 common ids", () => {
+  const ids = core.commonIds();
+  assert.strictEqual(ids.length, 8);
+  for (const id of ids) assert.strictEqual(core.getBee(id).tier, "common");
 });
 
 test("getBee returns a bee by id, or null", () => {
