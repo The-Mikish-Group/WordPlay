@@ -51,13 +51,47 @@
     return true;
   }
 
+  var TIER_WEIGHT = { common: 100, uncommon: 45, rare: 18, epic: 6, legendary: 2 };
+
+  function tierWeight(tier) { return TIER_WEIGHT[tier] || 1; }
+
+  function discoveryPool() {
+    var out = [];
+    for (var i = 0; i < BEES.length; i++) if (BEES[i].source === "discovery") out.push(BEES[i].id);
+    return out;
+  }
+
+  // Weighted pick from discoveryPool minus ownedIds. rng() -> [0,1). Null if exhausted.
+  function pickDiscovery(ownedIds, rng) {
+    ownedIds = ownedIds || [];
+    var candidates = [];
+    var total = 0;
+    var pool = discoveryPool();
+    for (var i = 0; i < pool.length; i++) {
+      if (ownedIds.indexOf(pool[i]) !== -1) continue;
+      var w = tierWeight(getBee(pool[i]).tier);
+      candidates.push({ id: pool[i], w: w });
+      total += w;
+    }
+    if (candidates.length === 0) return null;
+    var r = (rng ? rng() : 0.5) * total;
+    for (var j = 0; j < candidates.length; j++) {
+      r -= candidates[j].w;
+      if (r < 0) return candidates[j].id;
+    }
+    return candidates[candidates.length - 1].id;
+  }
+
   var api = {
     MAX_ACTIVE: MAX_ACTIVE,
     BEES: BEES,
     getBee: getBee,
     activePerks: activePerks,
     canEquip: canEquip,
-    PERK_TYPES: PERK_TYPES
+    PERK_TYPES: PERK_TYPES,
+    tierWeight: tierWeight,
+    discoveryPool: discoveryPool,
+    pickDiscovery: pickDiscovery
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;

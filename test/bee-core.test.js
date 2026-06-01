@@ -54,3 +54,37 @@ test("canEquip: must be owned, not already active, fewer than 3 active", () => {
   assert.strictEqual(core.canEquip({ bees: owned, active: [] }, "regent"), false); // not owned
   assert.strictEqual(core.canEquip({ bees: owned, active: ["worker","drone","scout"] }, "nurse"), false); // full
 });
+
+test("discoveryPool is only discovery-source bees", () => {
+  const pool = core.discoveryPool();
+  assert.ok(pool.includes("worker"));
+  assert.ok(!pool.includes("regent"));   // milestone
+  assert.ok(!pool.includes("monarch"));  // milestone
+});
+
+test("pickDiscovery excludes owned and returns from the pool", () => {
+  // rng returns 0 -> first candidate after weighting expansion
+  const id = core.pickDiscovery(["worker", "forager"], () => 0);
+  assert.ok(core.discoveryPool().includes(id));
+  assert.ok(id !== "worker" && id !== "forager");
+});
+
+test("pickDiscovery returns null when the discovery pool is exhausted", () => {
+  const allDiscovery = core.discoveryPool();
+  assert.strictEqual(core.pickDiscovery(allDiscovery, () => 0), null);
+});
+
+test("pickDiscovery is weighted toward commons (statistical)", () => {
+  // Seeded-ish rng: cycle through fixed fractions; commons should dominate counts.
+  let n = 0;
+  const seq = [0.01, 0.2, 0.5, 0.8, 0.99];
+  const rng = () => seq[(n++) % seq.length];
+  const counts = {};
+  for (let i = 0; i < 500; i++) {
+    const id = core.pickDiscovery([], rng);
+    counts[id] = (counts[id] || 0) + 1;
+  }
+  const commons = (counts.worker || 0) + (counts.forager || 0);
+  const rares = (counts.drone || 0) + (counts.sentinel || 0);
+  assert.ok(commons > rares, `commons ${commons} should exceed rares ${rares}`);
+});
