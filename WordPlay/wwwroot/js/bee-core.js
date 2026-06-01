@@ -82,6 +82,28 @@
     return candidates[candidates.length - 1].id;
   }
 
+  // Milestone predicates. context is a plain facts object supplied by the DOM layer.
+  var MILESTONE_PREDICATES = {
+    honeycombQueen: function (ctx) { return (ctx.honeycombRankIndex || 0) >= 6; },
+    questComplete:  function (ctx) { return (ctx.questsCompleted || 0) >= 1; }
+  };
+  var MILESTONE_KEYS = Object.keys(MILESTONE_PREDICATES);
+
+  function evaluateMilestones(context) {
+    context = context || {};
+    var owned = context.ownedIds || [];
+    var out = [];
+    for (var i = 0; i < BEES.length; i++) {
+      var b = BEES[i];
+      if (b.source.indexOf("milestone:") !== 0) continue;
+      if (owned.indexOf(b.id) !== -1) continue;
+      var key = b.source.slice("milestone:".length);
+      var pred = MILESTONE_PREDICATES[key];
+      if (pred && pred(context)) out.push(b.id);
+    }
+    return out;
+  }
+
   var api = {
     MAX_ACTIVE: MAX_ACTIVE,
     BEES: BEES,
@@ -91,7 +113,9 @@
     PERK_TYPES: PERK_TYPES,
     tierWeight: tierWeight,
     discoveryPool: discoveryPool,
-    pickDiscovery: pickDiscovery
+    pickDiscovery: pickDiscovery,
+    evaluateMilestones: evaluateMilestones,
+    MILESTONE_KEYS: MILESTONE_KEYS
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;

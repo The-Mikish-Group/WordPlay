@@ -88,3 +88,33 @@ test("pickDiscovery is weighted toward commons (statistical)", () => {
   const rares = (counts.drone || 0) + (counts.sentinel || 0);
   assert.ok(commons > rares, `commons ${commons} should exceed rares ${rares}`);
 });
+
+test("evaluateMilestones returns satisfied, not-yet-owned milestone bees", () => {
+  // honeycombQueen requires rank index 6; questComplete requires >=1 quest done
+  assert.deepStrictEqual(
+    core.evaluateMilestones({ honeycombRankIndex: 6, questsCompleted: 0, ownedIds: [] }),
+    ["regent"]);
+  assert.deepStrictEqual(
+    core.evaluateMilestones({ honeycombRankIndex: 6, questsCompleted: 2, ownedIds: [] }).sort(),
+    ["monarch", "regent"]);
+});
+
+test("evaluateMilestones excludes already-owned bees", () => {
+  assert.deepStrictEqual(
+    core.evaluateMilestones({ honeycombRankIndex: 6, questsCompleted: 2, ownedIds: ["regent"] }),
+    ["monarch"]);
+});
+
+test("evaluateMilestones never returns discovery bees", () => {
+  const ids = core.evaluateMilestones({ honeycombRankIndex: 6, questsCompleted: 9, ownedIds: [] });
+  for (const id of ids) assert.strictEqual(core.getBee(id).source.startsWith("milestone:"), true);
+});
+
+test("every milestone key referenced by a bee has a predicate", () => {
+  for (const b of core.BEES) {
+    if (b.source.startsWith("milestone:")) {
+      const key = b.source.slice("milestone:".length);
+      assert.ok(core.MILESTONE_KEYS.includes(key), `missing predicate for ${key}`);
+    }
+  }
+});
