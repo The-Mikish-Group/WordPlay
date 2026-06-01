@@ -112,7 +112,17 @@
   // Milestone predicates. context is a plain facts object supplied by the DOM layer.
   var MILESTONE_PREDICATES = {
     honeycombQueen: function (ctx) { return (ctx.honeycombRankIndex || 0) >= 6; },
-    questComplete:  function (ctx) { return (ctx.questsCompleted || 0) >= 1; }
+    questComplete:  function (ctx) { return (ctx.questsCompleted || 0) >= 1; },
+    dailyStreak7:   function (ctx) { return (ctx.dailyStreak || 0) >= 7; },
+    tierHard:       function (ctx) { return (ctx.difficultyTier || 0) >= 2; },
+    tierMaster:     function (ctx) { return (ctx.difficultyTier || 0) >= 4; },
+    reachLevel500:  function (ctx) { return (ctx.highestLevel || 0) >= 500; },
+    allCommons:     function (ctx) {
+      var owned = ctx.ownedIds || [];
+      var commons = commonIds();
+      for (var i = 0; i < commons.length; i++) if (owned.indexOf(commons[i]) === -1) return false;
+      return true;
+    }
   };
   var MILESTONE_KEYS = Object.keys(MILESTONE_PREDICATES);
 

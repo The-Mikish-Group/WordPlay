@@ -133,3 +133,32 @@ test("every milestone key referenced by a bee has a predicate", () => {
     }
   }
 });
+
+test("new milestone predicates evaluate at their boundaries", () => {
+  const base = { ownedIds: [] };
+  assert.deepStrictEqual(core.evaluateMilestones({ ...base, dailyStreak: 7 }), ["warden"]);
+  assert.deepStrictEqual(core.evaluateMilestones({ ...base, dailyStreak: 6 }), []);
+  assert.deepStrictEqual(core.evaluateMilestones({ ...base, difficultyTier: 2 }), ["artisan"]);
+  assert.deepStrictEqual(core.evaluateMilestones({ ...base, difficultyTier: 4 }).sort(), ["artisan", "solstice"]);
+  assert.deepStrictEqual(core.evaluateMilestones({ ...base, highestLevel: 500 }), ["luminary"]);
+  assert.deepStrictEqual(core.evaluateMilestones({ ...base, highestLevel: 499 }), []);
+});
+
+test("allCommons milestone unlocks empress only when all 8 commons owned", () => {
+  const commons = core.commonIds();
+  assert.deepStrictEqual(core.evaluateMilestones({ ownedIds: commons }), ["empress"]);
+  // Missing one common -> not unlocked
+  assert.deepStrictEqual(core.evaluateMilestones({ ownedIds: commons.slice(1) }), []);
+});
+
+test("evaluateMilestones returns all 7 milestone bees for a maxed-out player", () => {
+  const ctx = {
+    ownedIds: core.commonIds(), // owns all commons (satisfies allCommons) but no milestone bees yet
+    honeycombRankIndex: 6, questsCompleted: 1,
+    dailyStreak: 7, difficultyTier: 4, highestLevel: 500
+  };
+  // All 7 milestone bees unlock at once (empress included via allCommons):
+  assert.deepStrictEqual(
+    core.evaluateMilestones(ctx).sort(),
+    ["artisan", "empress", "luminary", "monarch", "regent", "solstice", "warden"]);
+});
