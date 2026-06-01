@@ -270,6 +270,19 @@ function mergeProgress(local, server) {
         merged.dp = dpL || dpS || null;
     }
 
+    // Honeycomb: same date → higher score wins; different dates → later date.
+    const hcL = local.hc || null;
+    const hcS = server.hc || null;
+    if (hcL && hcS) {
+        if (hcL.date === hcS.date) {
+            merged.hc = (hcL.score || 0) >= (hcS.score || 0) ? hcL : hcS;
+        } else {
+            merged.hc = hcL.date > hcS.date ? hcL : hcS;
+        }
+    } else {
+        merged.hc = hcL || hcS || null;
+    }
+
     // Bonus puzzle: prefer completed > more stars > available > null
     const bpL = local.bp || null;
     const bpS = server.bp || null;

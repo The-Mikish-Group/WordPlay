@@ -170,6 +170,9 @@ const state = {
     quest: null,            // active quest state: { id, start, end, jars, claimedTiers }
     dailyGoals: null,       // today's goals: { date, goals: [{template, target, progress, claimed}] }
     questHistory: [],       // past quest summaries: [{ id, finalJars, tiersClaimed, completedAt }]
+    // Honeycomb (daily Spelling-Bee minigame)
+    honeycomb: null,       // { date, found:[], score, ranksClaimed:[] }
+    showHoneycomb: false,  // transient: Honeycomb screen shown
 };
 
 // ---- POWERUP CAPS ----
@@ -1017,6 +1020,7 @@ function loadProgress() {
             state.quest = d.q || null;
             state.dailyGoals = d.dg || null;
             state.questHistory = d.qh || [];
+            state.honeycomb = d.hc || null;
 
             // v7→v8 migration: convert raw level numbers to display levels.
             // In v7, cl/hl included the tier offset. In v8, they store display
@@ -1071,6 +1075,9 @@ function loadProgress() {
             if (state.dailyPuzzle && state.dailyPuzzle.date !== getTodayStr()) {
                 state.dailyPuzzle = null;
             }
+            if (state.honeycomb && state.honeycomb.date !== getTodayStr()) {
+                state.honeycomb = null;
+            }
         }
     } catch (e) { /* ignore */ }
 }
@@ -1115,6 +1122,7 @@ function saveProgress() {
             q: state.quest,
             dg: state.dailyGoals,
             qh: state.questHistory,
+            hc: state.honeycomb,
             sa: Date.now(),  // savedAt — used by merge to resolve balance conflicts
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
