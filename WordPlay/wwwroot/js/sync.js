@@ -300,6 +300,10 @@ function mergeProgress(local, server) {
         };
     }
 
+    // League XP: monotonic — take the max. Claimed weeks: union (never lose a marker).
+    merged.lxp = Math.max(local.lxp || 0, server.lxp || 0);
+    merged.lcw = Array.from(new Set([].concat(local.lcw || [], server.lcw || [])));
+
     // Bonus puzzle: prefer completed > more stars > available > null
     const bpL = local.bp || null;
     const bpS = server.bp || null;
