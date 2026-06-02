@@ -37,6 +37,7 @@ public class WordPlayDb : DbContext
             e.HasIndex(p => p.UserId).IsUnique();
             e.HasIndex(p => p.HighestLevel);
             e.HasOne(p => p.User).WithOne().HasForeignKey<UserProgress>(p => p.UserId);
+            e.Property(p => p.CurrentWeek).HasMaxLength(10);
         });
 
         modelBuilder.Entity<RabbitAssignment>(e =>

@@ -12,7 +12,7 @@ using WordPlay.Data;
 namespace WordPlay.Migrations
 {
     [DbContext(typeof(WordPlayDb))]
-    [Migration("20260602013251_AddLeagues")]
+    [Migration("20260602015248_AddLeagues")]
     partial class AddLeagues
     {
         /// <inheritdoc />
@@ -307,7 +307,8 @@ namespace WordPlay.Migrations
 
                     b.Property<string>("CurrentWeek")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<int>("HighestLevel")
                         .HasColumnType("int");

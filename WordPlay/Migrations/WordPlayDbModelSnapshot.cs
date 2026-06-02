@@ -304,7 +304,8 @@ namespace WordPlay.Migrations
 
                     b.Property<string>("CurrentWeek")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<int>("HighestLevel")
                         .HasColumnType("int");

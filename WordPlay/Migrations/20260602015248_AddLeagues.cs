@@ -21,7 +21,8 @@ namespace WordPlay.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "CurrentWeek",
                 table: "UserProgress",
-                type: "nvarchar(max)",
+                type: "nvarchar(10)",
+                maxLength: 10,
                 nullable: false,
                 defaultValue: "");
 
