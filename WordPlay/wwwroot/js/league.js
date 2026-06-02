@@ -70,6 +70,7 @@ async function claimAndCelebrate(results) {
     }
     if (applied) {
         if (typeof saveProgress === "function") saveProgress();
+        if (_leagueCache) _leagueCache.pendingResults = [];
         await claimLeague();
     }
 }
