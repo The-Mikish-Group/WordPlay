@@ -2964,6 +2964,10 @@ function formatCompact(n) {
 
 function renderCurrentScreen() {
     const app = document.getElementById("app");
+    if (state.showLeague) {
+        renderLeague();
+        return;
+    }
     if (state.showHoneycomb) {
         renderHoneycomb();
         return;
@@ -3060,6 +3064,7 @@ function renderQuestSideButton(q, qDef) {
 
 function renderHome() {
     const app = document.getElementById("app");
+    if (state.showLeague) { renderLeague(); return; }
     if (state.showHoneycomb) { renderHoneycomb(); return; }
     if (state.showHive) { renderHive(); return; }
     if (state.showQuest) { renderQuestScreen(); return; }
@@ -3170,13 +3175,13 @@ function renderHome() {
             })()}
             ${(function () {
                 const puzzle = (typeof getTodaysHoneycomb === "function") ? getTodaysHoneycomb() : null;
-                if (!puzzle) return ""; // data not loaded yet; re-render fires on load
-                if (typeof ensureHoneycombToday === "function") ensureHoneycombToday();
-                const ring = HoneycombCore.ringPct(state.honeycomb.score, puzzle.maxScore);
-                const rankIdx = HoneycombCore.currentRankIndex(state.honeycomb.score, puzzle.maxScore);
-                const untouched = state.honeycomb.found.length === 0;
-                return '<div class="activity-rail activity-rail-left">'
-                    + renderActivityButton({
+                let honeycombBtn = "";
+                if (puzzle) {
+                    if (typeof ensureHoneycombToday === "function") ensureHoneycombToday();
+                    const ring = HoneycombCore.ringPct(state.honeycomb.score, puzzle.maxScore);
+                    const rankIdx = HoneycombCore.currentRankIndex(state.honeycomb.score, puzzle.maxScore);
+                    const untouched = state.honeycomb.found.length === 0;
+                    honeycombBtn = renderActivityButton({
                         action: "open-honeycomb",
                         icon: honeycombIcon(puzzle.center),
                         ringPct: ring,
@@ -3185,8 +3190,11 @@ function renderHome() {
                         waiting: false,
                         glow: untouched,
                         title: "Honeycomb — " + HoneycombCore.RANKS[rankIdx].name + " · " + state.honeycomb.score + " pts"
-                    })
-                    + '</div>';
+                    });
+                }
+                const leagueBtn = (typeof renderLeagueRailButton === "function") ? renderLeagueRailButton() : "";
+                if (!honeycombBtn && !leagueBtn) return "";
+                return '<div class="activity-rail activity-rail-left">' + honeycombBtn + leagueBtn + '</div>';
             })()}
             <div class="home-bottom">
                 <div class="home-bottom-btns">
@@ -3304,6 +3312,13 @@ function renderHome() {
         el.addEventListener("click", () => {
             state.showHive = true;
             renderHive();
+        });
+    });
+    document.querySelectorAll("[data-action='open-league']").forEach(el => {
+        el.addEventListener("click", () => {
+            // renderLeague() handles both states: standings when signed in, sign-in invite when not.
+            state.showLeague = true;
+            renderLeague();
         });
     });
 }
@@ -8806,6 +8821,9 @@ async function init() {
         loadHoneycombData().then(() => {
             if (state.showHome && typeof renderHome === "function") renderHome();
         });
+    }
+    if (typeof loadLeague === "function") {
+        loadLeague(false).then(() => { if (state.showHome && typeof renderHome === "function") renderHome(); });
     }
     if (typeof grantDailyHivePerks === "function") grantDailyHivePerks();
     checkLoginStreak();
