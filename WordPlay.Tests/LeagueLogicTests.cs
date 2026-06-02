@@ -32,4 +32,48 @@ public class LeagueLogicTests
         Assert.Equal(0.0, LeagueLogic.WeekFraction(start), 3);
         Assert.InRange(LeagueLogic.WeekFraction(mid), 0.45, 0.55);
     }
+
+    [Fact]
+    public void RankEntrants_RanksDescending_StableTiebreakByIndex()
+    {
+        Assert.Equal(new[] { 3, 1, 2 }, LeagueLogic.RankEntrants(new long[] { 10, 30, 20 }));
+        Assert.Equal(new[] { 1, 2 }, LeagueLogic.RankEntrants(new long[] { 10, 10 })); // tie -> lower index first
+    }
+
+    [Fact]
+    public void OutcomeFor_PromotesTop_DemotesBottom_HoldsMiddle()
+    {
+        int count = 25, div = 2;
+        Assert.Equal("promoted", LeagueLogic.OutcomeFor(1, count, div));
+        Assert.Equal("promoted", LeagueLogic.OutcomeFor(7, count, div));
+        Assert.Equal("held", LeagueLogic.OutcomeFor(8, count, div));
+        Assert.Equal("held", LeagueLogic.OutcomeFor(20, count, div));
+        Assert.Equal("demoted", LeagueLogic.OutcomeFor(21, count, div));
+        Assert.Equal("demoted", LeagueLogic.OutcomeFor(25, count, div));
+    }
+
+    [Fact]
+    public void OutcomeFor_NoDemotionInLowestDivision()
+    {
+        Assert.Equal("held", LeagueLogic.OutcomeFor(25, 25, 0));
+        Assert.Equal("promoted", LeagueLogic.OutcomeFor(1, 25, 0));
+    }
+
+    [Fact]
+    public void DivisionAfter_ClampsAndMovesByOutcome()
+    {
+        Assert.Equal(3, LeagueLogic.DivisionAfter(2, "promoted"));
+        Assert.Equal(4, LeagueLogic.DivisionAfter(4, "promoted")); // capped at top
+        Assert.Equal(1, LeagueLogic.DivisionAfter(2, "demoted"));
+        Assert.Equal(0, LeagueLogic.DivisionAfter(0, "demoted"));  // floored
+        Assert.Equal(2, LeagueLogic.DivisionAfter(2, "held"));
+    }
+
+    [Fact]
+    public void DivisionName_CoversAllFive()
+    {
+        Assert.Equal("Clover", LeagueLogic.DivisionName(0));
+        Assert.Equal("Queen's Court", LeagueLogic.DivisionName(4));
+        Assert.Equal("Clover", LeagueLogic.DivisionName(99)); // out of range -> clamp to 0
+    }
 }

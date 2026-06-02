@@ -25,4 +25,39 @@ public static class LeagueLogic
         var total = TimeSpan.FromDays(7).TotalSeconds;
         return Math.Clamp(elapsed / total, 0.0, 1.0);
     }
+
+    // ---- Division names ----
+    private static readonly string[] DivisionNames =
+        { "Clover", "Blossom", "Sunflower", "Amber", "Queen's Court" };
+
+    public static string DivisionName(int division) =>
+        division >= 0 && division < Divisions ? DivisionNames[division] : DivisionNames[0];
+
+    // ---- Ranking ----
+
+    /// <summary>1-based ranks, highest score = rank 1, stable tiebreak by original index.</summary>
+    public static int[] RankEntrants(IReadOnlyList<long> scores)
+    {
+        var order = Enumerable.Range(0, scores.Count)
+            .OrderByDescending(i => scores[i]).ThenBy(i => i).ToArray();
+        var ranks = new int[scores.Count];
+        for (int r = 0; r < order.Length; r++) ranks[order[r]] = r + 1;
+        return ranks;
+    }
+
+    // ---- Outcomes and division moves ----
+
+    public static string OutcomeFor(int rank, int count, int division)
+    {
+        if (rank <= PromoteCount) return "promoted";
+        if (division > 0 && rank > count - DemoteCount) return "demoted";
+        return "held";
+    }
+
+    public static int DivisionAfter(int division, string outcome) => outcome switch
+    {
+        "promoted" => Math.Min(Divisions - 1, division + 1),
+        "demoted" => Math.Max(0, division - 1),
+        _ => division
+    };
 }
