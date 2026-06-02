@@ -61,6 +61,33 @@ public static class LeagueLogic
         _ => division
     };
 
+    // ---- Bot identity and XP ----
+
+    private static readonly string[] BotNames =
+    {
+        "Bramble","Pippin","Hazel","Maple","Tansy","Rowan","Sorrel","Dahlia",
+        "Fennel","Juniper","Marlow","Wren","Bracken","Posy","Linden","Cricket",
+        "Bromley","Saffron","Thatch","Nettle","Quill","Burrow","Comfrey","Sage"
+    };
+    private static readonly string[] BotAvatars =
+        { "dog","cat","fox","bear","panda","owl","frog","lion","monkey","octopus","butterfly","dragon" };
+
+    private static int Mod(int a, int m) => ((a % m) + m) % m;
+
+    public static int BotWeeklyXp(int division, int seed)
+    {
+        var rng = new Random(seed);
+        double lo = BotXpBase * (division + 1);
+        double hi = lo * 1.8;
+        return (int)Math.Round(lo + rng.NextDouble() * (hi - lo));
+    }
+
+    public static int BotRamped(int weeklyXp, double fraction) =>
+        (int)Math.Round(weeklyXp * Math.Clamp(fraction, 0.0, 1.0));
+
+    public static string BotName(int seed) => BotNames[Mod(seed, BotNames.Length)];
+    public static string BotAvatar(int seed) => "emoji:" + BotAvatars[Mod(seed * 7, BotAvatars.Length)];
+
     // ---- Rewards ----
 
     public static (int coins, int honey, string? beeId) RewardFor(int rank, string outcome, int division)

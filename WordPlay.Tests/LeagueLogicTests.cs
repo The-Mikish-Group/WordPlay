@@ -102,4 +102,29 @@ public class LeagueLogicTests
         Assert.True(promoted.coins > held.coins);
         Assert.True(promoted.honey > held.honey);
     }
+
+    [Fact]
+    public void BotWeeklyXp_IsDeterministic_AndScalesWithDivision()
+    {
+        Assert.Equal(LeagueLogic.BotWeeklyXp(2, 123), LeagueLogic.BotWeeklyXp(2, 123)); // deterministic
+        // Same seed -> higher division yields strictly higher XP (monotonic).
+        Assert.True(LeagueLogic.BotWeeklyXp(0, 55) < LeagueLogic.BotWeeklyXp(1, 55));
+        Assert.True(LeagueLogic.BotWeeklyXp(1, 55) < LeagueLogic.BotWeeklyXp(4, 55));
+    }
+
+    [Fact]
+    public void BotRamped_ScalesByFraction_Clamped()
+    {
+        Assert.Equal(0, LeagueLogic.BotRamped(1000, 0.0));
+        Assert.Equal(500, LeagueLogic.BotRamped(1000, 0.5));
+        Assert.Equal(1000, LeagueLogic.BotRamped(1000, 1.5)); // clamped
+    }
+
+    [Fact]
+    public void BotName_AndAvatar_AreDeterministicAndWellFormed()
+    {
+        Assert.Equal(LeagueLogic.BotName(7), LeagueLogic.BotName(7));
+        Assert.False(string.IsNullOrEmpty(LeagueLogic.BotName(7)));
+        Assert.StartsWith("emoji:", LeagueLogic.BotAvatar(7));
+    }
 }
