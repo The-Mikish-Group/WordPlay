@@ -45,7 +45,8 @@
     // Legendary (3) — milestone
     { id: "monarch",   name: "Monarch Bee",   tier: "legendary", perk: { type: "coinPerWord",   value: 3 }, flavor: "Crowned for completing a whole Quest.",           source: "milestone:questComplete" },
     { id: "empress",   name: "Empress Bee",   tier: "legendary", perk: { type: "honeyPerGoal",  value: 5 }, flavor: "Beloved ruler of a hive made whole.",             source: "milestone:allCommons" },
-    { id: "solstice",  name: "Solstice Bee",  tier: "legendary", perk: { type: "honeycombCoins",value: 8 }, flavor: "The ancient golden bee of the longest day.",      source: "milestone:tierMaster" }
+    { id: "solstice",  name: "Solstice Bee",  tier: "legendary", perk: { type: "honeycombCoins",value: 8 }, flavor: "The ancient golden bee of the longest day.",      source: "milestone:tierMaster" },
+    { id: "leaguechampion", name: "Champion Bee", tier: "legendary", perk: { type: "coinPerWord", value: 4 }, flavor: "Crowned victor of a weekly league.", source: "league" }
   ];
 
   var _byId = {};

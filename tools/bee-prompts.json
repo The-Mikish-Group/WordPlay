@@ -28,5 +28,6 @@
   "luminary":  { "desc": "a glowing legendary bee trailing soft light over a vast meadow", "palette": "luminous gold, soft white, meadow green" },
   "monarch":   { "desc": "a majestic crowned bee with grand shimmering wings on a flowering throne", "palette": "imperial gold, royal purple, deep amber" },
   "empress":   { "desc": "a beloved empress bee radiant amid a complete thriving hive", "palette": "radiant gold, rose, warm ivory" },
-  "solstice":  { "desc": "an ancient golden bee haloed by the midsummer sun", "palette": "blazing gold, sunrise orange, warm white" }
+  "solstice":  { "desc": "an ancient golden bee haloed by the midsummer sun", "palette": "blazing gold, sunrise orange, warm white" },
+  "leaguechampion": { "desc": "a triumphant champion bee wearing a golden crown and holding a tiny trophy, confetti drifting around", "palette": "champion gold, royal purple, trophy silver" }
 }

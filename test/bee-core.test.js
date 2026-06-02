@@ -2,8 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert");
 const core = require("../WordPlay/wwwroot/js/bee-core.js");
 
-test("BEES registry has 30 bees with required fields", () => {
-  assert.strictEqual(core.BEES.length, 30);
+test("BEES registry has 31 bees with required fields", () => {
+  assert.strictEqual(core.BEES.length, 31);
   const ids = new Set();
   for (const b of core.BEES) {
     assert.ok(b.id && typeof b.id === "string");
@@ -14,14 +14,14 @@ test("BEES registry has 30 bees with required fields", () => {
     assert.ok(["coinPerWord","honeyPerGoal","honeycombCoins","dailyHint"].includes(b.perk.type));
     assert.ok(Number.isFinite(b.perk.value));
     assert.ok(typeof b.flavor === "string" && b.flavor.length > 0);
-    assert.ok(b.source === "discovery" || b.source.startsWith("milestone:"));
+    assert.ok(b.source === "discovery" || b.source.startsWith("milestone:") || b.source === "league");
   }
 });
 
-test("registry tier counts are 8/8/7/4/3", () => {
+test("registry tier counts are 8/8/7/4/4", () => {
   const c = {};
   for (const b of core.BEES) c[b.tier] = (c[b.tier] || 0) + 1;
-  assert.deepStrictEqual(c, { common: 8, uncommon: 8, rare: 7, epic: 4, legendary: 3 });
+  assert.deepStrictEqual(c, { common: 8, uncommon: 8, rare: 7, epic: 4, legendary: 4 });
 });
 
 test("commonIds returns exactly the 8 common ids", () => {
@@ -161,4 +161,12 @@ test("evaluateMilestones returns all 7 milestone bees for a maxed-out player", (
   assert.deepStrictEqual(
     core.evaluateMilestones(ctx).sort(),
     ["artisan", "empress", "luminary", "monarch", "regent", "solstice", "warden"]);
+});
+
+test("leaguechampion is a league-source legendary, excluded from discovery and milestones", () => {
+  const bee = core.getBee("leaguechampion");
+  assert.strictEqual(bee.tier, "legendary");
+  assert.strictEqual(bee.source, "league");
+  assert.ok(!core.discoveryPool().includes("leaguechampion"));
+  assert.ok(!core.evaluateMilestones({ ownedIds: [], honeycombRankIndex: 6, questsCompleted: 9, dailyStreak: 7, difficultyTier: 4, highestLevel: 9999 }).includes("leaguechampion"));
 });

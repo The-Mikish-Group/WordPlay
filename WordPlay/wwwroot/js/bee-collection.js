@@ -165,7 +165,9 @@ function renderHive() {
     const cards = all.map(b => {
         const owned = ownedSet.has(b.id);
         if (!owned) {
-            const hint = b.source === "discovery" ? "Found by playing" : "Special achievement";
+            const hint = b.source === "discovery" ? "Found by playing"
+                : b.source === "league" ? "Win a weekly league"
+                : "Special achievement";
             return `<div class="hive-card locked"><div class="hive-card-art">❓</div><div class="hive-card-name">???</div><div class="hive-card-hint">${hint}</div></div>`;
         }
         const isActive = h.active.indexOf(b.id) !== -1;
