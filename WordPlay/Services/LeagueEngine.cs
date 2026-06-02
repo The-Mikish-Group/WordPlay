@@ -16,6 +16,9 @@ public static class LeagueEngine
     /// <summary>Settle the player's prior cohort (if any) and (re)assign them for the current week.</summary>
     public static async Task MaintainLeague(WordPlayDb db, int userId)
     {
+        // Assumes one in-flight maintain per user (sync is serialized per user) and a single
+        // DbContext per request; cross-user contention on the same cohort is rare at this scale.
+        // The unique LeagueResult(UserId, WeekId) index is the DB backstop against double settle.
         var progress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == userId);
         if (progress == null) return; // no progress row yet (player hasn't synced)
 
@@ -28,8 +31,8 @@ public static class LeagueEngine
             var oldCohort = await db.LeagueCohorts.FirstOrDefaultAsync(c => c.Id == progress.CohortId);
             if (oldCohort != null && oldCohort.SettledAt == null)
                 await SettleCohort(db, oldCohort);
-            // Reload progress: settlement may have changed LeagueDivision.
-            await db.Entry(progress).ReloadAsync();
+            // No reload needed: `progress` is the same EF-tracked instance SettleCohort
+            // updated (identity map), so its LeagueDivision is already current.
         }
 
         await AssignToCohort(db, progress, nowWeek, progress.LeagueDivision);
@@ -48,6 +51,8 @@ public static class LeagueEngine
         LeagueCohort? open = null;
         foreach (var c in candidates)
         {
+            // Openness is by REAL members only; bots are fillers a joining player displaces
+            // (below) to keep the cohort at CohortSize.
             var realCount = await db.UserProgress.CountAsync(p => p.CohortId == c.Id);
             if (realCount < LeagueLogic.CohortSize) { open = c; break; }
         }

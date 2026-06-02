@@ -12,7 +12,7 @@ using WordPlay.Data;
 namespace WordPlay.Migrations
 {
     [DbContext(typeof(WordPlayDb))]
-    [Migration("20260602015248_AddLeagues")]
+    [Migration("20260602022043_AddLeagues")]
     partial class AddLeagues
     {
         /// <inheritdoc />
@@ -162,6 +162,9 @@ namespace WordPlay.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserId", "Claimed");
+
+                    b.HasIndex("UserId", "WeekId")
+                        .IsUnique();
 
                     b.ToTable("LeagueResults");
                 });

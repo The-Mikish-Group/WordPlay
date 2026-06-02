@@ -96,6 +96,7 @@ public class WordPlayDb : DbContext
             e.Property(r => r.Outcome).HasMaxLength(10);
             e.Property(r => r.RewardBeeId).HasMaxLength(40);
             e.HasIndex(r => new { r.UserId, r.Claimed });
+            e.HasIndex(r => new { r.UserId, r.WeekId }).IsUnique();
         });
     }
 }

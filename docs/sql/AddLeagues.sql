@@ -1,7 +1,7 @@
 ﻿BEGIN TRANSACTION;
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     ALTER TABLE [UserProgress] ADD [CohortId] int NOT NULL DEFAULT 0;
@@ -9,7 +9,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     ALTER TABLE [UserProgress] ADD [CurrentWeek] nvarchar(10) NOT NULL DEFAULT N'';
@@ -17,7 +17,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     ALTER TABLE [UserProgress] ADD [LeagueDivision] int NOT NULL DEFAULT 0;
@@ -25,7 +25,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     ALTER TABLE [UserProgress] ADD [LeagueXp] int NOT NULL DEFAULT 0;
@@ -33,7 +33,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     ALTER TABLE [UserProgress] ADD [WeeklyXpStart] int NOT NULL DEFAULT 0;
@@ -41,7 +41,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     CREATE TABLE [LeagueBotMembers] (
@@ -57,7 +57,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     CREATE TABLE [LeagueCohorts] (
@@ -72,7 +72,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     CREATE TABLE [LeagueResults] (
@@ -93,7 +93,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     CREATE INDEX [IX_LeagueBotMembers_CohortId] ON [LeagueBotMembers] ([CohortId]);
@@ -101,7 +101,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     CREATE INDEX [IX_LeagueCohorts_WeekId_Division] ON [LeagueCohorts] ([WeekId], [Division]);
@@ -109,7 +109,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     CREATE INDEX [IX_LeagueResults_UserId_Claimed] ON [LeagueResults] ([UserId], [Claimed]);
@@ -117,11 +117,19 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260602015248_AddLeagues'
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_LeagueResults_UserId_WeekId] ON [LeagueResults] ([UserId], [WeekId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260602022043_AddLeagues'
 )
 BEGIN
     INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20260602015248_AddLeagues', N'10.0.7');
+    VALUES (N'20260602022043_AddLeagues', N'10.0.7');
 END;
 
 COMMIT;

@@ -160,6 +160,9 @@ namespace WordPlay.Migrations
 
                     b.HasIndex("UserId", "Claimed");
 
+                    b.HasIndex("UserId", "WeekId")
+                        .IsUnique();
+
                     b.ToTable("LeagueResults");
                 });
 

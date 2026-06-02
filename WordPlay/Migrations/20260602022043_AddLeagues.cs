@@ -116,6 +116,12 @@ namespace WordPlay.Migrations
                 name: "IX_LeagueResults_UserId_Claimed",
                 table: "LeagueResults",
                 columns: new[] { "UserId", "Claimed" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LeagueResults_UserId_WeekId",
+                table: "LeagueResults",
+                columns: new[] { "UserId", "WeekId" },
+                unique: true);
         }
 
         /// <inheritdoc />
