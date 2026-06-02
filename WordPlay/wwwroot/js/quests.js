@@ -265,6 +265,7 @@ function tickProgress(event, payload) {
                 if (bonus) state.quest.jars = (state.quest.jars || 0) + bonus;
             }
             if (typeof recordActivityForDiscovery === "function") recordActivityForDiscovery();
+            if (typeof addLeagueXp === "function") addLeagueXp(LEAGUE_XP.dailyGoal);
         }
     }
 

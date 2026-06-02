@@ -68,6 +68,7 @@ function honeycombSubmit(puzzle, word) {
             state.coins = (state.coins || 0) + rankCoins;
             state.totalCoinsEarned = (state.totalCoinsEarned || 0) + rankCoins;
         }
+        if (typeof addLeagueXp === "function") addLeagueXp(LEAGUE_XP.honeycombRank);
         if (reward.jars) {
             if (state.quest) {
                 state.quest.jars = (state.quest.jars || 0) + reward.jars;

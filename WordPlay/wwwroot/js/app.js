@@ -1965,6 +1965,7 @@ function handleDailyCompletion() {
     state.totalCoinsEarned += 100;
     _dailyCoinsEarned += 100;
     state.dailyPuzzle.completed = true;
+    if (typeof addLeagueXp === "function") addLeagueXp(LEAGUE_XP.dailyPuzzle);
     window.quests?.tickProgress("levelComplete", {
         flow: !!_currentLayoutIsFlow,
         hintsUsed: _hintsUsedThisLevel,
@@ -1980,6 +1981,7 @@ function handleDailyCompletion() {
 function handleBonusCompletion() {
     if (!state.bonusPuzzle || state.bonusPuzzle.completed) return;
     state.bonusPuzzle.completed = true;
+    if (typeof addLeagueXp === "function") addLeagueXp(LEAGUE_XP.bonusPuzzle);
     window.quests?.tickProgress("levelComplete", {
         flow: !!_currentLayoutIsFlow,
         hintsUsed: _hintsUsedThisLevel,
@@ -2022,6 +2024,8 @@ function handleWord(word) {
             const _hb = hivePerks().coinPerWord;
             if (_hb) { state.coins += _hb; state.totalCoinsEarned += _hb; }
         }
+        if (!state.isDailyMode && !state.isBonusMode && typeof addLeagueXp === "function")
+            addLeagueXp(LEAGUE_XP.standalone);
         if (state.isDailyMode) { _dailyCoinsEarned += coinWordReward; saveDailyState(); } else if (state.isBonusMode) { _bonusCoinsEarned += coinWordReward; saveBonusState(); } else saveProgress();
         renderGrid();
         highlightWord(w);
@@ -2071,6 +2075,8 @@ function handleWord(word) {
         if (!state.isDailyMode && !state.isBonusMode && typeof hivePerks === "function") wordReward += hivePerks().coinPerWord;
         state.coins += wordReward;
         state.totalCoinsEarned += wordReward;
+        if (!state.isDailyMode && !state.isBonusMode && typeof addLeagueXp === "function")
+            addLeagueXp(LEAGUE_XP.word + (w.length >= 5 ? LEAGUE_XP.longWordBonus : 0));
         if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
         renderGrid();
         highlightWord(w);
@@ -2114,6 +2120,8 @@ function handleWord(word) {
         const bonusReward = (!state.isDailyMode && !state.isBonusMode && isFlowLevel(state.currentLevel)) ? 15 : 5;
         state.coins += bonusReward;
         state.totalCoinsEarned += bonusReward;
+        if (!state.isDailyMode && !state.isBonusMode && typeof addLeagueXp === "function")
+            addLeagueXp(LEAGUE_XP.bonusWord);
         state.bonusCounter++;
         if (state.bonusCounter >= 10) {
             state.bonusCounter = 0;
@@ -2793,6 +2801,7 @@ async function advanceToNextLevel() {
         if (!state.isDailyMode && !state.isBonusMode) {
             if (typeof recordActivityForDiscovery === "function") recordActivityForDiscovery();
             if (typeof checkBeeMilestones === "function") checkBeeMilestones();
+            if (typeof addLeagueXp === "function") addLeagueXp(LEAGUE_XP.level);
         }
         if (state.levelsCompleted % 10 === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
@@ -2856,6 +2865,7 @@ async function handleNextLevel() {
         if (!state.isDailyMode && !state.isBonusMode) {
             if (typeof recordActivityForDiscovery === "function") recordActivityForDiscovery();
             if (typeof checkBeeMilestones === "function") checkBeeMilestones();
+            if (typeof addLeagueXp === "function") addLeagueXp(LEAGUE_XP.level);
         }
         if (state.levelsCompleted % 10 === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
