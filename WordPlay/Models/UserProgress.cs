@@ -12,5 +12,10 @@ public class UserProgress
     public int TotalCoinsEarned { get; set; }          // lifetime coins earned (for points leaderboard)
     public int MonthlyCoinsStart { get; set; }         // TotalCoinsEarned at start of current month
     public string CurrentMonth { get; set; } = "";     // e.g. "2026-02"
+    public int LeagueDivision { get; set; }       // 0..4, persists across weeks
+    public int LeagueXp { get; set; }             // lifetime monotonic (client "lxp")
+    public int WeeklyXpStart { get; set; }        // LeagueXp at start of CurrentWeek
+    public string CurrentWeek { get; set; } = ""; // "2026-W23"
+    public int CohortId { get; set; }             // this week's cohort (0 = none)
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

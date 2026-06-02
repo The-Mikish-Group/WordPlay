@@ -14,6 +14,9 @@ public class WordPlayDb : DbContext
     public DbSet<WordVote> WordVotes => Set<WordVote>();
     public DbSet<BannedWord> BannedWords => Set<BannedWord>();
     public DbSet<WordAuditLog> WordAuditLogs => Set<WordAuditLog>();
+    public DbSet<LeagueCohort> LeagueCohorts => Set<LeagueCohort>();
+    public DbSet<LeagueBotMember> LeagueBotMembers => Set<LeagueBotMember>();
+    public DbSet<LeagueResult> LeagueResults => Set<LeagueResult>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -71,6 +74,27 @@ public class WordPlayDb : DbContext
             e.Property(a => a.Action).HasMaxLength(10);
             e.HasIndex(a => a.CreatedAt);
             e.HasOne(a => a.Admin).WithMany().HasForeignKey(a => a.AdminId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<LeagueCohort>(e =>
+        {
+            e.Property(c => c.WeekId).HasMaxLength(10);
+            e.HasIndex(c => new { c.WeekId, c.Division });
+        });
+
+        modelBuilder.Entity<LeagueBotMember>(e =>
+        {
+            e.Property(b => b.Name).HasMaxLength(40);
+            e.Property(b => b.AvatarData).HasMaxLength(64);
+            e.HasIndex(b => b.CohortId);
+        });
+
+        modelBuilder.Entity<LeagueResult>(e =>
+        {
+            e.Property(r => r.WeekId).HasMaxLength(10);
+            e.Property(r => r.Outcome).HasMaxLength(10);
+            e.Property(r => r.RewardBeeId).HasMaxLength(40);
+            e.HasIndex(r => new { r.UserId, r.Claimed });
         });
     }
 }
