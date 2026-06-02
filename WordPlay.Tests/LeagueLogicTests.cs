@@ -74,7 +74,8 @@ public class LeagueLogicTests
     {
         Assert.Equal("Clover", LeagueLogic.DivisionName(0));
         Assert.Equal("Queen's Court", LeagueLogic.DivisionName(4));
-        Assert.Equal("Clover", LeagueLogic.DivisionName(99)); // out of range -> clamp to 0
+        Assert.Equal("Queen's Court", LeagueLogic.DivisionName(99)); // out of range -> clamp to top
+        Assert.Equal("Clover", LeagueLogic.DivisionName(-1)); // out of range -> clamp to bottom
     }
 
     [Fact]

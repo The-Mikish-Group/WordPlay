@@ -31,7 +31,7 @@ public static class LeagueLogic
         { "Clover", "Blossom", "Sunflower", "Amber", "Queen's Court" };
 
     public static string DivisionName(int division) =>
-        division >= 0 && division < Divisions ? DivisionNames[division] : DivisionNames[0];
+        DivisionNames[Math.Clamp(division, 0, Divisions - 1)];
 
     // ---- Ranking ----
 
