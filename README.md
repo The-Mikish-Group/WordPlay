@@ -206,6 +206,22 @@ bounds the total bonus regardless of collection size.
   `tools/bee-prompts.json` → `wwwroot/images/bees/*.webp` (lazy-loaded; emoji
   fallback when an image is absent).
 
+### Weekly Leagues
+
+A weekly competitive ladder. Players earn **League XP** across all activities
+(words, levels, Honeycomb ranks, daily goals) and are grouped into ~25-player
+weekly cohorts across five bee-themed divisions (Clover → Queen's Court).
+Top finishers promote, bottom finishers demote, and everyone earns coins, honey,
+and a chance at the exclusive **Champion Bee**. Cohorts are filled with AI bots so
+leagues feel alive at any playerbase size. Requires sign-in.
+
+- Backend engine (Slice 3A): `WordPlay/LeagueLogic.cs` (unit-tested) +
+  `WordPlay/Services/LeagueEngine.cs` (lazy weekly settlement) + the
+  `/api/league/me` and `/api/league/claim` endpoints.
+- Client (Slice 3B): `wwwroot/js/league.js` (standings screen, rail button,
+  reward claim) + per-activity XP hooks. The `leaguechampion` bee uses
+  `source: "league"` in the Collection registry.
+
 ### Rescue Spin Wheel
 
 When you're stuck with no coins and no free hints, a spin wheel appears with 8 prize segments: free hints, targets, rockets, or coin prizes (50 or 100).
