@@ -176,6 +176,10 @@ const state = {
     // Bee Collection ("Active Hive")
     hive: null,        // { bees:[], active:[], seen:[], progress:0, lastHintGrant:null }
     showHive: false,   // transient: Hive/album screen shown
+    // Weekly Leagues
+    leagueXp: 0,                 // lifetime monotonic League XP (sent as "lxp")
+    leagueClaimedWeeks: [],      // weekIds whose league reward was applied locally (sent as "lcw")
+    showLeague: false,           // transient: Leagues screen shown
 };
 
 // ---- POWERUP CAPS ----
@@ -463,6 +467,8 @@ function resetStateToDefaults() {
     state.dailyPuzzle = null;
     state.honeycomb = null;
     state.hive = null;
+    state.leagueXp = 0;
+    state.leagueClaimedWeeks = [];
     state.bonusPuzzle = null;
     state.bonusStarsTotal = 0;
     state.speedLevels = [];
@@ -1027,6 +1033,8 @@ function loadProgress() {
             state.questHistory = d.qh || [];
             state.honeycomb = d.hc || null;
             state.hive = normalizeHive(d.hv);
+            state.leagueXp = d.lxp || 0;
+            state.leagueClaimedWeeks = Array.isArray(d.lcw) ? d.lcw : [];
 
             // v7→v8 migration: convert raw level numbers to display levels.
             // In v7, cl/hl included the tier offset. In v8, they store display
@@ -1130,6 +1138,8 @@ function saveProgress() {
             qh: state.questHistory,
             hc: state.honeycomb,
             hv: state.hive,
+            lxp: state.leagueXp,
+            lcw: state.leagueClaimedWeeks,
             sa: Date.now(),  // savedAt — used by merge to resolve balance conflicts
         }));
         if (typeof scheduleSyncPush === "function") scheduleSyncPush();
