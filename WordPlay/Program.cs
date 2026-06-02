@@ -857,6 +857,86 @@ app.MapGet("/api/leaderboard", async (WordPlayDb db, int? top, string? period, s
 });
 
 // ============================================================
+// Weekly Leagues
+// ============================================================
+
+app.MapGet("/api/league/me", async (WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
+
+    await WordPlay.Services.LeagueEngine.MaintainLeague(db, userId.Value);
+
+    var progress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == userId);
+    if (progress == null || progress.CohortId == 0)
+        return Results.Ok(new { ready = false });
+
+    var cohort = await db.LeagueCohorts.FirstOrDefaultAsync(c => c.Id == progress.CohortId);
+    if (cohort == null) return Results.Ok(new { ready = false });
+
+    var nowCentral = WordPlay.Services.LeagueEngine.NowCentral();
+    var fraction = WordPlay.LeagueLogic.WeekFraction(nowCentral);
+    var weekEnd = WordPlay.LeagueLogic.WeekStart(nowCentral).AddDays(7);
+    var secondsToReset = (int)Math.Max(0, (weekEnd - nowCentral).TotalSeconds);
+
+    var reals = await db.UserProgress
+        .Where(p => p.CohortId == cohort.Id)
+        .Join(db.Users, p => p.UserId, u => u.Id, (p, u) => new
+        {
+            userId = p.UserId,
+            name = u.DisplayName,
+            avatar = u.AvatarData,
+            weeklyXp = p.LeagueXp - p.WeeklyXpStart,
+        })
+        .ToListAsync();
+
+    var bots = await db.LeagueBotMembers
+        .Where(b => b.CohortId == cohort.Id)
+        .Select(b => new { b.Name, b.AvatarData, b.WeeklyXp })
+        .ToListAsync();
+
+    var standings = reals
+        .Select(r => new { name = r.name ?? "Player", avatar = r.avatar, weeklyXp = Math.Max(0, r.weeklyXp), isYou = r.userId == userId, userId = (int?)r.userId })
+        .Concat(bots.Select(b => new { name = b.Name, avatar = b.AvatarData, weeklyXp = WordPlay.LeagueLogic.BotRamped(b.WeeklyXp, fraction), isYou = false, userId = (int?)null }))
+        .OrderByDescending(s => s.weeklyXp)
+        .ToList();
+
+    int yourRank = 0, yourXp = 0;
+    for (int i = 0; i < standings.Count; i++)
+        if (standings[i].isYou) { yourRank = i + 1; yourXp = standings[i].weeklyXp; }
+
+    var pending = await db.LeagueResults
+        .Where(r => r.UserId == userId && !r.Claimed)
+        .Select(r => new { r.WeekId, r.Division, r.Rank, r.Outcome, r.RewardCoins, r.RewardHoney, r.RewardBeeId })
+        .ToListAsync();
+
+    return Results.Ok(new
+    {
+        ready = true,
+        division = cohort.Division,
+        divisionName = WordPlay.LeagueLogic.DivisionName(cohort.Division),
+        weekId = cohort.WeekId,
+        secondsToReset,
+        you = new { weeklyXp = yourXp, rank = yourRank },
+        promoteRank = WordPlay.LeagueLogic.PromoteCount,
+        demoteRank = standings.Count - WordPlay.LeagueLogic.DemoteCount + 1,
+        standings = standings.Select(s => new { s.name, s.avatar, s.weeklyXp, s.isYou }).ToList(),
+        pendingResults = pending,
+    });
+}).RequireAuthorization();
+
+app.MapPost("/api/league/claim", async (WordPlayDb db, ClaimsPrincipal principal) =>
+{
+    var userId = GetUserId(principal);
+    if (userId == null) return Results.Unauthorized();
+
+    var unclaimed = await db.LeagueResults.Where(r => r.UserId == userId && !r.Claimed).ToListAsync();
+    foreach (var r in unclaimed) r.Claimed = true;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { claimed = unclaimed.Count });
+}).RequireAuthorization();
+
+// ============================================================
 // Contact endpoint
 // ============================================================
 
