@@ -76,4 +76,30 @@ public class LeagueLogicTests
         Assert.Equal("Queen's Court", LeagueLogic.DivisionName(4));
         Assert.Equal("Clover", LeagueLogic.DivisionName(99)); // out of range -> clamp to 0
     }
+
+    [Fact]
+    public void RewardFor_ScalesByRank_FirstGetsChampionBee()
+    {
+        var first = LeagueLogic.RewardFor(1, "held", 2);
+        Assert.True(first.coins >= 200);
+        Assert.Equal(30, first.honey);
+        Assert.Equal("leaguechampion", first.beeId);
+
+        var second = LeagueLogic.RewardFor(2, "held", 2);
+        Assert.Null(second.beeId);
+        Assert.True(second.coins < first.coins);
+
+        var mid = LeagueLogic.RewardFor(10, "held", 2);
+        var tail = LeagueLogic.RewardFor(20, "held", 2);
+        Assert.True(mid.coins >= tail.coins);
+    }
+
+    [Fact]
+    public void RewardFor_PromotionAddsBonus()
+    {
+        var held = LeagueLogic.RewardFor(15, "held", 1);
+        var promoted = LeagueLogic.RewardFor(15, "promoted", 1);
+        Assert.True(promoted.coins > held.coins);
+        Assert.True(promoted.honey > held.honey);
+    }
 }

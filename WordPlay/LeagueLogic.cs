@@ -60,4 +60,18 @@ public static class LeagueLogic
         "demoted" => Math.Max(0, division - 1),
         _ => division
     };
+
+    // ---- Rewards ----
+
+    public static (int coins, int honey, string? beeId) RewardFor(int rank, string outcome, int division)
+    {
+        int coins, honey; string? bee = null;
+        if (rank == 1) { coins = 200; honey = 30; bee = "leaguechampion"; }
+        else if (rank == 2) { coins = 120; honey = 20; }
+        else if (rank == 3) { coins = 80; honey = 15; }
+        else if (rank <= 10) { coins = 40; honey = 10; }
+        else { coins = 15; honey = 0; } // participation
+        if (outcome == "promoted") { coins += 50; honey += 10; }
+        return (coins, honey, bee);
+    }
 }
