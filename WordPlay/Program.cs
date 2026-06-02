@@ -496,6 +496,8 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
     if (progressEl.TryGetProperty("hl", out var hlEl)) highestLevel = hlEl.GetInt32();
     if (progressEl.TryGetProperty("lc", out var lcEl)) levelsCompleted = lcEl.GetInt32();
     if (progressEl.TryGetProperty("tce", out var tceEl)) totalCoinsEarned = tceEl.GetInt32();
+    int leagueXp = 0;
+    if (progressEl.TryGetProperty("lxp", out var lxpEl)) leagueXp = lxpEl.GetInt32();
 
     var progress = await db.UserProgress.FirstOrDefaultAsync(p => p.UserId == userId);
     if (progress == null)
@@ -601,6 +603,12 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
     progress.HighestLevel = highestLevel;
     progress.LevelsCompleted = levelsCompleted;
     progress.TotalCoinsEarned = totalCoinsEarned;
+    // League XP: monotonic ratchet + weekly sanity cap.
+    if (leagueXp < progress.LeagueXp) leagueXp = progress.LeagueXp;
+    var weeklyCapCeiling = progress.WeeklyXpStart + WordPlay.LeagueLogic.MaxWeeklyXp;
+    if (leagueXp > weeklyCapCeiling && weeklyCapCeiling >= progress.LeagueXp)
+        leagueXp = weeklyCapCeiling;
+    progress.LeagueXp = leagueXp;
     progress.UpdatedAt = DateTime.UtcNow;
 
     // Snapshot on level completion (new high-water mark)
@@ -786,6 +794,8 @@ app.MapPost("/api/progress", async (HttpRequest request, WordPlayDb db, ClaimsPr
 
     if (rabbitAssignments.Count > 0)
         await db.SaveChangesAsync();
+
+    await WordPlay.Services.LeagueEngine.MaintainLeague(db, userId.Value);
 
     return Results.Ok(new { updatedAt = progress.UpdatedAt });
 }).RequireAuthorization();
