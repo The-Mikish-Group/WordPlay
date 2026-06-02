@@ -89,6 +89,45 @@ public static class LeagueEngine
         await db.SaveChangesAsync();
     }
 
-    // SettleCohort added in the next task.
-    private static Task SettleCohort(WordPlayDb db, LeagueCohort cohort) => Task.CompletedTask;
+    /// <summary>Rank real members + bots, apply promote/demote + rewards. Idempotent via SettledAt.</summary>
+    private static async Task SettleCohort(WordPlayDb db, LeagueCohort cohort)
+    {
+        if (cohort.SettledAt != null) return;
+
+        var reals = await db.UserProgress.Where(p => p.CohortId == cohort.Id).ToListAsync();
+        var bots = await db.LeagueBotMembers.Where(b => b.CohortId == cohort.Id).ToListAsync();
+
+        // Combined score list: reals first, then bots (reals occupy indices 0..reals.Count-1).
+        var scores = new List<long>(reals.Count + bots.Count);
+        foreach (var p in reals) scores.Add(Math.Max(0, p.LeagueXp - p.WeeklyXpStart));
+        foreach (var b in bots) scores.Add(b.WeeklyXp);
+
+        var ranks = LeagueLogic.RankEntrants(scores);
+        var count = scores.Count;
+
+        for (int i = 0; i < reals.Count; i++)
+        {
+            var p = reals[i];
+            var rank = ranks[i];
+            var outcome = LeagueLogic.OutcomeFor(rank, count, cohort.Division);
+            p.LeagueDivision = LeagueLogic.DivisionAfter(cohort.Division, outcome);
+
+            var (coins, honey, beeId) = LeagueLogic.RewardFor(rank, outcome, cohort.Division);
+            db.LeagueResults.Add(new LeagueResult
+            {
+                UserId = p.UserId,
+                WeekId = cohort.WeekId,
+                Division = cohort.Division,
+                Rank = rank,
+                Outcome = outcome,
+                RewardCoins = coins,
+                RewardHoney = honey,
+                RewardBeeId = beeId,
+                Claimed = false,
+            });
+        }
+
+        cohort.SettledAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+    }
 }
