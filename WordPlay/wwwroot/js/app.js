@@ -832,7 +832,10 @@ function _flyBeeToCell(originPt, targetCell, delayMs) {
         // Cell not in DOM — just reveal without animation.
         setTimeout(() => {
             if (!state.revealedCells.includes(k)) state.revealedCells.push(k);
+            const before = state.foundWords.length;
+            while (checkAutoCompleteWords()) {}
             if (typeof renderGrid === "function") renderGrid();
+            _afterReveal(before, 700);
         }, delayMs);
         return;
     }
@@ -856,7 +859,10 @@ function _flyBeeToCell(originPt, targetCell, delayMs) {
     // Animation total = 800ms; reveal target ~80% through so it lands as the bee fades.
     setTimeout(() => {
         if (!state.revealedCells.includes(k)) state.revealedCells.push(k);
+        const before = state.foundWords.length;
+        while (checkAutoCompleteWords()) {}
         if (typeof renderGrid === "function") renderGrid();
+        _afterReveal(before, 700);
     }, delayMs + 700);
 
     // Cleanup after animation finishes.
@@ -2034,18 +2040,7 @@ function handleWord(word) {
         showToast("🪙 Coin Word! +100 🪙", theme.accent);
         setTimeout(() => animateCoinFlyFromStandalone(), 200);
         checkBonusStars(w);
-        if (state.foundWords.length === totalRequired) {
-            if (state.isBonusMode) {
-                handleBonusCompletion();
-            } else if (state.isDailyMode) {
-                handleDailyCompletion();
-            } else {
-                checkSpeedBonus();
-                delete state.inProgress[state.currentLevel];
-                saveProgress();
-                setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
-            }
-        }
+        _afterReveal(state.foundWords.length, 700);
         return;
     }
 
@@ -2088,24 +2083,7 @@ function handleWord(word) {
         renderSpinBtn();
         checkDailyCoinWord();
         checkBonusStars(w);
-        // Check stars for any auto-completed words
-        if (state.isBonusMode || _regularStarCells.length > 0) {
-            for (let i = beforeAuto; i < state.foundWords.length; i++) {
-                checkBonusStars(state.foundWords[i]);
-            }
-        }
-        if (state.foundWords.length === totalRequired) {
-            if (state.isBonusMode) {
-                handleBonusCompletion();
-            } else if (state.isDailyMode) {
-                handleDailyCompletion();
-            } else {
-                checkSpeedBonus();
-                delete state.inProgress[state.currentLevel];
-                saveProgress();
-                setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
-            }
-        }
+        _afterReveal(beforeAuto, 700);
         return;
     }
     if (bonusPool && bonusPool.includes(w)) {
@@ -2129,8 +2107,9 @@ function handleWord(word) {
             // Auto-reveal a random letter as reward
             const cell = pickRandomUnrevealedCell();
             if (cell) {
+                const _before = state.foundWords.length;
                 state.revealedCells.push(cell);
-                checkAutoCompleteWords();
+                while (checkAutoCompleteWords()) {}
                 if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
                 renderGrid();
                 renderCoins();
@@ -2142,18 +2121,7 @@ function handleWord(word) {
                 // Delayed flash so the grid renders first
                 setTimeout(() => flashHintCell(cell), 100);
                 checkDailyCoinWord();
-                if (state.foundWords.length === totalRequired) {
-                    if (state.isBonusMode) {
-                        handleBonusCompletion();
-                    } else if (state.isDailyMode) {
-                        handleDailyCompletion();
-                    } else {
-                        checkSpeedBonus();
-                        delete state.inProgress[state.currentLevel];
-                        saveProgress();
-                        setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 1200);
-                    }
-                }
+                _afterReveal(_before, 1200);
             } else {
                 if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
                 renderCoins();
@@ -2264,6 +2232,41 @@ function checkAutoCompleteWords() {
         }
     }
     return changed;
+}
+
+// Shared post-reveal handler. After cells are revealed by ANY means
+// (hint / target / rocket / bee / bonus-letter), this:
+//   1. counts on-board stars for every word that auto-completed since
+//      `beforeCount` — previously only the swipe path did this, so stars on
+//      hint/bee-completed words were silently dropped (bug), and
+//   2. detects + handles level completion — previously the bee landing never
+//      ran this, so bee-finished levels never advanced (bug).
+// `state._levelCompleting` guards against the staggered bee landings firing
+// the completion handler more than once.
+function _afterReveal(beforeCount, modalDelay) {
+    while (checkAutoCompleteWords()) {}
+    if (state.isBonusMode || _regularStarCells.length > 0) {
+        for (let i = beforeCount; i < state.foundWords.length; i++) {
+            checkBonusStars(state.foundWords[i]);
+        }
+    }
+    if (state.foundWords.length === totalRequired && !state.showComplete && !state._levelCompleting) {
+        if (state.isBonusMode) {
+            handleBonusCompletion();
+        } else if (state.isDailyMode) {
+            handleDailyCompletion();
+        } else {
+            state._levelCompleting = true;
+            checkSpeedBonus();
+            delete state.inProgress[state.currentLevel];
+            saveProgress();
+            setTimeout(() => {
+                state._levelCompleting = false;
+                state.showComplete = true;
+                renderCompleteModal();
+            }, modalDelay || 700);
+        }
+    }
 }
 
 function renderBonusStar() {
@@ -2588,8 +2591,9 @@ function handleHint() {
         kind: "hint",
         paid: !hasFree,
     });
+    const _before = state.foundWords.length;
     state.revealedCells.push(cell);
-    checkAutoCompleteWords();
+    while (checkAutoCompleteWords()) {}
     if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
     showToast(hasFree ? "💡 Free hint used!" : "💡 Letter revealed  −100 🪙");
     renderGrid();
@@ -2599,18 +2603,7 @@ function handleHint() {
     renderRocketBtn();
     renderSpinBtn();
     checkDailyCoinWord();
-    if (state.foundWords.length === totalRequired) {
-        if (state.isBonusMode) {
-            handleBonusCompletion();
-        } else if (state.isDailyMode) {
-            handleDailyCompletion();
-        } else {
-            checkSpeedBonus();
-            delete state.inProgress[state.currentLevel];
-            saveProgress();
-            setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
-        }
-    }
+    _afterReveal(_before, 700);
 }
 
 function handleTargetHint() {
@@ -2642,8 +2635,9 @@ function handlePickCell(key) {
         kind: "target",
         paid: !wasFree,
     });
+    const _before = state.foundWords.length;
     state.revealedCells.push(key);
-    checkAutoCompleteWords();
+    while (checkAutoCompleteWords()) {}
     if (state.isDailyMode) saveDailyState(); else if (state.isBonusMode) saveBonusState(); else saveProgress();
     showToast(wasFree ? "🎯 Free target used!" : "🎯 Letter placed!  −200 🪙");
     renderGrid();
@@ -2654,18 +2648,7 @@ function handlePickCell(key) {
     renderRocketBtn();
     renderSpinBtn();
     checkDailyCoinWord();
-    if (state.foundWords.length === totalRequired) {
-        if (state.isBonusMode) {
-            handleBonusCompletion();
-        } else if (state.isDailyMode) {
-            handleDailyCompletion();
-        } else {
-            checkSpeedBonus();
-            delete state.inProgress[state.currentLevel];
-            saveProgress();
-            setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700);
-        }
-    }
+    _afterReveal(_before, 700);
 }
 
 function cancelPickMode() {
@@ -4630,6 +4613,7 @@ function handleRocketHint() {
         kind: "rocket",
         paid: !hasFree,
     });
+    const _before = state.foundWords.length;
     const revealed = [firstCell];
     state.revealedCells.push(firstCell);
     checkAutoCompleteWords();
@@ -4650,18 +4634,7 @@ function handleRocketHint() {
     renderRocketBtn();
     renderSpinBtn();
     checkDailyCoinWord();
-    if (state.foundWords.length === totalRequired) {
-        if (state.isBonusMode) {
-            handleBonusCompletion();
-        } else if (state.isDailyMode) {
-            handleDailyCompletion();
-        } else {
-            checkSpeedBonus();
-            delete state.inProgress[state.currentLevel];
-            saveProgress();
-            setTimeout(() => { state.showComplete = true; renderCompleteModal(); }, 700 + revealed.length * 400);
-        }
-    }
+    _afterReveal(_before, 700 + revealed.length * 400);
 }
 
 function renderRocketBtn() {
