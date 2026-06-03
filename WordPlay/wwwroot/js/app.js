@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "2.0.7";
+const APP_VERSION = "2.0.8";
 
 // ---- THEMES ----
 const THEMES = {
@@ -321,6 +321,15 @@ let _forceFlowLayout = false;       // transient flag for daily flow layout vari
 let _hintsUsedThisLevel = 0;  // hints used in current level (excluding bee reveals)
 let _beesOnGrid = [];  // bees placed on grid cells for the current level: [{ row, col, type, triggered }]
 
+// ---- HELPER-BEE ASSIST STATE ----
+// When the player has bees equipped in the Hive, a helper bee flies in and
+// reveals a single letter after a run of failed guesses. Makes the equipped
+// hive visibly helpful (players reported "no clue the bees were helping").
+let _struggle = 0;             // consecutive invalid swipes since the last word found
+let _helperBeeUses = 0;        // helper-bee assists already given this level
+const HELPER_BEE_THRESHOLD = 4;// failed guesses before a helper bee steps in
+const HELPER_BEE_MAX = 3;      // cap assists per level so it never trivializes
+
 // ---- SPEED BONUS STATE ----
 let _speedTimerStart = 0;        // timestamp of first wheel touch this level
 let _speedTimerActive = false;   // whether the timer is running
@@ -577,6 +586,9 @@ async function recompute() {
     //   plus bdCell ("row,col" string) preserves the bee's position across
     //   resume / restart / sync.
     _beesOnGrid = []; // array of { row, col, type: "spawned" | "queued", triggered: false }
+    _struggle = 0;        // reset helper-bee struggle tracking for the new level
+    _helperBeeUses = 0;
+    if (typeof maybeShowPerkIntro === "function") maybeShowPerkIntro();
 
     if (!state.isDailyMode && !state.isBonusMode) {
         const ip = state.inProgress[state.currentLevel] || {};
@@ -869,6 +881,36 @@ function _flyBeeToCell(originPt, targetCell, delayMs) {
     setTimeout(() => { flyer.remove(); }, delayMs + 900);
 }
 
+// Helper-bee assist: a bee flies in from off-screen and reveals one letter.
+// Reuses _flyBeeToCell's land-and-reveal path (which runs _afterReveal, so it
+// counts stars and can complete the level just like any other reveal).
+function _flyHelperBee(targetCell) {
+    const originPt = { x: -48, y: window.innerHeight * 0.32 };
+    if (typeof state !== "undefined" && state.soundEnabled && typeof playSound === "function") {
+        try { playSound("bee"); } catch (e) { /* noop */ }
+    }
+    const accent = (typeof theme !== "undefined" && theme.accent) ? theme.accent : "#f4a535";
+    showToast("🐝 A helper bee revealed a letter!", accent);
+    _flyBeeToCell(originPt, targetCell, 0);
+    setTimeout(() => { if (typeof saveProgress === "function") saveProgress(); }, 1200);
+}
+
+// Called after an invalid swipe. If the hive is active and the player has been
+// struggling (several misses after already solving something), send a helper
+// bee to reveal a letter. Bounded by HELPER_BEE_MAX per level.
+function _maybeHelperBee() {
+    if (typeof hiveActive !== "function" || !hiveActive()) return;
+    if (state._levelCompleting || state.showComplete) return;
+    if (_helperBeeUses >= HELPER_BEE_MAX) return;
+    if (_struggle < HELPER_BEE_THRESHOLD) return;
+    if (state.foundWords.length === 0) return; // let them solve the easy ones first
+    const cell = pickRandomUnrevealedCell();
+    if (!cell) return;
+    _struggle = 0;
+    _helperBeeUses++;
+    _flyHelperBee(cell);
+}
+
 function triggerBee(bee) {
     if (!bee || bee.triggered) return;
     bee.triggered = true;
@@ -927,6 +969,7 @@ function triggerBee(bee) {
 // When a grid word is found, trigger any bee whose cell is part of that word.
 // Bees on bonus words are NOT triggered — bonus words don't have grid cells.
 function _triggerBeesForWord(w) {
+    _struggle = 0; // a word was found — the player is making progress again
     if (!Array.isArray(_beesOnGrid) || _beesOnGrid.length === 0) return;
     if (!crossword || !crossword.placements) return;
     const placement = crossword.placements.find(p => p.word === w);
@@ -2155,6 +2198,10 @@ function handleWord(word) {
     if (!hasWordsOfLen) {
         showToast("No " + w.length + "-letter words", "#fff", false, "rgba(180,60,60,0.85)");
     }
+    // Struggle tracking — after a run of misses, an equipped hive sends a
+    // helper bee to reveal a letter.
+    _struggle++;
+    _maybeHelperBee();
 }
 
 function pickRandomUnrevealedCell() {
@@ -7841,7 +7888,7 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDD04", title: "Sync Across Devices", body: "Sign in with Google or Microsoft in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> to save your progress to the cloud. Switch phones, play on your tablet \u2014 your progress follows you automatically!" },
     { icon: "\uD83C\uDFC6", title: "Expertise & Leaderboard", body: "Your Expertise score on the home screen tracks every coin you\u2019ve ever earned \u2014 it only goes up! Tap it to open <a href=\"#\" class=\"guide-link\" data-action=\"leaderboard\">the leaderboard</a> and compete with other players. Rank by levels completed or total points, and filter by this month or all time. To appear on the leaderboard you must sign in with Google or Microsoft in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a>. Opt in or out anytime from Settings." },
     { icon: "\uD83C\uDF6F", title: "Honeycomb", body: "Tap the <b>hexagon button</b> on the home screen to play <b>Honeycomb</b> \u2014 a brand-new daily word game! You get <b>7 letters</b> and one <b>center letter</b>. Build as many words as you can (4+ letters), and <b>every word must use the center letter</b>. Letters can be reused. Longer words score more, and a <b>pangram</b> (a word using all 7 letters) earns a big bonus! Climb the ranks from Worker all the way to <b>Queen Bee</b> to earn coins and honey for your Quest. A fresh puzzle arrives every day." },
-    { icon: "\uD83D\uDC1D", title: "The Hive", body: "Collect <b>bees</b> as you play! Bees appear as you complete levels, daily goals, and Honeycomb ranks \u2014 and special bees are unlocked by big achievements. Open <b>The Hive</b> from the honey-jar button on the right of the home screen. You can <b>equip up to 3 bees</b> at a time, and only your equipped bees give their bonuses (like extra coins per word or extra honey per goal). Mix and match your favorites \u2014 find them all!" },
+    { icon: "\uD83D\uDC1D", title: "The Hive", body: "Collect <b>bees</b> as you play! Bees appear as you complete levels, daily goals, and Honeycomb ranks \u2014 and special bees are unlocked by big achievements. Open <b>The Hive</b> from the honey-jar button on the right of the home screen. You can <b>equip up to 3 bees</b> at a time, and only your equipped bees give their bonuses (like extra coins per word or extra honey per goal). The Hive screen shows an <b>Active bonuses</b> panel so you can always see exactly what your equipped bees are doing. As a bonus, any time you have bees equipped, a <b>helper bee</b> will fly in and reveal a letter if you get stuck on a level after a few wrong guesses. Mix and match your favorites \u2014 find them all!" },
     { icon: "\uD83C\uDFC6", title: "Weekly Leagues", body: "Tap the <b>trophy button</b> to join a weekly <b>League</b>! You earn <b>League XP</b> for everything you do \u2014 finding words, completing levels, climbing Honeycomb ranks, and finishing daily goals. Each week you're grouped with about 25 players; the <b>top finishers move up a division</b> (Clover \u2192 Blossom \u2192 Sunflower \u2192 Amber \u2192 Queen's Court) and earn coins, honey, and a shot at the exclusive <b>Champion Bee</b>. You'll need to be <b>signed in</b> to compete. A fresh league starts every week!" },
     { icon: "\uD83D\uDCF1", title: "Play Anywhere", body: "WordPlay works offline! Install it to your home screen for a full app experience \u2014 no app store needed. Your progress is always saved locally." },
     { icon: "\uD83D\uDE00", title: "Avatar", body: "Personalize your profile with a custom avatar! Open <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> and tap the avatar circle next to your name. Choose an emoji, upload an image, or take a photo with your camera. Your avatar appears on the leaderboard so other players can recognize you." },

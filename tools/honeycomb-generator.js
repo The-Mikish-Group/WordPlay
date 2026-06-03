@@ -13,9 +13,9 @@ const DICT = path.join(__dirname, "casual-dict.txt");
 const OUT = path.join(__dirname, "..", "WordPlay", "wwwroot", "data", "honeycomb.json");
 
 const MIN_WORDS = 20;
-const MAX_WORDS = 60;
+const MAX_WORDS = 36;
 const POOL_TARGET = 400;
-const TARGET_COUNT = 30; // prefer puzzles near this many answers
+const TARGET_COUNT = 24; // prefer puzzles near this many answers (gentler to clear)
 
 function distinctSorted(w) {
   return Array.from(new Set(w.split(""))).sort().join("");
@@ -65,10 +65,11 @@ function main() {
     if (best) puzzles.push(best.puzzle);
   }
 
-  // Stable quality sort, then cap to the pool target.
+  // Stable quality sort: prefer puzzles near TARGET_COUNT (gentler), then
+  // richer pangram variety, then alphabetical for determinism.
   puzzles.sort((a, b) =>
+    (Math.abs(a.words.length - TARGET_COUNT) - Math.abs(b.words.length - TARGET_COUNT)) ||
     (b.pangrams.length - a.pangrams.length) ||
-    (b.words.length - a.words.length) ||
     a.letters.localeCompare(b.letters)
   );
   const pool = puzzles.slice(0, POOL_TARGET);

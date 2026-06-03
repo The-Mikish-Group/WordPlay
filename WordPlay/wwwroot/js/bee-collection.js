@@ -22,6 +22,38 @@ function hivePerks() {
     return HiveCore.activePerks(h.active || []);
 }
 
+// Is the hive "active" (>=1 equipped bee)? Gates the helper-bee assist and
+// the perk-intro popup. Helper bees are a baseline benefit of running a hive.
+function hiveActive() {
+    return !!(state.hive && Array.isArray(state.hive.active) && state.hive.active.length > 0);
+}
+
+// Human-readable lines describing every bonus the equipped bees currently
+// grant. Used by the Hive "Active bonuses" panel and the level-start popup so
+// players can see that equipping bees is actually doing something.
+function hivePerksSummary() {
+    const p = hivePerks();
+    const lines = [];
+    if (p.coinPerWord)   lines.push("+" + p.coinPerWord + " coin" + (p.coinPerWord > 1 ? "s" : "") + " per word found");
+    if (p.honeyPerGoal)  lines.push("+" + p.honeyPerGoal + " 🍯 per daily goal completed");
+    if (p.honeycombCoins)lines.push("+" + p.honeycombCoins + " coins per Honeycomb rank-up");
+    if (p.dailyHint)     lines.push("+" + p.dailyHint + " free hint" + (p.dailyHint > 1 ? "s" : "") + " each day");
+    if (hiveActive())    lines.push("🐝 Helper bees reveal a letter when you're stuck");
+    return lines;
+}
+
+// Shows a one-time-per-session toast on level entry summarizing active bonuses,
+// so equipping bees has visible payoff. No-op if no bees are equipped.
+let _perkIntroShown = false;
+function maybeShowPerkIntro() {
+    if (_perkIntroShown || !hiveActive()) return;
+    _perkIntroShown = true;
+    const lines = hivePerksSummary();
+    if (!lines.length || typeof showToast !== "function") return;
+    const accent = (typeof theme !== "undefined" && theme.accent) ? theme.accent : "#f4a535";
+    showToast("🐝 Hive bonuses active: " + lines.join(" · "), accent, false);
+}
+
 // Add a bee to the collection (no-op if already owned). Returns the bee or null.
 function grantBee(id, label) {
     ensureHive();
@@ -154,6 +186,7 @@ function renderHive() {
     h.seen = Array.from(new Set([].concat(h.seen, h.bees)));
     if (typeof saveProgress === "function") saveProgress();
 
+    const bonusLines = hivePerksSummary();
     const slots = [];
     for (let i = 0; i < HiveCore.MAX_ACTIVE; i++) {
         const id = h.active[i];
@@ -189,6 +222,12 @@ function renderHive() {
             </div>
             <div class="hive-progress">${h.bees.length} / ${total} bees collected</div>
             <div class="hive-slots">${slots.join("")}</div>
+            <div class="hive-bonuses">
+                <div class="hive-bonuses-head">Active bonuses</div>
+                ${bonusLines.length
+                    ? bonusLines.map(l => `<div class="hive-bonus-line">${l}</div>`).join("")
+                    : `<div class="hive-bonus-empty">No bees equipped yet — equip up to ${HiveCore.MAX_ACTIVE} bees above to earn bonuses.</div>`}
+            </div>
             <div class="hive-grid">${cards}</div>
             <div class="hive-detail" id="hive-detail"></div>
         </div>`;

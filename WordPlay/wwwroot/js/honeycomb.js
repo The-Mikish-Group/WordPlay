@@ -149,8 +149,19 @@ function renderHoneycomb() {
             <div class="hc-msg" id="hc-msg">&nbsp;</div>
 
             <div class="hc-hex" id="hc-hex">
-                <button class="hc-letter hc-center" data-letter="${puzzle.center}">${puzzle.center}</button>
-                ${_hcOuterOrder.map(L => `<button class="hc-letter" data-letter="${L}">${L}</button>`).join("")}
+                <div class="hc-hex-row">
+                    <button class="hc-letter" data-letter="${_hcOuterOrder[0]}">${_hcOuterOrder[0]}</button>
+                    <button class="hc-letter" data-letter="${_hcOuterOrder[1]}">${_hcOuterOrder[1]}</button>
+                </div>
+                <div class="hc-hex-row">
+                    <button class="hc-letter" data-letter="${_hcOuterOrder[2]}">${_hcOuterOrder[2]}</button>
+                    <button class="hc-letter hc-center" data-letter="${puzzle.center}">${puzzle.center}</button>
+                    <button class="hc-letter" data-letter="${_hcOuterOrder[3]}">${_hcOuterOrder[3]}</button>
+                </div>
+                <div class="hc-hex-row">
+                    <button class="hc-letter" data-letter="${_hcOuterOrder[4]}">${_hcOuterOrder[4]}</button>
+                    <button class="hc-letter" data-letter="${_hcOuterOrder[5]}">${_hcOuterOrder[5]}</button>
+                </div>
             </div>
 
             <div class="hc-controls">

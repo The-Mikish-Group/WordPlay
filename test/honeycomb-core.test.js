@@ -51,21 +51,21 @@ test("rankThresholds: 7 ranks, ceil of percentage of maxScore", () => {
   assert.strictEqual(t[0].name, "Worker");
   assert.strictEqual(t[0].at, 0);
   assert.strictEqual(t[6].name, "Queen Bee");
-  assert.strictEqual(t[6].at, 90); // ceil(100 * 0.90)
-  assert.strictEqual(t[1].at, 10); // Forager 10%
+  assert.strictEqual(t[6].at, 70); // ceil(100 * 0.70)
+  assert.strictEqual(t[1].at, 6); // Forager 6%
 });
 
 test("currentRankIndex: highest rank whose threshold is met", () => {
   assert.strictEqual(core.currentRankIndex(0, 100), 0);
   assert.strictEqual(core.currentRankIndex(10, 100), 1);
-  assert.strictEqual(core.currentRankIndex(89, 100), 5);
-  assert.strictEqual(core.currentRankIndex(90, 100), 6);
+  assert.strictEqual(core.currentRankIndex(69, 100), 5);
+  assert.strictEqual(core.currentRankIndex(70, 100), 6);
 });
 
 test("ringPct: percent toward Queen Bee, capped at 100", () => {
   assert.strictEqual(core.ringPct(0, 100), 0);
-  assert.strictEqual(core.ringPct(45, 100), 50); // 45 / 90
-  assert.strictEqual(core.ringPct(90, 100), 100);
+  assert.strictEqual(core.ringPct(35, 100), 50); // 35 / 70
+  assert.strictEqual(core.ringPct(70, 100), 100);
   assert.strictEqual(core.ringPct(200, 100), 100);
 });
 

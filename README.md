@@ -143,9 +143,17 @@ home screen. Players get 7 letters plus a required center letter and find as
 many valid words (4+ letters, must include the center letter) as they can,
 climbing a rank ladder (Worker → Queen Bee) for coins and Quest honey.
 
-- Pure logic: `wwwroot/js/honeycomb-core.js` (unit-tested via `npm test`).
-- DOM/screen: `wwwroot/js/honeycomb.js`.
-- Puzzles are precomputed: `tools/honeycomb-generator.js` → `wwwroot/data/honeycomb.json`.
+The letters are laid out as a true honeycomb flower — six outer hexagons
+surrounding the required letter, which sits in the geometric center and is
+highlighted in the accent color (so "must use the center letter" matches what
+players see). Rank thresholds and the puzzle pool are tuned to be reachable:
+each daily puzzle holds ~24 answers and the top rank (Queen Bee) lands at 70%
+of the max score rather than 90%.
+
+- Pure logic: `wwwroot/js/honeycomb-core.js` (rank ladder, unit-tested via `npm test`).
+- DOM/screen: `wwwroot/js/honeycomb.js` (2-3-2 flower layout).
+- Puzzles are precomputed: `tools/honeycomb-generator.js` → `wwwroot/data/honeycomb.json`
+  (word band 20–36, biased toward ~24 answers per puzzle).
 - Today's puzzle is chosen deterministically by date, identical for all players.
 
 ### Quests
@@ -199,9 +207,19 @@ A cozy meta-collection. Players discover bees by playing across all activities
 Honeycomb coins, a daily free hint). Only equipped bees' perks apply, which
 bounds the total bonus regardless of collection size.
 
+So the perks are visible (players reported not knowing equipped bees were
+doing anything), the Hive screen shows an **Active bonuses** panel summarizing
+every perk currently in effect, and entering a level surfaces a one-time
+per-session toast listing those bonuses. An active hive (≥1 equipped bee) also
+grants a **helper-bee assist**: after a run of failed guesses on a level (and
+once at least one word is solved), a bee flies in and reveals a single letter —
+up to 3 times per level, so it never trivializes the puzzle.
+
 - Pure logic: `wwwroot/js/bee-core.js` (registry, perks, equip rules, discovery,
   milestones — unit-tested via `npm test`).
-- DOM/screen + acquisition: `wwwroot/js/bee-collection.js`.
+- DOM/screen + acquisition: `wwwroot/js/bee-collection.js` (`hivePerksSummary`,
+  `maybeShowPerkIntro`); helper-bee assist lives in `wwwroot/js/app.js`
+  (`_maybeHelperBee` / `_flyHelperBee`, struggle-counted in `handleWord`).
 - Illustrated bee art: `tools/generate-bees.js` (fal.ai Flux → webp) from
   `tools/bee-prompts.json` → `wwwroot/images/bees/*.webp` (lazy-loaded; emoji
   fallback when an image is absent).

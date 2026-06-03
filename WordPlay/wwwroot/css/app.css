@@ -3213,29 +3213,35 @@ html, body {
 
 .hc-hex {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-    max-width: 280px;
-    margin: 6px auto 16px;
+    flex-direction: column;
+    align-items: center;
+    margin: 12px auto 18px;
 }
+.hc-hex-row { display: flex; }
+.hc-hex-row + .hc-hex-row { margin-top: -16px; } /* nest rows into a honeycomb flower */
 .hc-letter {
-    width: 76px;
-    height: 76px;
-    border-radius: 14px;
+    width: 74px;
+    height: 82px;
+    margin: 0 3px;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     border: none;
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.14);
     color: #fff;
     font-size: 30px;
     font-weight: 800;
     cursor: pointer;
     touch-action: manipulation;
-    transition: transform 0.1s ease, background 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease, filter 0.15s ease;
 }
 .hc-letter:active { transform: scale(0.92); }
+/* The required (center) letter — visually centered in the flower and highlighted. */
 .hc-center {
     background: var(--accent, #f4a535);
     color: #2a1500;
+    filter: drop-shadow(0 0 7px rgba(244, 165, 53, 0.75));
 }
 .hc-controls {
     display: flex;
@@ -3285,6 +3291,13 @@ html, body {
 .hive-slot.empty { font-size: 30px; opacity: 0.5; cursor: default; }
 .hive-slot-emoji { font-size: 26px; line-height: 1; }
 .hive-slot-name { font-size: 11px; margin-top: 4px; text-align: center; }
+.hive-bonuses {
+    background: rgba(244,165,53,0.14); border: 1px solid rgba(244,165,53,0.4);
+    border-radius: 14px; padding: 12px 14px; margin-bottom: 16px;
+}
+.hive-bonuses-head { font-size: 15px; font-weight: 800; color: var(--accent, #f4a535); margin-bottom: 6px; letter-spacing: 0.02em; }
+.hive-bonus-line { font-size: 15px; font-weight: 600; color: #fff; line-height: 1.5; }
+.hive-bonus-empty { font-size: 14px; color: rgba(255,255,255,0.8); line-height: 1.45; }
 .hive-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .hive-card {
     border: 2px solid rgba(255,255,255,0.15); border-radius: 12px;

@@ -8,12 +8,12 @@
   // Rank ladder: each rank is a fraction of the puzzle's maxScore.
   var RANKS = [
     { name: "Worker",    pct: 0.00 },
-    { name: "Forager",   pct: 0.10 },
-    { name: "Builder",   pct: 0.20 },
-    { name: "Drone",     pct: 0.35 },
-    { name: "Keeper",    pct: 0.50 },
-    { name: "Royal",     pct: 0.70 },
-    { name: "Queen Bee", pct: 0.90 }
+    { name: "Forager",   pct: 0.06 },
+    { name: "Builder",   pct: 0.14 },
+    { name: "Drone",     pct: 0.25 },
+    { name: "Keeper",    pct: 0.38 },
+    { name: "Royal",     pct: 0.52 },
+    { name: "Queen Bee", pct: 0.70 }
   ];
 
   // Reward paid the first time each rank index is reached, once per day. Tunable.

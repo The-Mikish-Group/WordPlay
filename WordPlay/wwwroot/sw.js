@@ -1,20 +1,20 @@
-const CACHE_NAME = 'wordplay-v144';
+const CACHE_NAME = 'wordplay-v145';
 const ASSETS = [
     '/',
     '/index.html',
-    '/css/app.css?v=94',
-    '/js/auth.js?v=94',
-    '/js/sync.js?v=94',
-    '/js/app.js?v=94',
-    '/js/levels.js?v=94',
-    '/js/level-loader.js?v=94',
-    '/js/crossword.js?v=94',
-    '/js/quests.js?v=94',
-    '/js/honeycomb-core.js?v=94',
-    '/js/honeycomb.js?v=94',
-    '/js/bee-core.js?v=94',
-    '/js/bee-collection.js?v=94',
-    '/js/league.js?v=94',
+    '/css/app.css?v=95',
+    '/js/auth.js?v=95',
+    '/js/sync.js?v=95',
+    '/js/app.js?v=95',
+    '/js/levels.js?v=95',
+    '/js/level-loader.js?v=95',
+    '/js/crossword.js?v=95',
+    '/js/quests.js?v=95',
+    '/js/honeycomb-core.js?v=95',
+    '/js/honeycomb.js?v=95',
+    '/js/bee-core.js?v=95',
+    '/js/bee-collection.js?v=95',
+    '/js/league.js?v=95',
     '/data/honeycomb.json',
     '/manifest.json',
     '/fonts/nunito-latin.woff2',
@@ -28,7 +28,7 @@ const ASSETS = [
     '/images/bg/solstice-dawn.webp',
 ];
 
-const DATA_CACHE = 'wordplay-data-v11';
+const DATA_CACHE = 'wordplay-data-v12';
 
 self.addEventListener('install', e => {
     e.waitUntil(
