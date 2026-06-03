@@ -147,13 +147,24 @@ The letters are laid out as a true honeycomb flower — six outer hexagons
 surrounding the required letter, which sits in the geometric center and is
 highlighted in the accent color (so "must use the center letter" matches what
 players see). Rank thresholds and the puzzle pool are tuned to be reachable:
-each daily puzzle holds ~24 answers and the top rank (Queen Bee) lands at 70%
-of the max score rather than 90%.
+each daily puzzle holds ~24 answers and the top rank (Queen Bee) lands at 58%
+of the max score, so finishing the hive doesn't require hunting every pangram.
 
-- Pure logic: `wwwroot/js/honeycomb-core.js` (rank ladder, unit-tested via `npm test`).
+Two refinements keep the puzzle from *feeling* arbitrary:
+
+- **Word families.** When an accepted answer's regular plural/-S form is also a
+  real word and fits the hive, the generator includes it too — no more
+  FIFE-accepted-but-FIFES-rejected surprises.
+- **Friendly rejection.** Each puzzle ships a `bonus` set: real dictionary words
+  (from `enable1.txt`) that fit the letters + center but aren't scored answers.
+  Typing one shows "Valid word — just not in today's hive" instead of the flat
+  "Not in the word list," so players don't suspect the game is broken.
+
+- Pure logic: `wwwroot/js/honeycomb-core.js` (rank ladder, `bonusSet` validation, unit-tested via `npm test`).
 - DOM/screen: `wwwroot/js/honeycomb.js` (2-3-2 flower layout).
 - Puzzles are precomputed: `tools/honeycomb-generator.js` → `wwwroot/data/honeycomb.json`
-  (word band 20–36, biased toward ~24 answers per puzzle).
+  (word band 20–36 before family expansion, biased toward ~24 answers; each puzzle
+  also carries its `bonus` near-miss word set).
 - Today's puzzle is chosen deterministically by date, identical for all players.
 
 ### Quests

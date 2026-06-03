@@ -3210,6 +3210,7 @@ html, body {
 .hc-msg-bad { color: #ffb3a7; }
 .hc-msg-good { color: #b9f0c0; font-weight: 700; }
 .hc-msg-pangram { color: #ffe08a; font-weight: 800; }
+.hc-msg-info { color: #f4c87a; font-weight: 700; }
 
 .hc-hex {
     display: flex;

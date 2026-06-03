@@ -21,8 +21,8 @@ test("isPangram: true only when all 7 letters used", () => {
   assert.strictEqual(core.isPangram("ANGLE", "AEGLNRT"), false);
 });
 
-function puzzle(words) {
-  return { letters: "AEGLNRT", center: "G", wordSet: new Set(words) };
+function puzzle(words, bonus) {
+  return { letters: "AEGLNRT", center: "G", wordSet: new Set(words), bonusSet: new Set(bonus || []) };
 }
 
 test("validateWord: rejects words shorter than 4", () => {
@@ -41,6 +41,10 @@ test("validateWord: rejects words not in the answer set", () => {
   assert.deepStrictEqual(core.validateWord("GNARL", puzzle([])), { ok: false, reason: "notword" });
 });
 
+test("validateWord: real word in bonus set reported as 'unlisted', not 'notword'", () => {
+  assert.deepStrictEqual(core.validateWord("GNARL", puzzle([], ["GNARL"])), { ok: false, reason: "unlisted" });
+});
+
 test("validateWord: accepts a valid answer", () => {
   assert.deepStrictEqual(core.validateWord("ANGLE", puzzle(["ANGLE"])), { ok: true });
 });
@@ -51,21 +55,21 @@ test("rankThresholds: 7 ranks, ceil of percentage of maxScore", () => {
   assert.strictEqual(t[0].name, "Worker");
   assert.strictEqual(t[0].at, 0);
   assert.strictEqual(t[6].name, "Queen Bee");
-  assert.strictEqual(t[6].at, 70); // ceil(100 * 0.70)
-  assert.strictEqual(t[1].at, 6); // Forager 6%
+  assert.strictEqual(t[6].at, 58); // ceil(100 * 0.58)
+  assert.strictEqual(t[1].at, 5); // Forager 5%
 });
 
 test("currentRankIndex: highest rank whose threshold is met", () => {
   assert.strictEqual(core.currentRankIndex(0, 100), 0);
   assert.strictEqual(core.currentRankIndex(10, 100), 1);
-  assert.strictEqual(core.currentRankIndex(69, 100), 5);
-  assert.strictEqual(core.currentRankIndex(70, 100), 6);
+  assert.strictEqual(core.currentRankIndex(57, 100), 5);
+  assert.strictEqual(core.currentRankIndex(58, 100), 6);
 });
 
 test("ringPct: percent toward Queen Bee, capped at 100", () => {
   assert.strictEqual(core.ringPct(0, 100), 0);
-  assert.strictEqual(core.ringPct(35, 100), 50); // 35 / 70
-  assert.strictEqual(core.ringPct(70, 100), 100);
+  assert.strictEqual(core.ringPct(29, 100), 50); // 29 / 58
+  assert.strictEqual(core.ringPct(58, 100), 100);
   assert.strictEqual(core.ringPct(200, 100), 100);
 });
 

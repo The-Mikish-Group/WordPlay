@@ -28,7 +28,8 @@ function getTodaysHoneycomb() {
         words: p.words,
         pangrams: p.pangrams,
         maxScore: p.maxScore,
-        wordSet: new Set(p.words)
+        wordSet: new Set(p.words),
+        bonusSet: new Set(p.bonus || [])
     };
 }
 
@@ -218,6 +219,7 @@ const _HC_REASONS = {
     short: "Words must be at least 4 letters",
     center: "Must use the center letter",
     badletter: "That letter isn't in the hive",
+    unlisted: "Valid word — just not in today's hive 🍯",
     notword: "Not in the word list",
     dup: "Already found"
 };
@@ -227,7 +229,9 @@ function _hcEnter(puzzle) {
     if (!word) return;
     const res = honeycombSubmit(puzzle, word);
     if (!res.ok) {
-        _hcMsg(_HC_REASONS[res.reason] || "Try another word", "bad");
+        // "unlisted" = a real word that just isn't a scored answer — gentler styling.
+        const kind = (res.reason === "unlisted" || res.reason === "dup") ? "info" : "bad";
+        _hcMsg(_HC_REASONS[res.reason] || "Try another word", kind);
         _hcTyped = "";
         _hcUpdateTyped();
         return;

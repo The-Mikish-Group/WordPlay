@@ -6,14 +6,16 @@
   "use strict";
 
   // Rank ladder: each rank is a fraction of the puzzle's maxScore.
+  // Tuned gentle: Queen Bee lands at 0.58 of max (not the pangram-hunting 0.70),
+  // so finishing the daily hive is achievable without finding every word.
   var RANKS = [
     { name: "Worker",    pct: 0.00 },
-    { name: "Forager",   pct: 0.06 },
-    { name: "Builder",   pct: 0.14 },
-    { name: "Drone",     pct: 0.25 },
-    { name: "Keeper",    pct: 0.38 },
-    { name: "Royal",     pct: 0.52 },
-    { name: "Queen Bee", pct: 0.70 }
+    { name: "Forager",   pct: 0.05 },
+    { name: "Builder",   pct: 0.12 },
+    { name: "Drone",     pct: 0.22 },
+    { name: "Keeper",    pct: 0.34 },
+    { name: "Royal",     pct: 0.46 },
+    { name: "Queen Bee", pct: 0.58 }
   ];
 
   // Reward paid the first time each rank index is reached, once per day. Tunable.
@@ -50,7 +52,9 @@
     return true;
   }
 
-  // puzzle: { letters, center, wordSet: Set<UPPERCASE word> }
+  // puzzle: { letters, center, wordSet: Set<UPPERCASE word>, bonusSet?: Set<UPPERCASE word> }
+  // bonusSet holds real dictionary words that fit the hive but aren't scored answers,
+  // so we can tell players "valid word, just not in today's hive" instead of a flat reject.
   function validateWord(word, puzzle) {
     var w = String(word).toUpperCase();
     if (w.length < 4) return { ok: false, reason: "short" };
@@ -60,7 +64,10 @@
     var L = String(puzzle.letters).toUpperCase();
     for (var i = 0; i < L.length; i++) allowed[L[i]] = true;
     for (var k = 0; k < w.length; k++) if (!allowed[w[k]]) return { ok: false, reason: "badletter" };
-    if (!puzzle.wordSet.has(w)) return { ok: false, reason: "notword" };
+    if (!puzzle.wordSet.has(w)) {
+      if (puzzle.bonusSet && puzzle.bonusSet.has(w)) return { ok: false, reason: "unlisted" };
+      return { ok: false, reason: "notword" };
+    }
     return { ok: true };
   }
 
