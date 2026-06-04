@@ -184,6 +184,9 @@ function _hcWire(puzzle) {
     const root = document.getElementById("app");
     root.querySelectorAll(".hc-letter").forEach(b => {
         b.addEventListener("click", () => {
+            // Starting a fresh word? Drop the previous result line (the +points /
+            // "not in word list" / "valid but not in today's hive" message).
+            if (_hcTyped === "") _hcClearMsg();
             _hcTyped += b.getAttribute("data-letter");
             _hcUpdateTyped();
         });
@@ -213,6 +216,14 @@ function _hcMsg(text, kind) {
     if (!el) return;
     el.textContent = text;
     el.className = "hc-msg" + (kind ? " hc-msg-" + kind : "");
+}
+
+// Clear the result line back to its empty placeholder (keeps the row height).
+function _hcClearMsg() {
+    const el = document.getElementById("hc-msg");
+    if (!el) return;
+    el.innerHTML = "&nbsp;";
+    el.className = "hc-msg";
 }
 
 const _HC_REASONS = {
