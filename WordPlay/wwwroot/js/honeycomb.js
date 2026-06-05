@@ -28,6 +28,7 @@ function getTodaysHoneycomb() {
         words: p.words,
         pangrams: p.pangrams,
         maxScore: p.maxScore,
+        target: HoneycombCore.hiveTarget(p.words.length), // words needed to fill the hive
         wordSet: new Set(p.words),
         bonusSet: new Set(p.bonus || [])
     };
@@ -37,7 +38,7 @@ function getTodaysHoneycomb() {
 function ensureHoneycombToday() {
     const today = getTodayStr();
     if (!state.honeycomb || state.honeycomb.date !== today) {
-        state.honeycomb = { date: today, found: [], score: 0, ranksClaimed: [], pendingJars: 0 };
+        state.honeycomb = { date: today, found: [], score: 0, ranksClaimed: [], pendingJars: 0, completed: false };
     }
 }
 
@@ -59,7 +60,7 @@ function honeycombSubmit(puzzle, word) {
     state.honeycomb.score += pts;
 
     const newRanks = HoneycombCore.newlyReachedRanks(
-        state.honeycomb.score, puzzle.maxScore, state.honeycomb.ranksClaimed);
+        state.honeycomb.found.length, puzzle.target, state.honeycomb.ranksClaimed);
     let rankNames = [];
     for (const ri of newRanks) {
         const reward = HoneycombCore.rewardForRank(ri);
@@ -80,6 +81,15 @@ function honeycombSubmit(puzzle, word) {
         state.honeycomb.ranksClaimed.push(ri);
         rankNames.push(HoneycombCore.RANKS[ri].name);
     }
+    // First time we fill the hive (reach Queen Bee == target words), flag it so
+    // the UI can fire a one-time completion celebration. Words found afterward
+    // still score points/coins — completion just marks the 100% end point.
+    let justCompleted = false;
+    if (!state.honeycomb.completed
+        && HoneycombCore.currentRankIndex(state.honeycomb.found.length, puzzle.target) >= 6) {
+        state.honeycomb.completed = true;
+        justCompleted = true;
+    }
     if (typeof saveProgress === "function") saveProgress();
     if (typeof recordActivityForDiscovery === "function") recordActivityForDiscovery();
     if (newRanks.length && typeof checkBeeMilestones === "function") checkBeeMilestones();
@@ -87,7 +97,8 @@ function honeycombSubmit(puzzle, word) {
         ok: true,
         points: pts,
         pangram: HoneycombCore.isPangram(w, puzzle.letters),
-        newRankNames: rankNames
+        newRankNames: rankNames,
+        completed: justCompleted
     };
 }
 
@@ -108,7 +119,7 @@ function _hcOuterLetters(puzzle) {
 }
 
 function _hcRankLabel(puzzle) {
-    const idx = HoneycombCore.currentRankIndex(state.honeycomb.score, puzzle.maxScore);
+    const idx = HoneycombCore.currentRankIndex(state.honeycomb.found.length, puzzle.target);
     return HoneycombCore.RANKS[idx].name;
 }
 
@@ -128,9 +139,15 @@ function renderHoneycomb() {
         _hcOuterOrder = _hcOuterLetters(puzzle);
     }
 
-    const ring = HoneycombCore.ringPct(state.honeycomb.score, puzzle.maxScore);
+    const foundCount = state.honeycomb.found.length;
+    const ring = HoneycombCore.ringPct(foundCount, puzzle.target);
     const rank = _hcRankLabel(puzzle);
+    const done = !!state.honeycomb.completed || foundCount >= puzzle.target;
     const found = state.honeycomb.found.slice().sort();
+    // Bar label: progress toward the hive goal, or a completion mark once full.
+    const barLabel = done
+        ? `👑 Hive Complete! · ${state.honeycomb.score} pts`
+        : `${rank} · ${Math.min(foundCount, puzzle.target)}/${puzzle.target} words · ${state.honeycomb.score} pts`;
 
     root.innerHTML = `
         <div class="quest-screen honeycomb-screen">
@@ -141,9 +158,9 @@ function renderHoneycomb() {
                 <div class="quest-header-tagline">Find words using the 7 letters. Every word must use the center letter.</div>
             </div>
 
-            <div class="hc-rankbar">
+            <div class="hc-rankbar${done ? ' hc-rankbar-done' : ''}">
                 <div class="hc-rankbar-fill" style="width:${ring}%"></div>
-                <div class="hc-rankbar-label">${rank} · ${state.honeycomb.score} pts</div>
+                <div class="hc-rankbar-label">${barLabel}</div>
             </div>
 
             <div class="hc-typed" id="hc-typed">${_hcTyped || '&nbsp;'}</div>
@@ -252,7 +269,49 @@ function _hcEnter(puzzle) {
     if (res.newRankNames.length) msg += " · " + res.newRankNames[res.newRankNames.length - 1] + "!";
     _hcTyped = "";
     renderHoneycomb();          // refresh score, rank bar, found list
-    _hcMsg(msg, res.pangram ? "pangram" : "good");
+    if (res.completed) {
+        _hcMsg("👑 Hive Complete!", "pangram");
+        if (typeof showHoneycombCompleteCelebration === "function") showHoneycombCompleteCelebration();
+    } else {
+        _hcMsg(msg, res.pangram ? "pangram" : "good");
+    }
+}
+
+// One-time celebration when the daily hive is filled to 100% (Queen Bee).
+// Self-contained overlay; reuses the grand-prize CSS keyframes in app.css.
+function showHoneycombCompleteCelebration() {
+    if (typeof playSound === "function") { try { playSound("bonusChime"); } catch (e) { /* noop */ } }
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;z-index:99998;pointer-events:none;"
+        + "display:flex;align-items:center;justify-content:center;animation:grandPrizeFadeIn 0.4s ease;";
+    for (let i = 0; i < 24; i++) {
+        const p = document.createElement("div");
+        const startX = 30 + Math.random() * 40;
+        const drift = (Math.random() - 0.5) * 60;
+        const delay = Math.random() * 0.6;
+        const dur = 1.5 + Math.random();
+        const size = 16 + Math.random() * 12;
+        p.textContent = Math.random() > 0.4 ? "🍯" : "👑";
+        p.style.cssText = "position:absolute;top:-20px;left:" + startX + "%;font-size:" + size + "px;"
+            + "opacity:0;pointer-events:none;--drift:" + drift + "px;"
+            + "animation:grandPrizeCoinFall " + dur + "s " + delay + "s ease-in forwards;";
+        overlay.appendChild(p);
+    }
+    const banner = document.createElement("div");
+    banner.innerHTML = '<div style="font-size:42px;margin-bottom:8px">👑</div>'
+        + '<div style="font-size:24px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.5)">Hive Complete!</div>'
+        + '<div style="font-size:16px;font-weight:700;color:#ffe08a;margin-top:6px;text-shadow:0 2px 8px rgba(0,0,0,0.5)">You reached Queen Bee 🍯</div>';
+    banner.style.cssText = "text-align:center;padding:28px 40px;"
+        + "background:radial-gradient(ellipse,rgba(244,165,53,0.28) 0%,rgba(0,0,0,0.6) 70%);"
+        + "border-radius:20px;border:2px solid rgba(255,215,0,0.45);"
+        + "backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);"
+        + "animation:grandPrizeBannerPop 0.5s 0.2s ease both;";
+    overlay.appendChild(banner);
+    document.body.appendChild(overlay);
+    setTimeout(() => {
+        overlay.style.animation = "grandPrizeFadeOut 0.5s ease forwards";
+        setTimeout(() => overlay.remove(), 500);
+    }, 2600);
 }
 
 function _hcClose() {

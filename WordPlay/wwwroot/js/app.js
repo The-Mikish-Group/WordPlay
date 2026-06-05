@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "2.0.10";
+const APP_VERSION = "2.0.11";
 
 // ---- THEMES ----
 const THEMES = {
@@ -3208,8 +3208,8 @@ function renderHome() {
                 let honeycombBtn = "";
                 if (puzzle) {
                     if (typeof ensureHoneycombToday === "function") ensureHoneycombToday();
-                    const ring = HoneycombCore.ringPct(state.honeycomb.score, puzzle.maxScore);
-                    const rankIdx = HoneycombCore.currentRankIndex(state.honeycomb.score, puzzle.maxScore);
+                    const ring = HoneycombCore.ringPct(state.honeycomb.found.length, puzzle.target);
+                    const rankIdx = HoneycombCore.currentRankIndex(state.honeycomb.found.length, puzzle.target);
                     const untouched = state.honeycomb.found.length === 0;
                     honeycombBtn = renderActivityButton({
                         action: "open-honeycomb",
@@ -7887,7 +7887,7 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83C\uDFA8", title: "Themes", body: "The game features 16 beautiful color themes \u2014 Sunrise, Forest, Ocean, Aurora, and more. Themes change as you progress through different level groups." },
     { icon: "\uD83D\uDD04", title: "Sync Across Devices", body: "Sign in with Google or Microsoft in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> to save your progress to the cloud. Switch phones, play on your tablet \u2014 your progress follows you automatically!" },
     { icon: "\uD83C\uDFC6", title: "Expertise & Leaderboard", body: "Your Expertise score on the home screen tracks every coin you\u2019ve ever earned \u2014 it only goes up! Tap it to open <a href=\"#\" class=\"guide-link\" data-action=\"leaderboard\">the leaderboard</a> and compete with other players. Rank by levels completed or total points, and filter by this month or all time. To appear on the leaderboard you must sign in with Google or Microsoft in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a>. Opt in or out anytime from Settings." },
-    { icon: "\uD83C\uDF6F", title: "Honeycomb", body: "Tap the <b>hexagon button</b> on the home screen to play <b>Honeycomb</b> \u2014 a brand-new daily word game! You get <b>7 letters</b> and one <b>center letter</b>. Build as many words as you can (4+ letters), and <b>every word must use the center letter</b>. Letters can be reused. Longer words score more, and a <b>pangram</b> (a word using all 7 letters) earns a big bonus! Climb the ranks from Worker all the way to <b>Queen Bee</b> to earn coins and honey for your Quest. Not every real word is one of today's answers — if you find a real word that isn't in the hive, we'll let you know it's valid but just not part of today's puzzle. A fresh puzzle arrives every day." },
+    { icon: "\uD83C\uDF6F", title: "Honeycomb", body: "Tap the <b>hexagon button</b> on the home screen to play <b>Honeycomb</b> \u2014 a brand-new daily word game! You get <b>7 letters</b> and one <b>center letter</b>. Build as many words as you can (4+ letters), and <b>every word must use the center letter</b>. Letters can be reused. Longer words score more, and a <b>pangram</b> (a word using all 7 letters) earns a big bonus! Climb the ranks from Worker all the way to <b>Queen Bee</b> to earn coins and honey for your Quest. Each rank is just a few more words — <b>find about 12 words to fill the hive to 100%</b> and trigger a <b>Hive Complete!</b> celebration. Not every real word is one of today's answers — if you find a real word that isn't in the hive, we'll let you know it's valid but just not part of today's puzzle. A fresh puzzle arrives every day." },
     { icon: "\uD83D\uDC1D", title: "The Hive", body: "Collect <b>bees</b> as you play! Bees appear as you complete levels, daily goals, and Honeycomb ranks \u2014 and special bees are unlocked by big achievements. Open <b>The Hive</b> from the honey-jar button on the right of the home screen. You can <b>equip up to 3 bees</b> at a time, and only your equipped bees give their bonuses (like extra coins per word or extra honey per goal). The Hive screen shows an <b>Active bonuses</b> panel so you can always see exactly what your equipped bees are doing. As a bonus, any time you have bees equipped, a <b>helper bee</b> will fly in and reveal a letter if you get stuck on a level after a few wrong guesses. Mix and match your favorites \u2014 find them all!" },
     { icon: "\uD83C\uDFC6", title: "Weekly Leagues", body: "Tap the <b>trophy button</b> to join a weekly <b>League</b>! You earn <b>League XP</b> for everything you do \u2014 finding words, completing levels, climbing Honeycomb ranks, and finishing daily goals. Each week you're grouped with about 25 players; the <b>top finishers move up a division</b> (Clover \u2192 Blossom \u2192 Sunflower \u2192 Amber \u2192 Queen's Court) and earn coins, honey, and a shot at the exclusive <b>Champion Bee</b>. You'll need to be <b>signed in</b> to compete. A fresh league starts every week!" },
     { icon: "\uD83D\uDCF1", title: "Play Anywhere", body: "WordPlay works offline! Install it to your home screen for a full app experience \u2014 no app store needed. Your progress is always saved locally." },

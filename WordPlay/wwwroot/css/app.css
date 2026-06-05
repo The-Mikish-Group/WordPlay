@@ -3198,6 +3198,14 @@ html, body {
     color: #fff;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
+/* Completed hive: gold glow + brighter full bar. */
+.honeycomb-screen .hc-rankbar-done {
+    border-color: rgba(255, 215, 0, 0.6);
+    box-shadow: 0 0 12px rgba(255, 200, 70, 0.55);
+}
+.hc-rankbar-done .hc-rankbar-fill {
+    background: linear-gradient(90deg, rgba(244,180,53,0.95), rgba(255,222,120,1));
+}
 .hc-typed {
     text-align: center;
     font-size: 30px;

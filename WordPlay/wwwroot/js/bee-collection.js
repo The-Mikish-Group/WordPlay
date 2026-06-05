@@ -106,7 +106,7 @@ function _honeycombRankIndexToday() {
     if (typeof getTodaysHoneycomb !== "function" || !state.honeycomb) return 0;
     const p = getTodaysHoneycomb();
     if (!p) return 0;
-    return HoneycombCore.currentRankIndex(state.honeycomb.score, p.maxScore);
+    return HoneycombCore.currentRankIndex(state.honeycomb.found.length, p.target);
 }
 
 // Grant the dailyHint perk once per calendar day.

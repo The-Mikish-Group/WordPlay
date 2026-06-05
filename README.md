@@ -146,9 +146,18 @@ climbing a rank ladder (Worker → Queen Bee) for coins and Quest honey.
 The letters are laid out as a true honeycomb flower — six outer hexagons
 surrounding the required letter, which sits in the geometric center and is
 highlighted in the accent color (so "must use the center letter" matches what
-players see). Rank thresholds and the puzzle pool are tuned to be reachable:
-each daily puzzle holds ~24 answers and the top rank (Queen Bee) lands at 58%
-of the max score, so finishing the hive doesn't require hunting every pangram.
+players see).
+
+Progress and ranks are measured by **words found**, not score fraction. Score
+fraction made completion feel unreachable — a 4-letter word is 1 point but a
+pangram is 14, so finding lots of short words barely moved the bar (~14 words
+to reach even ~29% of max). The seven ranks (Worker → Queen Bee) now spread
+evenly across a fixed word target (`HIVE_TARGET` = 12, or the puzzle's answer
+count if smaller), so you rank up every couple of words and the hive fills to
+100% at 12 words. Reaching Queen Bee fires a one-time **"Hive Complete!"**
+celebration (falling honey/crowns + banner) and the rank bar locks to a gold
+completed state. Points and the pangram bonus still drive coins — they just no
+longer gate completion.
 
 Two refinements keep the puzzle from *feeling* arbitrary:
 
@@ -160,7 +169,7 @@ Two refinements keep the puzzle from *feeling* arbitrary:
   Typing one shows "Valid word — just not in today's hive" instead of the flat
   "Not in the word list," so players don't suspect the game is broken.
 
-- Pure logic: `wwwroot/js/honeycomb-core.js` (rank ladder, `bonusSet` validation, unit-tested via `npm test`).
+- Pure logic: `wwwroot/js/honeycomb-core.js` (word-count rank ladder via `hiveTarget`/`rankThresholds`, `bonusSet` validation, unit-tested via `npm test`).
 - DOM/screen: `wwwroot/js/honeycomb.js` (2-3-2 flower layout).
 - Puzzles are precomputed: `tools/honeycomb-generator.js` → `wwwroot/data/honeycomb.json`
   (word band 20–36 before family expansion, biased toward ~24 answers; each puzzle

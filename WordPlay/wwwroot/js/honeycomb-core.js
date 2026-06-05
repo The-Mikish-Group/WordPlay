@@ -5,18 +5,29 @@
 (function (global) {
   "use strict";
 
-  // Rank ladder: each rank is a fraction of the puzzle's maxScore.
-  // Tuned gentle: Queen Bee lands at 0.58 of max (not the pangram-hunting 0.70),
-  // so finishing the daily hive is achievable without finding every word.
+  // Rank ladder. Progress is measured by WORDS FOUND toward a fixed target
+  // (HIVE_TARGET), NOT by score fraction. Score-fraction made completion feel
+  // unreachable: a 4-letter word is 1 point but a pangram is 14, so finding
+  // many short words barely moved the bar. Word-count is what players actually
+  // perceive ("after 12 words I'm done"). The 7 ranks are spread evenly across
+  // the target, so you rank up every couple of words and Queen Bee == the
+  // target == 100% == a completed hive. Points/pangram bonus still drive coins.
   var RANKS = [
-    { name: "Worker",    pct: 0.00 },
-    { name: "Forager",   pct: 0.05 },
-    { name: "Builder",   pct: 0.12 },
-    { name: "Drone",     pct: 0.22 },
-    { name: "Keeper",    pct: 0.34 },
-    { name: "Royal",     pct: 0.46 },
-    { name: "Queen Bee", pct: 0.58 }
+    { name: "Worker"    },
+    { name: "Forager"   },
+    { name: "Builder"   },
+    { name: "Drone"     },
+    { name: "Keeper"    },
+    { name: "Royal"     },
+    { name: "Queen Bee" }
   ];
+
+  // Words needed to fill the hive (reach Queen Bee / 100%). A puzzle with fewer
+  // answers than this completes when all are found.
+  var HIVE_TARGET = 12;
+  function hiveTarget(wordCount) {
+    return Math.min(HIVE_TARGET, wordCount || HIVE_TARGET);
+  }
 
   // Reward paid the first time each rank index is reached, once per day. Tunable.
   var RANK_REWARDS = [
@@ -71,23 +82,26 @@
     return { ok: true };
   }
 
-  function rankThresholds(maxScore) {
-    return RANKS.map(function (r) {
-      return { name: r.name, at: Math.ceil(maxScore * r.pct) };
+  // Evenly spread the 7 ranks across `target` words found: 0, target/6, ...,
+  // target. `target` is a word-count goal (see hiveTarget), not a score.
+  function rankThresholds(target) {
+    var gaps = RANKS.length - 1;
+    return RANKS.map(function (r, i) {
+      return { name: r.name, at: Math.round((target * i) / gaps) };
     });
   }
 
-  function currentRankIndex(score, maxScore) {
-    var t = rankThresholds(maxScore), idx = 0;
-    for (var i = 0; i < t.length; i++) if (score >= t[i].at) idx = i;
+  // `found` = words found so far; `target` = the hive's word goal.
+  function currentRankIndex(found, target) {
+    var t = rankThresholds(target), idx = 0;
+    for (var i = 0; i < t.length; i++) if (found >= t[i].at) idx = i;
     return idx;
   }
 
-  function ringPct(score, maxScore) {
-    var t = rankThresholds(maxScore);
-    var queen = t[t.length - 1].at;
+  function ringPct(found, target) {
+    var queen = rankThresholds(target)[RANKS.length - 1].at;
     if (queen <= 0) return 0;
-    return Math.min(100, Math.round((score / queen) * 100));
+    return Math.min(100, Math.round((found / queen) * 100));
   }
 
   function newlyReachedRanks(score, maxScore, claimed) {
@@ -114,6 +128,8 @@
   var api = {
     RANKS: RANKS,
     RANK_REWARDS: RANK_REWARDS,
+    HIVE_TARGET: HIVE_TARGET,
+    hiveTarget: hiveTarget,
     scoreWord: scoreWord,
     isPangram: isPangram,
     validateWord: validateWord,

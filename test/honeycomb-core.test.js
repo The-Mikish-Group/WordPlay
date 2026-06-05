@@ -49,34 +49,40 @@ test("validateWord: accepts a valid answer", () => {
   assert.deepStrictEqual(core.validateWord("ANGLE", puzzle(["ANGLE"])), { ok: true });
 });
 
-test("rankThresholds: 7 ranks, ceil of percentage of maxScore", () => {
-  const t = core.rankThresholds(100);
+test("hiveTarget: caps at HIVE_TARGET, shrinks for tiny puzzles", () => {
+  assert.strictEqual(core.hiveTarget(24), core.HIVE_TARGET); // 12
+  assert.strictEqual(core.hiveTarget(12), 12);
+  assert.strictEqual(core.hiveTarget(8), 8);                 // fewer answers than target
+});
+
+test("rankThresholds: 7 ranks evenly spread across the word target", () => {
+  const t = core.rankThresholds(12);
   assert.strictEqual(t.length, 7);
   assert.strictEqual(t[0].name, "Worker");
   assert.strictEqual(t[0].at, 0);
   assert.strictEqual(t[6].name, "Queen Bee");
-  assert.strictEqual(t[6].at, 58); // ceil(100 * 0.58)
-  assert.strictEqual(t[1].at, 5); // Forager 5%
+  assert.strictEqual(t[6].at, 12); // Queen Bee == target == 100%
+  assert.deepStrictEqual(t.map(x => x.at), [0, 2, 4, 6, 8, 10, 12]);
 });
 
-test("currentRankIndex: highest rank whose threshold is met", () => {
-  assert.strictEqual(core.currentRankIndex(0, 100), 0);
-  assert.strictEqual(core.currentRankIndex(10, 100), 1);
-  assert.strictEqual(core.currentRankIndex(57, 100), 5);
-  assert.strictEqual(core.currentRankIndex(58, 100), 6);
+test("currentRankIndex: highest rank whose word count is met", () => {
+  assert.strictEqual(core.currentRankIndex(0, 12), 0);
+  assert.strictEqual(core.currentRankIndex(2, 12), 1);
+  assert.strictEqual(core.currentRankIndex(11, 12), 5);
+  assert.strictEqual(core.currentRankIndex(12, 12), 6); // hive complete
 });
 
-test("ringPct: percent toward Queen Bee, capped at 100", () => {
-  assert.strictEqual(core.ringPct(0, 100), 0);
-  assert.strictEqual(core.ringPct(29, 100), 50); // 29 / 58
-  assert.strictEqual(core.ringPct(58, 100), 100);
-  assert.strictEqual(core.ringPct(200, 100), 100);
+test("ringPct: percent of words toward the target, capped at 100", () => {
+  assert.strictEqual(core.ringPct(0, 12), 0);
+  assert.strictEqual(core.ringPct(6, 12), 50);
+  assert.strictEqual(core.ringPct(12, 12), 100);
+  assert.strictEqual(core.ringPct(99, 12), 100);
 });
 
 test("newlyReachedRanks: returns unclaimed reached rank indices", () => {
-  assert.deepStrictEqual(core.newlyReachedRanks(20, 100, []), [1, 2]);
-  assert.deepStrictEqual(core.newlyReachedRanks(20, 100, [1]), [2]);
-  assert.deepStrictEqual(core.newlyReachedRanks(20, 100, [1, 2]), []);
+  assert.deepStrictEqual(core.newlyReachedRanks(4, 12, []), [1, 2]);
+  assert.deepStrictEqual(core.newlyReachedRanks(4, 12, [1]), [2]);
+  assert.deepStrictEqual(core.newlyReachedRanks(4, 12, [1, 2]), []);
 });
 
 test("rewardForRank: Queen Bee pays coins + jars, Worker pays nothing", () => {
