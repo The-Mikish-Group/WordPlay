@@ -118,7 +118,7 @@ Signed-in players can flag words as too hard from the definition modal. Administ
 
 | Tier | Levels | Description |
 |------|--------|-------------|
-| Easy | 1–250 | Short words (3–5 letters), perfect for beginners |
+| Easy | 1–250 | Quick, short puzzles that ramp up gently — perfect for beginners |
 | Medium | 251–2,000 | Full 6-letter puzzles with moderate bonus words |
 | Hard | 2,001–5,000 | Puzzles with 3–9 bonus words |
 | Expert | 5,001–15,000 | Complex anagrams with 8–15+ bonus words |
