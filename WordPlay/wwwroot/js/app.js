@@ -571,7 +571,8 @@ async function recompute() {
     if (!state.isDailyMode && !state.isBonusMode && state.difficultyTier === 0 &&
         state.currentLevel >= 1 && state.currentLevel <= 250) {
         level._fullWords = level._fullWords || level.words.slice();
-        const capped = applyEasyDifficultyCap(level._fullWords, level.bonus, state.currentLevel);
+        level._fullBonus = level._fullBonus || (level.bonus ? level.bonus.slice() : []);
+        const capped = applyEasyDifficultyCap(level._fullWords, level._fullBonus, state.currentLevel);
         // Re-apply the banned filter on the capped result so a trimmed-to-bonus word
         // can't reintroduce a banned word.
         level.words = _bannedWords.size > 0
