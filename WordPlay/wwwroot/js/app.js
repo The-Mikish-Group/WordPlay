@@ -564,6 +564,25 @@ async function recompute() {
         if (level.bonus) level.bonus = level.bonus.filter(w => !_bannedWords.has(w));
     }
 
+    // Easy-tier difficulty smoothing: cap required word count & length for the early
+    // band so 6-letter wheels around level ~100 don't demand 14 long words. Easy
+    // (tier 0) only, normal play, display levels 1-250. Idempotent across re-entry via
+    // the one-time _fullWords stash. Trimmed required words move into level.bonus.
+    if (!state.isDailyMode && !state.isBonusMode && state.difficultyTier === 0 &&
+        state.currentLevel >= 1 && state.currentLevel <= 250) {
+        level._fullWords = level._fullWords || level.words.slice();
+        const capped = applyEasyDifficultyCap(level._fullWords, level.bonus, state.currentLevel);
+        // Re-apply the banned filter on the capped result so a trimmed-to-bonus word
+        // can't reintroduce a banned word.
+        level.words = _bannedWords.size > 0
+            ? capped.words.filter(w => !_bannedWords.has(w))
+            : capped.words;
+        if (level.words.length < 2) level.words = capped.words; // safety floor
+        level.bonus = _bannedWords.size > 0
+            ? capped.bonus.filter(w => !_bannedWords.has(w))
+            : capped.bonus;
+    }
+
     // Determine grid words vs bonus words
     const gridWords = level.words;
 
