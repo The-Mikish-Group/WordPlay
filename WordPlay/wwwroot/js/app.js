@@ -367,6 +367,11 @@ const HELPER_BEE_THRESHOLD = 4;// failed guesses before a helper bee steps in
 const HELPER_BEE_MAX = 3;      // cap assists per level so it never trivializes
 // Easy tier (0) gets more rescue assists; other tiers keep the base cap.
 function helperBeeMax() { return state.difficultyTier === 0 ? 5 : HELPER_BEE_MAX; }
+// Easy band (tier 0, display levels 1-250) earns a free hint every 5 levels instead of 10.
+function hintProgressInterval() {
+    return (!state.isDailyMode && !state.isBonusMode &&
+        state.difficultyTier === 0 && state.currentLevel <= 250) ? 5 : 10;
+}
 
 // ---- SPEED BONUS STATE ----
 let _speedTimerStart = 0;        // timestamp of first wheel touch this level
@@ -2891,11 +2896,7 @@ async function advanceToNextLevel() {
             if (typeof checkBeeMilestones === "function") checkBeeMilestones();
             if (typeof addLeagueXp === "function") addLeagueXp(LEAGUE_XP.level);
         }
-        // Easy band (tier 0, display levels 1-250) earns a free hint every 5 levels
-        // instead of 10; all other play keeps the every-10 cadence.
-        const hintEvery = (!state.isDailyMode && !state.isBonusMode &&
-            state.difficultyTier === 0 && state.currentLevel <= 250) ? 5 : 10;
-        if (state.levelsCompleted % hintEvery === 0) {
+        if (state.levelsCompleted % hintProgressInterval() === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
             else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
         }
@@ -2959,11 +2960,7 @@ async function handleNextLevel() {
             if (typeof checkBeeMilestones === "function") checkBeeMilestones();
             if (typeof addLeagueXp === "function") addLeagueXp(LEAGUE_XP.level);
         }
-        // Easy band (tier 0, display levels 1-250) earns a free hint every 5 levels
-        // instead of 10; all other play keeps the every-10 cadence.
-        const hintEvery = (!state.isDailyMode && !state.isBonusMode &&
-            state.difficultyTier === 0 && state.currentLevel <= 250) ? 5 : 10;
-        if (state.levelsCompleted % hintEvery === 0) {
+        if (state.levelsCompleted % hintProgressInterval() === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
             else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
         }
