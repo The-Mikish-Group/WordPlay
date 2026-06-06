@@ -113,6 +113,42 @@ const DIFFICULTY_TIERS = [
     { key: "master", label: "Master", offset: 15000, tagline: "I live for word puzzles" },
 ];
 
+// ---- EASY-TIER DIFFICULTY SMOOTHING ----
+// Easy (tier 0) is the ONLY tier that sees data levels 1-250 (Medium starts at
+// offset 250). Around level 75-100 the curated data spikes to 6-letter wheels that
+// require up to 14 words. We cap the REQUIRED (grid) word count and length per band
+// so early Easy levels stay gentle. Words trimmed out of the required set move to the
+// bonus pool, so nothing is lost - they remain findable and still earn bonus rewards.
+// Data files are untouched. Spec: docs/superpowers/specs/2026-06-05-easy-mode-difficulty-smoothing-design.md
+function easyCountCap(level) {
+    if (level <= 30) return 3;
+    if (level <= 80) return 4;
+    if (level <= 130) return 5;
+    if (level <= 180) return 6;
+    return 8; // 181-250
+}
+function easyLengthCap(level) {
+    if (level <= 80) return 4;
+    if (level <= 149) return 5;
+    return 6; // 150-250: no effective change
+}
+// Returns { words, bonus }: required words capped by count & length; trimmed words
+// appended to bonus. Guarantees >= 2 required words for crossword solvability.
+function applyEasyDifficultyCap(words, bonus, level) {
+    const lenCap = easyLengthCap(level);
+    const countCap = easyCountCap(level);
+    const sorted = words.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
+    let kept = sorted.filter(w => w.length <= lenCap).slice(0, countCap);
+    // Solvability floor: the crossword builder needs >= 2 interlocking words. If the
+    // length cap left fewer than 2, ignore it and keep the 2 shortest words.
+    if (kept.length < 2) kept = sorted.slice(0, Math.max(2, countCap));
+    const keptSet = new Set(kept);
+    const movedToBonus = words.filter(w => !keptSet.has(w));
+    const newBonus = (bonus || []).slice();
+    for (const w of movedToBonus) if (!newBonus.includes(w)) newBonus.push(w);
+    return { words: kept, bonus: newBonus };
+}
+
 // ---- STATE ----
 const state = {
     currentLevel: 1,       // Display level number (1-based, user-facing)
