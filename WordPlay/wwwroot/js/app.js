@@ -2,7 +2,7 @@
 // WordPlay — Main Application (Vanilla JS)
 // ============================================================
 
-const APP_VERSION = "2.0.11";
+const APP_VERSION = "2.0.12";
 
 // ---- THEMES ----
 const THEMES = {
@@ -112,6 +112,42 @@ const DIFFICULTY_TIERS = [
     { key: "expert", label: "Expert", offset: 5000, tagline: "Challenge me" },
     { key: "master", label: "Master", offset: 15000, tagline: "I live for word puzzles" },
 ];
+
+// ---- EASY-TIER DIFFICULTY SMOOTHING ----
+// Easy (tier 0) is the ONLY tier that sees data levels 1-250 (Medium starts at
+// offset 250). Around level 75-100 the curated data spikes to 6-letter wheels that
+// require up to 14 words. We cap the REQUIRED (grid) word count and length per band
+// so early Easy levels stay gentle. Words trimmed out of the required set move to the
+// bonus pool, so nothing is lost - they remain findable and still earn bonus rewards.
+// Data files are untouched. Spec: docs/superpowers/specs/2026-06-05-easy-mode-difficulty-smoothing-design.md
+function easyCountCap(level) {
+    if (level <= 30) return 3;
+    if (level <= 80) return 4;
+    if (level <= 130) return 5;
+    if (level <= 180) return 6;
+    return 8; // 181-250
+}
+function easyLengthCap(level) {
+    if (level <= 80) return 4;
+    if (level <= 149) return 5;
+    return 6; // 150-250: no effective change
+}
+// Returns { words, bonus }: required words capped by count & length; trimmed words
+// appended to bonus. Guarantees >= 2 required words for crossword solvability.
+function applyEasyDifficultyCap(words, bonus, level) {
+    const lenCap = easyLengthCap(level);
+    const countCap = easyCountCap(level);
+    const sorted = words.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
+    let kept = sorted.filter(w => w.length <= lenCap).slice(0, countCap);
+    // Solvability floor: the crossword builder needs >= 2 interlocking words. If the
+    // length cap left fewer than 2, ignore it and keep the 2 shortest words.
+    if (kept.length < 2) kept = sorted.slice(0, Math.max(2, countCap));
+    const keptSet = new Set(kept);
+    const movedToBonus = words.filter(w => !keptSet.has(w));
+    const newBonus = (bonus || []).slice();
+    for (const w of movedToBonus) if (!newBonus.includes(w)) newBonus.push(w);
+    return { words: kept, bonus: newBonus };
+}
 
 // ---- STATE ----
 const state = {
@@ -329,6 +365,13 @@ let _struggle = 0;             // consecutive invalid swipes since the last word
 let _helperBeeUses = 0;        // helper-bee assists already given this level
 const HELPER_BEE_THRESHOLD = 4;// failed guesses before a helper bee steps in
 const HELPER_BEE_MAX = 3;      // cap assists per level so it never trivializes
+// Easy tier (0) gets more rescue assists; other tiers keep the base cap.
+function helperBeeMax() { return state.difficultyTier === 0 ? 5 : HELPER_BEE_MAX; }
+// Easy band (tier 0, display levels 1-250) earns a free hint every 5 levels instead of 10.
+function hintProgressInterval() {
+    return (!state.isDailyMode && !state.isBonusMode &&
+        state.difficultyTier === 0 && state.currentLevel <= 250) ? 5 : 10;
+}
 
 // ---- SPEED BONUS STATE ----
 let _speedTimerStart = 0;        // timestamp of first wheel touch this level
@@ -526,6 +569,26 @@ async function recompute() {
         level.words = level.words.filter(w => !_bannedWords.has(w));
         if (level.words.length < 2) level.words = unfilteredWords; // safety fallback
         if (level.bonus) level.bonus = level.bonus.filter(w => !_bannedWords.has(w));
+    }
+
+    // Easy-tier difficulty smoothing: cap required word count & length for the early
+    // band so 6-letter wheels around level ~100 don't demand 14 long words. Easy
+    // (tier 0) only, normal play, display levels 1-250. Idempotent across re-entry via
+    // the one-time _fullWords stash. Trimmed required words move into level.bonus.
+    if (!state.isDailyMode && !state.isBonusMode && state.difficultyTier === 0 &&
+        state.currentLevel >= 1 && state.currentLevel <= 250) {
+        level._fullWords = level._fullWords || level.words.slice();
+        level._fullBonus = level._fullBonus || (level.bonus ? level.bonus.slice() : []);
+        const capped = applyEasyDifficultyCap(level._fullWords, level._fullBonus, state.currentLevel);
+        // Re-apply the banned filter on the capped result so a trimmed-to-bonus word
+        // can't reintroduce a banned word.
+        level.words = _bannedWords.size > 0
+            ? capped.words.filter(w => !_bannedWords.has(w))
+            : capped.words;
+        if (level.words.length < 2) level.words = capped.words; // safety floor
+        level.bonus = _bannedWords.size > 0
+            ? capped.bonus.filter(w => !_bannedWords.has(w))
+            : capped.bonus;
     }
 
     // Determine grid words vs bonus words
@@ -901,7 +964,7 @@ function _flyHelperBee(targetCell) {
 function _maybeHelperBee() {
     if (typeof hiveActive !== "function" || !hiveActive()) return;
     if (state._levelCompleting || state.showComplete) return;
-    if (_helperBeeUses >= HELPER_BEE_MAX) return;
+    if (_helperBeeUses >= helperBeeMax()) return;
     if (_struggle < HELPER_BEE_THRESHOLD) return;
     if (state.foundWords.length === 0) return; // let them solve the easy ones first
     const cell = pickRandomUnrevealedCell();
@@ -2833,7 +2896,7 @@ async function advanceToNextLevel() {
             if (typeof checkBeeMilestones === "function") checkBeeMilestones();
             if (typeof addLeagueXp === "function") addLeagueXp(LEAGUE_XP.level);
         }
-        if (state.levelsCompleted % 10 === 0) {
+        if (state.levelsCompleted % hintProgressInterval() === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
             else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
         }
@@ -2897,7 +2960,7 @@ async function handleNextLevel() {
             if (typeof checkBeeMilestones === "function") checkBeeMilestones();
             if (typeof addLeagueXp === "function") addLeagueXp(LEAGUE_XP.level);
         }
-        if (state.levelsCompleted % 10 === 0) {
+        if (state.levelsCompleted % hintProgressInterval() === 0) {
             if (state.freeHints < MAX_FREE_HINTS) state.freeHints++;
             else showToast("Hint bank full!", "rgba(255,255,255,0.5)", true);
         }
@@ -7881,7 +7944,7 @@ const GUIDE_SECTIONS = [
     { icon: "\uD83D\uDCD6", title: "Word Definitions", body: "Curious about a word? Tap any found word in the grid to see its definition! A popup shows the part of speech and meaning. Only non-intersecting letters are tappable \u2014 look for cells that belong to just one word." },
     { icon: "\uD83D\uDEA9", title: "Flag a Word", body: "Think a word is too obscure? When viewing a word\u2019s definition, tap <b>Flag for Review</b> to vote for its removal. Flagged words are reviewed by the game\u2019s administrators. You must be signed in to flag words." },
     { icon: "\u26A1", title: "Speed Bonus", body: "Beat the clock for a free prize spin! When you start swiping on a level with 5+ words, a hidden timer starts. Finish the level within <b>7 seconds per word</b> and you\u2019ll earn a \u26A1 Speed Bonus \u2014 a free spin on the prize wheel with chances to win hints, targets, rockets, bonus stars, or 100 coins. Works on regular levels and flow levels!" },
-    { icon: "\uD83C\uDFAF", title: "Difficulty Tiers", body: "WordPlay matches puzzles to your skill level! There are five tiers:<br><br>\uD83C\uDF31 <b>Easy</b> \u2014 Levels 1\u2013250. Short words with 3\u20135 letters, perfect for beginners.<br>\uD83C\uDFC5 <b>Medium</b> \u2014 Levels 251\u20132,000. Full 6-letter puzzles with moderate bonus words.<br>\uD83D\uDD25 <b>Hard</b> \u2014 Levels 2,001\u20135,000. Puzzles loaded with 3\u20139 bonus words.<br>\uD83C\uDFC6 <b>Expert</b> \u2014 Levels 5,001\u201315,000. Complex anagrams with 8\u201315+ bonus words.<br>\uD83D\uDC51 <b>Master</b> \u2014 Levels 15,001+. 7\u20138 letter puzzles with massive word counts for true word enthusiasts.<br><br>Your tier is set automatically based on your progress. When you cross a tier boundary, you\u2019ll be <b>auto-promoted</b> with a celebration! You can change your tier in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> \u2014 switch to a lower tier if puzzles feel too hard. Tiers that can\u2019t fit your level count are hidden. Lowering your tier pauses auto-promotion until you move back up.<br><br><b>Note:</b> Speed milestones (5 fast levels = bonus puzzle) are disabled on Easy tier." },
+    { icon: "\uD83C\uDFAF", title: "Difficulty Tiers", body: "WordPlay matches puzzles to your skill level! There are five tiers:<br><br>\uD83C\uDF31 <b>Easy</b> \u2014 Levels 1\u2013250. Quick, short puzzles that ramp up gently, perfect for beginners.<br>\uD83C\uDFC5 <b>Medium</b> \u2014 Levels 251\u20132,000. Full 6-letter puzzles with moderate bonus words.<br>\uD83D\uDD25 <b>Hard</b> \u2014 Levels 2,001\u20135,000. Puzzles loaded with 3\u20139 bonus words.<br>\uD83C\uDFC6 <b>Expert</b> \u2014 Levels 5,001\u201315,000. Complex anagrams with 8\u201315+ bonus words.<br>\uD83D\uDC51 <b>Master</b> \u2014 Levels 15,001+. 7\u20138 letter puzzles with massive word counts for true word enthusiasts.<br><br>Your tier is set automatically based on your progress. When you cross a tier boundary, you\u2019ll be <b>auto-promoted</b> with a celebration! You can change your tier in <a href=\"#\" class=\"guide-link\" data-action=\"settings\">Settings</a> \u2014 switch to a lower tier if puzzles feel too hard. Tiers that can\u2019t fit your level count are hidden. Lowering your tier pauses auto-promotion until you move back up.<br><br><b>Note:</b> Speed milestones (5 fast levels = bonus puzzle) are disabled on Easy tier." },
     { icon: "\uD83D\uDD00", title: "Shuffle", body: "Tap the shuffle button to rearrange the letters on the wheel. Same letters, fresh perspective \u2014 sometimes that\u2019s all you need to spot a hidden word!" },
     { icon: "\uD83D\uDDFA\uFE0F", title: "Level Map", body: "Open the <a href=\"#\" class=\"guide-link\" data-action=\"map\">Level Map</a> from Settings to browse all level packs and groups. See your progress, jump to any unlocked level, and explore what\u2019s ahead!" },
     { icon: "\uD83C\uDFA8", title: "Themes", body: "The game features 16 beautiful color themes \u2014 Sunrise, Forest, Ocean, Aurora, and more. Themes change as you progress through different level groups." },
